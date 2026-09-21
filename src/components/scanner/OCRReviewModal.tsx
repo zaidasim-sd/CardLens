@@ -80,6 +80,7 @@ export function ModernContactTypeSelect({
   const [pos, setPos] = useState({ top: 0, buttonTop: 0, left: 0, width: 0, openUp: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const options = [
     { label: "None", value: "", desc: "No category assigned", badgeBg: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400" },
@@ -104,7 +105,13 @@ export function ModernContactTypeSelect({
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+      const target = e.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        panelRef.current && !panelRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -127,6 +134,7 @@ export function ModernContactTypeSelect({
 
       {isOpen && createPortal(
         <div
+          ref={panelRef}
           style={{ position: "fixed", top: pos.openUp ? undefined : pos.top, bottom: pos.openUp ? (window.innerHeight - pos.buttonTop + 2) : undefined, left: pos.left, width: pos.width, zIndex: 99999 }}
           className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-2xl space-y-0.5 animate-in fade-in zoom-in-95 max-h-72 overflow-y-auto"
         >
@@ -136,6 +144,7 @@ export function ModernContactTypeSelect({
               <button
                 key={opt.value}
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${isSel
                   ? "bg-slate-900/10 text-slate-900 dark:bg-white/10 dark:text-white"
@@ -173,6 +182,7 @@ export function ModernFieldSelect({
   const [pos, setPos] = useState({ top: 0, buttonTop: 0, left: 0, width: 0, openUp: false });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const allOptions = [{ label: "None", value: "", desc: "Not specified" }, ...options];
   const selected = allOptions.find((o) => o.value === value) || allOptions[0];
@@ -189,7 +199,13 @@ export function ModernFieldSelect({
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+      const target = e.target as Node;
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        panelRef.current && !panelRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
     };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
@@ -211,6 +227,7 @@ export function ModernFieldSelect({
 
       {isOpen && createPortal(
         <div
+          ref={panelRef}
           style={{ position: "fixed", top: pos.openUp ? undefined : pos.top, bottom: pos.openUp ? (window.innerHeight - pos.buttonTop + 2) : undefined, left: pos.left, width: pos.width, zIndex: 99999 }}
           className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-2xl space-y-0.5 animate-in fade-in zoom-in-95 max-h-64 overflow-y-auto"
         >
@@ -220,6 +237,7 @@ export function ModernFieldSelect({
               <button
                 key={opt.value}
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { onChange(opt.value); setIsOpen(false); }}
                 className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer ${isSel
                   ? "bg-slate-900/10 text-slate-900 dark:bg-white/10 dark:text-white"
