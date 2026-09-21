@@ -11,40 +11,25 @@ export interface DemoCardConfig {
 }
 
 export const SINGLE_DEMO_CARD: DemoCardConfig = {
-  id: "demo-aerosyntech",
-  title: "AeroSynTech Solutions",
-  personName: "Daniel Rahman",
-  companyName: "AeroSynTech Solutions",
-  imagePath: "/democard.png",
-  rawOCRText: `AeroSynTech Solutions
-Daniel Rahman
-Business Development Manager
-Mobile: +1 (555) 284-7712
-Office: +1 (555) 284-7700
-Email: danielrahman@aerosyntech
-Website: www.aerosyntech.com
-Address: 425 Madison Avenue, Suite 1200, New York, NY 10017, USA`,
+  id: "anonymous-demo-card",
+  title: "Demonstration card",
+  personName: "Demo contact",
+  companyName: "Demo company",
+  imagePath: "/demo-card.svg",
+  rawOCRText: "DEMONSTRATION ONLY\nDemo contact\nDemo company\nDemo role\ndemo@example.com",
   preparedData: {
-    fullName: "Daniel Rahman",
-    jobTitle: "Business Development Manager",
-    companyName: "AeroSynTech Solutions",
-    email: "danielrahman@aerosyntech", // Purposefully missing .com to trigger "Please verify" label
-    phone: "+1 (555) 284-7712",
-    alternatePhone: "+1 (555) 284-7700",
-    website: "www.aerosyntech.com",
-    address: "425 Madison Avenue, Suite 1200",
-    city: "New York",
-    country: "Morocco",
+    fullName: "Demo contact",
+    jobTitle: "Demo role",
+    companyName: "Demo company",
+    email: "demo@example.com",
+    phone: "",
+    alternatePhone: "",
+    website: "",
+    address: "",
+    city: "",
+    country: "",
     notes: "",
-    meetingContext: {
-      metAtLocation: "Marrakech Airshow 2026 \u2014 Marrakech, Morocco",
-      contactType: "",
-      productInterest: "Aircraft Components & Rotables",
-      relationshipOwner: "Sales Team",
-      notes: "",
-      followUpDate: "",
-    },
+    meetingContext: { metAtLocation: "", notes: "" },
   },
 };
-
 export const DEMO_CARDS: DemoCardConfig[] = [SINGLE_DEMO_CARD];

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { AlertTriangle, User, Building2, Mail, Phone } from "lucide-react";
 import {
   Dialog,
@@ -26,12 +27,15 @@ export default function DuplicateWarningModal({
   onSaveAnyway,
   onViewExisting,
 }: Props) {
+  const [confirmSeparate, setConfirmSeparate] = useState(false);
+  useEffect(() => { setConfirmSeparate(false); }, [isOpen, existingContact?.id]);
+
   if (!existingContact) return null;
   const v = existingContact.verifiedData;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[540px] p-5 sm:p-6 rounded-2xl overflow-hidden shadow-2xl">
+      <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[540px] p-5 sm:p-6 rounded-2xl max-h-[90dvh] overflow-y-auto shadow-2xl">
         <DialogHeader className="space-y-2 text-left">
           <div className="flex items-start gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
@@ -42,7 +46,9 @@ export default function DuplicateWarningModal({
                 Possible existing contact found
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
-                {matchReason ? `${matchReason}. Please review it before creating a second record.` : "Please review it before creating a second record."}
+                {matchReason?.startsWith("Matching email")
+                  ? "A matching email address was found. Please review the existing contact before creating another record."
+                  : "Matching contact details were found. Please review the existing contact before creating another record."}
               </DialogDescription>
             </div>
           </div>
@@ -92,30 +98,33 @@ export default function DuplicateWarningModal({
           </div>
         </div>
 
-        {/* Action Buttons — stacked full-width for clean, consistent layout */}
-        <div className="mt-5 flex flex-col gap-2.5 w-full">
+        <div className="mt-5 flex w-full flex-col gap-2.5">
           <Button
-            onClick={onSaveAnyway}
-            className="w-full h-11 rounded-xl bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-100 px-5 text-sm font-semibold text-white dark:text-slate-900 shadow-sm cursor-pointer"
+            onClick={onViewExisting}
+            className="min-h-11 w-full rounded-xl bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
           >
-            Save as new contact
+            Review existing contact
           </Button>
-          <div className="grid grid-cols-2 gap-2.5">
-            <Button
-              variant="outline"
-              onClick={onViewExisting}
-              className="w-full h-11 rounded-xl border-slate-900/20 bg-transparent px-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:text-white hover:bg-slate-900/8 hover:border-slate-900/40 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
-            >
-              Review existing
+          <Button variant="outline" onClick={onClose} className="min-h-11 w-full rounded-xl">
+            Go back and edit
+          </Button>
+          {confirmSeparate ? (
+            <div className="mt-2 space-y-3 rounded-xl border p-4" role="group" aria-label="Confirm separate contact">
+              <p className="text-sm text-muted-foreground">
+                Create another record despite the possible match? The existing contact will remain unchanged.
+              </p>
+              <Button variant="outline" onClick={onSaveAnyway} className="min-h-11 w-full rounded-xl whitespace-normal">
+                Confirm separate contact
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirmSeparate(false)} className="min-h-11 w-full rounded-xl">
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button variant="ghost" onClick={() => setConfirmSeparate(true)} className="min-h-11 w-full rounded-xl text-sm font-normal text-muted-foreground">
+              Create a separate contact
             </Button>
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="w-full h-11 rounded-xl border-slate-900/20 bg-slate-900/5 px-3 text-sm font-semibold text-slate-900 dark:border-slate-700 dark:bg-slate-800/40 dark:text-white hover:bg-slate-900/10 hover:border-slate-900/40 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
-            >
-              Go back &amp; edit
-            </Button>
-          </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

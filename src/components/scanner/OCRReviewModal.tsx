@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Save, X, AlertCircle, CheckCircle2, ArrowRight, RefreshCw, ZoomIn, ChevronDown, Calendar, ChevronLeft, Mail } from "lucide-react";
+import { Send, X, AlertCircle, CheckCircle2, ArrowRight, RefreshCw, ZoomIn, ChevronDown, Calendar, ChevronLeft, Mail } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { storageService } from "@/lib/db";
 import { checkDuplicateContact } from "@/lib/duplicateChecker";
 import DuplicateWarningModal from "./DuplicateWarningModal";
+import ViewCardModal from "@/components/verified/ViewCardModal";
 import type { OCRData, ContactRecord } from "@/types";
 
 const schema = z.object({
@@ -37,19 +38,11 @@ const schema = z.object({
   }),
   phone: z.string().optional(),
   jobTitle: z.string().optional(),
-  alternatePhone: z.string().optional(),
-  website: z.string().refine(val => !val || val.includes('.'), "Invalid URL").optional().or(z.literal("")),
-  address: z.string().optional(),
-  city: z.string().optional(),
   country: z.string().optional(),
   notes: z.string().optional(),
 
   // Meeting Context fields
   metAtLocation: z.string().optional(),
-  contactType: z.string().optional(),
-  productInterest: z.string().optional(),
-  relationshipOwner: z.string().optional(),
-  followUpDate: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (!data.fullName && !data.companyName) {
     ctx.addIssue({
@@ -261,14 +254,9 @@ export function ModernFieldSelect({
 
 // Option lists ─────────────────────────────────────────────────────────────────
 export const MET_AT_OPTIONS = [
-  { label: "Marrakech Airshow 2026 — Marrakech, Morocco", value: "Marrakech Airshow 2026 — Marrakech, Morocco" },
-  { label: "NBAA-BACE 2026 — Las Vegas, USA", value: "NBAA-BACE 2026 — Las Vegas, USA" },
-  { label: "MRO Europe 2026 — Amsterdam, Netherlands", value: "MRO Europe 2026 — Amsterdam, Netherlands" },
-  { label: "MRO Asia-Pacific 2026 — Singapore EXPO", value: "MRO Asia-Pacific 2026 — Singapore EXPO" },
-  { label: "Airshow China 2026 — Zhuhai, China", value: "Airshow China 2026 — Zhuhai, China" },
-  { label: "MRO Americas 2027 — Orlando, USA", value: "MRO Americas 2027 — Orlando, USA" },
-  { label: "Direct / Cold Outreach", value: "Direct / Cold Outreach" },
-  { label: "Referral", value: "Referral" },
+  { label: "Event A", value: "Event A", desc: "Demonstration data" },
+  { label: "Event B", value: "Event B", desc: "Demonstration data" },
+  { label: "Other source", value: "Other source", desc: "Demonstration data" },
 ];
 
 export const PRODUCT_INTEREST_OPTIONS = [
@@ -514,8 +502,8 @@ export default function OCRReviewModal({
     pendingVerifiedData: OCRData;
   } | null>(null);
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+  const [isExistingContactOpen, setIsExistingContactOpen] = useState(false);
   const [isZoomImageOpen, setIsZoomImageOpen] = useState(false);
-  const [isMeetingContextOpen, setIsMeetingContextOpen] = useState(false);
 
   const {
     register,
@@ -523,7 +511,6 @@ export default function OCRReviewModal({
     formState: { errors, dirtyFields },
     reset,
     watch,
-    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -532,17 +519,9 @@ export default function OCRReviewModal({
       companyName: ocrData?.companyName || "",
       email: ocrData?.email || "",
       phone: ocrData?.phone || "",
-      alternatePhone: ocrData?.alternatePhone || "",
-      website: ocrData?.website || "",
-      address: ocrData?.address || "",
-      city: ocrData?.city || "",
       country: ocrData?.country || "",
       notes: ocrData?.notes || "",
-      metAtLocation: ocrData?.meetingContext?.metAtLocation || "",
-      contactType: ocrData?.meetingContext?.contactType || "",
-      productInterest: ocrData?.meetingContext?.productInterest || "",
-      relationshipOwner: ocrData?.meetingContext?.relationshipOwner || "",
-      followUpDate: ocrData?.meetingContext?.followUpDate || "",
+      metAtLocation: "",
     },
   });
 
@@ -556,21 +535,12 @@ export default function OCRReviewModal({
         companyName: ocrData.companyName || "",
         email: ocrData.email || "",
         phone: ocrData.phone || "",
-        alternatePhone: ocrData.alternatePhone || "",
-        website: ocrData.website || "",
-        address: ocrData.address || "",
-        city: ocrData.city || "",
         country: ocrData.country || "",
         notes: ocrData.notes || "",
-        metAtLocation: ocrData.meetingContext?.metAtLocation || "",
-        contactType: ocrData.meetingContext?.contactType || "",
-        productInterest: ocrData.meetingContext?.productInterest || "",
-        relationshipOwner: ocrData.meetingContext?.relationshipOwner || "",
-        followUpDate: ocrData.meetingContext?.followUpDate || "",
+        metAtLocation: "",
       });
       setSavedRecord(null);
       setDuplicateMatch(null);
-      setIsMeetingContextOpen(false);
     }
   }, [isOpen, ocrData, reset]);
 
@@ -593,9 +563,9 @@ export default function OCRReviewModal({
 
       await storageService.saveRecord(record);
       setSavedRecord(record);
-      toast.success("Contact saved successfully!");
+      toast.success("Contact submitted for review");
     } catch (error) {
-      toast.error("Failed to save contact. Please try again.");
+      toast.error("Failed to submit contact for review. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -608,18 +578,14 @@ export default function OCRReviewModal({
       jobTitle: data.jobTitle?.trim() || "",
       email: data.email?.trim().toLowerCase() || "",
       phone: data.phone?.trim() || "",
-      alternatePhone: data.alternatePhone?.trim() || "",
-      website: data.website?.trim() || "",
-      address: data.address?.trim() || "",
-      city: data.city?.trim() || "",
+      alternatePhone: "",
+      website: "",
+      address: "",
+      city: "",
       country: data.country?.trim() || "",
       notes: data.notes?.trim() || "",
       meetingContext: {
         metAtLocation: data.metAtLocation?.trim() || "",
-        contactType: data.contactType?.trim() || "",
-        productInterest: data.productInterest?.trim() || "",
-        relationshipOwner: data.relationshipOwner?.trim() || "",
-        followUpDate: data.followUpDate?.trim() || "",
         notes: data.notes?.trim() || "",
       }
     };
@@ -664,13 +630,9 @@ export default function OCRReviewModal({
       if (!emailRegex.test(val)) return true;
     }
 
-    if (name === "phone" || name === "alternatePhone") {
+    if (name === "phone") {
       const digits = val.replace(/\D/g, "");
       if (digits.length > 0 && digits.length < 7) return true;
-    }
-
-    if (name === "website") {
-      if (!val.includes(".")) return true;
     }
 
     return false;
@@ -752,11 +714,16 @@ export default function OCRReviewModal({
 
               <div className="space-y-1.5 max-w-sm mx-auto">
                 <h3 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight">
-                  Contact Saved Successfully
+                  Contact submitted for review
                 </h3>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  The reviewed business card details have been saved to local workspace.
+                  The contact is ready for Aventure’s approved review process.
                 </p>
+                {isDemo && (
+                  <p className="pt-2 text-xs text-muted-foreground leading-relaxed">
+                    Demonstration only. This contact has not been sent to Constant Contact.
+                  </p>
+                )}
               </div>
 
               {/* Compact Saved Contact Card */}
@@ -764,7 +731,7 @@ export default function OCRReviewModal({
                 <div className="space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="font-semibold text-base text-foreground leading-snug">
-                      {savedRecord.verifiedData.fullName || savedRecord.verifiedData.companyName || "Saved Contact"}
+                      {savedRecord.verifiedData.fullName || savedRecord.verifiedData.companyName || "Submitted contact"}
                     </h4>
                     {savedRecord.isDemo && (
                       <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-2.5 py-0.5 rounded-full">
@@ -825,7 +792,7 @@ export default function OCRReviewModal({
                     navigate("/verified");
                   }}
                 >
-                  View Reviewed Contacts <ArrowRight className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+                  View review queue <ArrowRight className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
                 </Button>
               </div>
             </div>
@@ -846,7 +813,7 @@ export default function OCRReviewModal({
                     )}
                   </div>
                   <DialogDescription className="text-xs md:text-sm text-slate-600 dark:text-slate-400">
-                    Please review before saving. OCR can make mistakes. Edit any field as needed.
+                    Check the details before submitting for review. OCR can make mistakes. Edit any field as needed.
                   </DialogDescription>
                 </div>
               </DialogHeader>
@@ -878,112 +845,40 @@ export default function OCRReviewModal({
                     onSubmit={handleSubmit(onSubmit)}
                     className="space-y-6"
                   >
-                    {/* Section 1: Identity Details */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b pb-1.5">
-                        Extracted Business Card Details
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="sm:col-span-2">
-                          {renderField("Full Name", "fullName")}
-                        </div>
-                        {renderField("Company Name", "companyName")}
-                        {renderField("Job Title", "jobTitle")}
-                        {renderField("Email Address", "email", "email")}
-                        {renderField("Phone Number", "phone", "tel")}
-                        {renderField("Alternate Phone", "alternatePhone", "tel")}
-                        {renderField("Website", "website", "text")}
-                        <div className="sm:col-span-2">
-                          {renderField("Street Address", "address")}
-                        </div>
-                        {renderField("City", "city")}
-                        {renderField("Country", "country")}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      {renderField("Name", "fullName")}
+                      {renderField("Company", "companyName")}
+                      {renderField("Job title", "jobTitle")}
+                      {renderField("Email", "email", "email")}
+                      {renderField("Phone", "phone", "tel")}
+                      {renderField("Country or location", "country")}
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label htmlFor="metAtLocation">Event / source</Label>
+                        <select
+                          id="metAtLocation"
+                          {...register("metAtLocation")}
+                          aria-describedby="event-demo-description"
+                          className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="">Select event or source</option>
+                          {MET_AT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>{option.label}</option>
+                          ))}
+                        </select>
+                        <p id="event-demo-description" className="text-xs text-muted-foreground">
+                          Demonstration options only; these are not confirmed Aventure events.
+                        </p>
                       </div>
-                    </div>
-
-                    {/* Section 2: Meeting Context (Collapsible Dropdown) */}
-                    <div className="mt-4 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-all bg-slate-50/60 dark:bg-slate-900/40">
-                      <button
-                        type="button"
-                        onClick={() => setIsMeetingContextOpen(!isMeetingContextOpen)}
-                        className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                            Meeting Context (Optional)
-                          </span>
-                          {/* {hasMeetingContextData && (
-                            <span className="px-2 py-0.5 text-[10px] font-semibold bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-full">
-                              Filled
-                            </span>
-                          )} */}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-                          <span>{isMeetingContextOpen ? "Hide" : "Add details"}</span>
-                          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isMeetingContextOpen ? "rotate-180" : ""}`} />
-                        </div>
-                      </button>
-
-                      {isMeetingContextOpen && (
-                        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-4 bg-white dark:bg-slate-950">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Met at / Event / Location — dropdown */}
-                            <div className="space-y-1.5">
-                              <Label className="font-medium text-xs sm:text-sm">
-                                Met at / Event / Location
-                              </Label>
-                              <ModernFieldSelect
-                                value={watch("metAtLocation") || ""}
-                                onChange={(val) => setValue("metAtLocation", val, { shouldDirty: true })}
-                                placeholder="Select event or location…"
-                                options={MET_AT_OPTIONS}
-                              />
-                            </div>
-
-                            {/* Contact Type — unchanged */}
-                            <div className="space-y-1.5">
-                              <Label className="font-medium text-xs sm:text-sm text-slate-900 dark:text-slate-100">
-                                Contact Type
-                              </Label>
-                              <ModernContactTypeSelect
-                                value={watch("contactType") || ""}
-                                onChange={(val) => setValue("contactType", val, { shouldDirty: true })}
-                              />
-                            </div>
-
-                            {/* Product / Interest — dropdown */}
-                            <div className="space-y-1.5">
-                              <Label className="font-medium text-xs sm:text-sm">
-                                Product / Interest
-                              </Label>
-                              <ModernFieldSelect
-                                value={watch("productInterest") || ""}
-                                onChange={(val) => setValue("productInterest", val, { shouldDirty: true })}
-                                placeholder="Select product or interest…"
-                                options={PRODUCT_INTEREST_OPTIONS}
-                              />
-                            </div>
-
-                            {/* Relationship Owner / Salesperson — dropdown */}
-                            <div className="space-y-1.5">
-                              <Label className="font-medium text-xs sm:text-sm">
-                                Relationship Owner / Salesperson
-                              </Label>
-                              <ModernFieldSelect
-                                value={watch("relationshipOwner") || ""}
-                                onChange={(val) => setValue("relationshipOwner", val, { shouldDirty: true })}
-                                placeholder="Select owner or salesperson…"
-                                options={RELATIONSHIP_OWNER_OPTIONS}
-                              />
-                            </div>
-
-                            {/* Notes & Meeting Context — free text (full width) */}
-                            <div className="sm:col-span-2">
-                              {renderField("Notes & Meeting Context", "notes")}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label htmlFor="notes">Short notes</Label>
+                        <textarea
+                          id="notes"
+                          {...register("notes")}
+                          rows={3}
+                          placeholder="Add a short note (optional)"
+                          className="w-full resize-y rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
                     </div>
                   </form>
                 </div>
@@ -1010,11 +905,11 @@ export default function OCRReviewModal({
                   >
                     {isSaving ? (
                       <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Saving…
+                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Submitting…
                       </>
                     ) : (
                       <>
-                        <Save className="w-4 h-4 mr-2" /> Save reviewed contact
+                        <Send className="w-4 h-4 mr-2" /> Submit for review
                       </>
                     )}
                   </Button>
@@ -1038,12 +933,25 @@ export default function OCRReviewModal({
           }}
           onViewExisting={() => {
             setIsDuplicateModalOpen(false);
-            setIsOpen(false);
-            onSuccess();
-            navigate("/verified");
+            setIsExistingContactOpen(true);
           }}
         />
       )}
+
+      <ViewCardModal
+        isOpen={isExistingContactOpen}
+        setIsOpen={(open) => {
+          setIsExistingContactOpen(open);
+          if (!open) setIsDuplicateModalOpen(true);
+        }}
+        record={duplicateMatch?.record || null}
+        onViewQueue={() => {
+          setIsExistingContactOpen(false);
+          setIsOpen(false);
+          onSuccess();
+          navigate("/verified");
+        }}
+      />
 
       {/* Zoom Image Dialog */}
       <Dialog open={isZoomImageOpen} onOpenChange={setIsZoomImageOpen}>

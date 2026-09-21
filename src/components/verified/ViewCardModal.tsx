@@ -8,14 +8,15 @@ interface Props {
   isOpen: boolean;
   setIsOpen: (val: boolean) => void;
   record: ContactRecord | null;
+  onViewQueue?: () => void;
 }
 
-export default function ViewCardModal({ isOpen, setIsOpen, record }: Props) {
+export default function ViewCardModal({ isOpen, setIsOpen, record, onViewQueue }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (record?.isDemo) {
-      setImageUrl("/democard.png");
+      setImageUrl("/demo-card.svg");
       return;
     }
     if (record?.originalImage && record.originalImage.size >= 100) {
@@ -24,13 +25,13 @@ export default function ViewCardModal({ isOpen, setIsOpen, record }: Props) {
         url = URL.createObjectURL(record.originalImage);
         setImageUrl(url);
       } catch {
-        setImageUrl("/democard.png");
+        setImageUrl("/demo-card.svg");
       }
       return () => {
         if (url) URL.revokeObjectURL(url);
       };
     } else {
-      setImageUrl("/democard.png");
+      setImageUrl("/demo-card.svg");
     }
   }, [record]);
 
@@ -81,10 +82,10 @@ export default function ViewCardModal({ isOpen, setIsOpen, record }: Props) {
           {/* Card Image Display */}
           <div className="lg:w-1/2 p-4 sm:p-6 bg-slate-100/70 dark:bg-slate-900/40 flex items-center justify-center relative min-h-[220px] lg:min-h-0 shrink-0 border-b lg:border-b-0 lg:border-r border-border">
             <img
-              src={imageUrl || "/democard.png"}
+              src={imageUrl || "/demo-card.svg"}
               alt={vData.fullName || "Business Card"}
               onError={(e) => {
-                (e.target as HTMLImageElement).src = "/democard.png";
+                (e.target as HTMLImageElement).src = "/demo-card.svg";
               }}
               className="max-w-full max-h-full object-contain rounded-xl shadow-md border border-slate-200 dark:border-slate-800"
             />
@@ -144,7 +145,8 @@ export default function ViewCardModal({ isOpen, setIsOpen, record }: Props) {
           </div>
         </div>
 
-        <div className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex justify-end shrink-0">
+        <div className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50 flex flex-wrap justify-end gap-3 shrink-0">
+          {onViewQueue && <Button onClick={onViewQueue} className="min-h-12 rounded-xl">View review queue</Button>}
           <Button
             variant="outline"
             onClick={() => setIsOpen(false)}
