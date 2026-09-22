@@ -1,7 +1,8 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Link } from "react-router-dom";
-import { ListChecks, Scan } from "lucide-react";
+import { ListChecks, Scan, Download } from "lucide-react";
 import { storageService } from "@/lib/db";
+import { Button } from "@/components/ui/button";
 
 export default function VerifiedQueuePage() {
   // Only expose an anonymous count: never render stored contact details or images.
@@ -10,9 +11,20 @@ export default function VerifiedQueuePage() {
 
   return (
     <section className="mx-auto w-full max-w-3xl py-6 sm:py-12">
-      <header className="mb-7 space-y-2">
-        <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Contact capture</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Review Queue</h1>
+      <header className="mb-7 space-y-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Contact capture</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Review Queue</h1>
+          </div>
+          <Button
+            type="button"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-xs transition-all hover:bg-slate-800 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer w-fit"
+          >
+            <Download className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>Export Contacts</span>
+          </Button>
+        </div>
         <p className="text-sm leading-relaxed text-muted-foreground">
           Contacts submitted for review. All entries shown here are anonymised for this demonstration.
         </p>
