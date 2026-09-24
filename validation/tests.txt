@@ -1,0 +1,35 @@
+
+> aventrue-ocr-platform@0.0.0 test
+> node --test server/pilot/pilot.test.js shared/contactValidation.test.mjs
+
+(node:13080) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ approval is a reviewer decision and submitted records cannot be approved by assistant (10.8103ms)
+✔ tenant isolation and assistant ownership (1.9688ms)
+✔ duplicates normalize email and international phone without merging (3.3061ms)
+✔ stale approval rejected and correction returns to editable draft (2.1682ms)
+✔ transfer requires approval; repeat success produces one remote creation (3.9313ms)
+✔ remote duplicate is shown without overwriting (2.1171ms)
+✔ timeout is visible and cannot be blindly retried (2.115ms)
+✔ 429 persists cooldown and allows a later retry (4.9899ms)
+✔ concurrent transfers are serialized (2.5735ms)
+✔ retention deletes images and emits non-PII audit records (1.1035ms)
+✔ database payloads encrypted and wrong key fails (0.8166ms)
+✔ unknown/sensitive fields and dropdown values rejected (1.4822ms)
+✔ production cannot start (1.2919ms)
+✔ capture can start empty but incomplete drafts cannot be submitted (1.198ms)
+✔ email whitespace and case normalize before duplicate checking (0.6248ms)
+✔ parser preserves international primary phone and avoids substring company matches (4.2685ms)
+✔ image decoder rejects fake PNG content before OCR (21.6068ms)
+✔ HTTP authentication, CSRF, support limits, revocation and safe errors (330.3611ms)
+✔ rejects blank, whitespace, and punctuation-only OCR (2.3544ms)
+✔ rejects missing or empty structured results even when OCR has text (0.592ms)
+✔ allows partial and international contacts for review (0.9114ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1152.6527

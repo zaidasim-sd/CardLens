@@ -1,0 +1,765 @@
+{
+  "provider": "Tesseract.js local baseline, not a cloud-provider validation",
+  "cards": 30,
+  "pages": 33,
+  "accuracy": {
+    "fullName": 0.8,
+    "companyName": 0,
+    "email": 0.9666666666666667,
+    "phone": 0.6333333333333333
+  },
+  "meanMilliseconds": 204,
+  "manualCorrectionCards": 30,
+  "results": [
+    {
+      "id": 1,
+      "category": "clear",
+      "milliseconds": 249,
+      "matches": {
+        "fullName": false,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Fictional Aviation",
+        "jobTitle": "Sales Manager",
+        "companyName": "Alice Example",
+        "email": "card01@example.com",
+        "phone": "+1202 555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 2,
+      "category": "blurred",
+      "milliseconds": 181,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "David Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card02@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD WO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 3,
+      "category": "alternate layout",
+      "milliseconds": 176,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Sarah Fiction",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card03@example.com",
+        "phone": "",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, +61 2 5550 0100, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 4,
+      "category": "small text",
+      "milliseconds": 175,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "James Demo",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card04@example.com",
+        "phone": "+92 21 5555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 5,
+      "category": "multiple phones",
+      "milliseconds": 257,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Maria Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card05@example.com",
+        "phone": "+1202 555 0102",
+        "alternatePhone": "+1202 555 0101",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 6,
+      "category": "international",
+      "milliseconds": 176,
+      "matches": {
+        "fullName": false,
+        "companyName": false,
+        "email": false,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Fictional Aviation",
+        "jobTitle": "Sales Manager",
+        "companyName": "Alice Example",
+        "email": "card0o6@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 7,
+      "category": "dense logo",
+      "milliseconds": 207,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "David Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card07@example.com",
+        "phone": "",
+        "alternatePhone": "",
+        "website": "",
+        "address": "DEMO AIR], Fictional Aviation, +61 2 5550 0100, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 8,
+      "category": "front and back",
+      "milliseconds": 284,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Sarah Fiction",
+        "jobTitle": "Sales Manager",
+        "companyName": "card08@example.com",
+        "email": "card08@example.com",
+        "phone": "+92 21 5555 0101",
+        "alternatePhone": "+92 21 5555 0101",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA, Fictional Aviation",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 9,
+      "category": "clear",
+      "milliseconds": 266,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "James Demo",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card09@example.com",
+        "phone": "+1202 555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 10,
+      "category": "blurred",
+      "milliseconds": 177,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Maria Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card10@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD WO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 11,
+      "category": "alternate layout",
+      "milliseconds": 169,
+      "matches": {
+        "fullName": false,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Fictional Aviation",
+        "jobTitle": "Sales Manager",
+        "companyName": "Alice Example",
+        "email": "card11@example.com",
+        "phone": "",
+        "alternatePhone": "",
+        "website": "",
+        "address": "+61 2 5550 0100, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 12,
+      "category": "small text",
+      "milliseconds": 172,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "David Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card12@example.com",
+        "phone": "+92 21 5555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 13,
+      "category": "multiple phones",
+      "milliseconds": 183,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Sarah Fiction",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card13@example.com",
+        "phone": "+1202 555 0102",
+        "alternatePhone": "+1202 555 0101",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 14,
+      "category": "international",
+      "milliseconds": 167,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "James Demo",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card14@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 15,
+      "category": "dense logo",
+      "milliseconds": 203,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Maria Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card15@example.com",
+        "phone": "",
+        "alternatePhone": "",
+        "website": "",
+        "address": "DEMO AIR], Fictional Aviation, +61 2 5550 0100, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 16,
+      "category": "front and back",
+      "milliseconds": 294,
+      "matches": {
+        "fullName": false,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Fictional Aviation",
+        "jobTitle": "Sales Manager",
+        "companyName": "Alice Example",
+        "email": "card16@example.com",
+        "phone": "+92 21 5555 0101",
+        "alternatePhone": "+92 21 5555 0101",
+        "website": "",
+        "address": "FICTIONAL TEST CARD NO REAL CUSTOMER DATA, Fictional Aviation, card16@example.com",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 17,
+      "category": "clear",
+      "milliseconds": 179,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "David Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card17@example.com",
+        "phone": "+1202 555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 18,
+      "category": "blurred",
+      "milliseconds": 254,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Sarah Fiction",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card18@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD WO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 19,
+      "category": "alternate layout",
+      "milliseconds": 170,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "James Demo",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card19@example.com",
+        "phone": "",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, +61 2 5550 0100, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 20,
+      "category": "small text",
+      "milliseconds": 164,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Maria Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card20@example.com",
+        "phone": "+92 21 5555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 21,
+      "category": "multiple phones",
+      "milliseconds": 214,
+      "matches": {
+        "fullName": false,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Fictional Aviation",
+        "jobTitle": "Sales Manager",
+        "companyName": "Alice Example",
+        "email": "card21@example.com",
+        "phone": "+1202 555 0102",
+        "alternatePhone": "+1202 555 0101",
+        "website": "",
+        "address": "FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 22,
+      "category": "international",
+      "milliseconds": 181,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "David Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card22@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 23,
+      "category": "dense logo",
+      "milliseconds": 221,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Sarah Fiction",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card23@example.com",
+        "phone": "",
+        "alternatePhone": "",
+        "website": "",
+        "address": "DEMO AIR], Fictional Aviation, +61 2 5550 0100, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 24,
+      "category": "front and back",
+      "milliseconds": 276,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "James Demo",
+        "jobTitle": "Sales Manager",
+        "companyName": "card24@example.com",
+        "email": "card24@example.com",
+        "phone": "+92 21 5555 0101",
+        "alternatePhone": "+92 21 5555 0101",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA, Fictional Aviation",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 25,
+      "category": "clear",
+      "milliseconds": 169,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Maria Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card25@example.com",
+        "phone": "+1202 555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 26,
+      "category": "blurred",
+      "milliseconds": 187,
+      "matches": {
+        "fullName": false,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Fictional Aviation",
+        "jobTitle": "Sales Manager",
+        "companyName": "Alice Example",
+        "email": "card26@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "FICTIONAL TEST CARD WO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 27,
+      "category": "alternate layout",
+      "milliseconds": 183,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "David Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card27@example.com",
+        "phone": "",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, +61 2 5550 0100, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 28,
+      "category": "small text",
+      "milliseconds": 169,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Sarah Fiction",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card28@example.com",
+        "phone": "+92 21 5555 0101",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 29,
+      "category": "multiple phones",
+      "milliseconds": 198,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": false
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "James Demo",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card29@example.com",
+        "phone": "+1202 555 0102",
+        "alternatePhone": "+1202 555 0101",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    },
+    {
+      "id": 30,
+      "category": "international",
+      "milliseconds": 206,
+      "matches": {
+        "fullName": true,
+        "companyName": false,
+        "email": true,
+        "phone": true
+      },
+      "manualCorrectionRequired": true,
+      "parsed": {
+        "fullName": "Maria Sample",
+        "jobTitle": "Sales Manager",
+        "companyName": "",
+        "email": "card30@example.com",
+        "phone": "+44 20 7946 0000",
+        "alternatePhone": "",
+        "website": "",
+        "address": "Fictional Aviation, FICTIONAL TEST CARD NO REAL CUSTOMER DATA",
+        "city": "",
+        "country": "",
+        "notes": ""
+      }
+    }
+  ]
+}

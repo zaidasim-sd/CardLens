@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-24T07:40:50.743Z",
+  "accountType": "User-confirmed test account",
+  "oauth": "passed",
+  "tokenRefreshAndSignatureValidation": "passed",
+  "listDiscovery": "passed",
+  "preferredListFound": false,
+  "testList": "CardSnap Readiness Test 2026-09-24",
+  "listId": "40f4305e-b7eb-11f1-9495-02420a320002",
+  "customField": "Lead Source",
+  "contactCreation": "passed",
+  "fieldMapping": "passed",
+  "listAssignment": "passed",
+  "sourceAssignment": "passed",
+  "providerDuplicateHTTPStatus": 409,
+  "appDuplicateWarning": "passed",
+  "repeatTransfer": "same receipt; no second create",
+  "remoteContactId": "41b3205e-b7eb-11f1-9831-02420a320002",
+  "recordId": "ce3de73c-593d-493f-aff4-5a5d063f1702",
+  "rateLimits": "429 cooldown verified by fault injection, not live saturation",
+  "updates": "Not enabled; reviewer links existing records without overwriting",
+  "emailCampaigns": "Not requested or sent"
+}

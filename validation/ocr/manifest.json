@@ -1,0 +1,395 @@
+[
+  {
+    "id": 1,
+    "category": "clear",
+    "files": [
+      "card-01.png"
+    ],
+    "expected": {
+      "fullName": "Alice Example",
+      "companyName": "Fictional Aviation",
+      "email": "card01@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 2,
+    "category": "blurred",
+    "files": [
+      "card-02.png"
+    ],
+    "expected": {
+      "fullName": "David Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card02@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  },
+  {
+    "id": 3,
+    "category": "alternate layout",
+    "files": [
+      "card-03.png"
+    ],
+    "expected": {
+      "fullName": "Sarah Fiction",
+      "companyName": "Fictional Aviation",
+      "email": "card03@example.com",
+      "phone": "+61 2 5550 0100"
+    }
+  },
+  {
+    "id": 4,
+    "category": "small text",
+    "files": [
+      "card-04.png"
+    ],
+    "expected": {
+      "fullName": "James Demo",
+      "companyName": "Fictional Aviation",
+      "email": "card04@example.com",
+      "phone": "+92 21 5555 0101"
+    }
+  },
+  {
+    "id": 5,
+    "category": "multiple phones",
+    "files": [
+      "card-05.png"
+    ],
+    "expected": {
+      "fullName": "Maria Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card05@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 6,
+    "category": "international",
+    "files": [
+      "card-06.png"
+    ],
+    "expected": {
+      "fullName": "Alice Example",
+      "companyName": "Fictional Aviation",
+      "email": "card06@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  },
+  {
+    "id": 7,
+    "category": "dense logo",
+    "files": [
+      "card-07.png"
+    ],
+    "expected": {
+      "fullName": "David Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card07@example.com",
+      "phone": "+61 2 5550 0100"
+    }
+  },
+  {
+    "id": 8,
+    "category": "front and back",
+    "files": [
+      "card-08.png",
+      "card-08-back.png"
+    ],
+    "expected": {
+      "fullName": "Sarah Fiction",
+      "companyName": "Fictional Aviation",
+      "email": "card08@example.com",
+      "phone": "+92 21 5555 0101"
+    }
+  },
+  {
+    "id": 9,
+    "category": "clear",
+    "files": [
+      "card-09.png"
+    ],
+    "expected": {
+      "fullName": "James Demo",
+      "companyName": "Fictional Aviation",
+      "email": "card09@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 10,
+    "category": "blurred",
+    "files": [
+      "card-10.png"
+    ],
+    "expected": {
+      "fullName": "Maria Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card10@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  },
+  {
+    "id": 11,
+    "category": "alternate layout",
+    "files": [
+      "card-11.png"
+    ],
+    "expected": {
+      "fullName": "Alice Example",
+      "companyName": "Fictional Aviation",
+      "email": "card11@example.com",
+      "phone": "+61 2 5550 0100"
+    }
+  },
+  {
+    "id": 12,
+    "category": "small text",
+    "files": [
+      "card-12.png"
+    ],
+    "expected": {
+      "fullName": "David Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card12@example.com",
+      "phone": "+92 21 5555 0101"
+    }
+  },
+  {
+    "id": 13,
+    "category": "multiple phones",
+    "files": [
+      "card-13.png"
+    ],
+    "expected": {
+      "fullName": "Sarah Fiction",
+      "companyName": "Fictional Aviation",
+      "email": "card13@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 14,
+    "category": "international",
+    "files": [
+      "card-14.png"
+    ],
+    "expected": {
+      "fullName": "James Demo",
+      "companyName": "Fictional Aviation",
+      "email": "card14@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  },
+  {
+    "id": 15,
+    "category": "dense logo",
+    "files": [
+      "card-15.png"
+    ],
+    "expected": {
+      "fullName": "Maria Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card15@example.com",
+      "phone": "+61 2 5550 0100"
+    }
+  },
+  {
+    "id": 16,
+    "category": "front and back",
+    "files": [
+      "card-16.png",
+      "card-16-back.png"
+    ],
+    "expected": {
+      "fullName": "Alice Example",
+      "companyName": "Fictional Aviation",
+      "email": "card16@example.com",
+      "phone": "+92 21 5555 0101"
+    }
+  },
+  {
+    "id": 17,
+    "category": "clear",
+    "files": [
+      "card-17.png"
+    ],
+    "expected": {
+      "fullName": "David Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card17@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 18,
+    "category": "blurred",
+    "files": [
+      "card-18.png"
+    ],
+    "expected": {
+      "fullName": "Sarah Fiction",
+      "companyName": "Fictional Aviation",
+      "email": "card18@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  },
+  {
+    "id": 19,
+    "category": "alternate layout",
+    "files": [
+      "card-19.png"
+    ],
+    "expected": {
+      "fullName": "James Demo",
+      "companyName": "Fictional Aviation",
+      "email": "card19@example.com",
+      "phone": "+61 2 5550 0100"
+    }
+  },
+  {
+    "id": 20,
+    "category": "small text",
+    "files": [
+      "card-20.png"
+    ],
+    "expected": {
+      "fullName": "Maria Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card20@example.com",
+      "phone": "+92 21 5555 0101"
+    }
+  },
+  {
+    "id": 21,
+    "category": "multiple phones",
+    "files": [
+      "card-21.png"
+    ],
+    "expected": {
+      "fullName": "Alice Example",
+      "companyName": "Fictional Aviation",
+      "email": "card21@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 22,
+    "category": "international",
+    "files": [
+      "card-22.png"
+    ],
+    "expected": {
+      "fullName": "David Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card22@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  },
+  {
+    "id": 23,
+    "category": "dense logo",
+    "files": [
+      "card-23.png"
+    ],
+    "expected": {
+      "fullName": "Sarah Fiction",
+      "companyName": "Fictional Aviation",
+      "email": "card23@example.com",
+      "phone": "+61 2 5550 0100"
+    }
+  },
+  {
+    "id": 24,
+    "category": "front and back",
+    "files": [
+      "card-24.png",
+      "card-24-back.png"
+    ],
+    "expected": {
+      "fullName": "James Demo",
+      "companyName": "Fictional Aviation",
+      "email": "card24@example.com",
+      "phone": "+92 21 5555 0101"
+    }
+  },
+  {
+    "id": 25,
+    "category": "clear",
+    "files": [
+      "card-25.png"
+    ],
+    "expected": {
+      "fullName": "Maria Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card25@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 26,
+    "category": "blurred",
+    "files": [
+      "card-26.png"
+    ],
+    "expected": {
+      "fullName": "Alice Example",
+      "companyName": "Fictional Aviation",
+      "email": "card26@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  },
+  {
+    "id": 27,
+    "category": "alternate layout",
+    "files": [
+      "card-27.png"
+    ],
+    "expected": {
+      "fullName": "David Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card27@example.com",
+      "phone": "+61 2 5550 0100"
+    }
+  },
+  {
+    "id": 28,
+    "category": "small text",
+    "files": [
+      "card-28.png"
+    ],
+    "expected": {
+      "fullName": "Sarah Fiction",
+      "companyName": "Fictional Aviation",
+      "email": "card28@example.com",
+      "phone": "+92 21 5555 0101"
+    }
+  },
+  {
+    "id": 29,
+    "category": "multiple phones",
+    "files": [
+      "card-29.png"
+    ],
+    "expected": {
+      "fullName": "James Demo",
+      "companyName": "Fictional Aviation",
+      "email": "card29@example.com",
+      "phone": "+1 202 555 0101"
+    }
+  },
+  {
+    "id": 30,
+    "category": "international",
+    "files": [
+      "card-30.png"
+    ],
+    "expected": {
+      "fullName": "Maria Sample",
+      "companyName": "Fictional Aviation",
+      "email": "card30@example.com",
+      "phone": "+44 20 7946 0000"
+    }
+  }
+]

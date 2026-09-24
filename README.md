@@ -1,4 +1,10 @@
-# React + TypeScript + Vite
+# CardSnap by Vision71
+
+The internal architecture pilot, setup instructions, validation evidence and production limitations are documented in [docs/README-pilot.md](docs/README-pilot.md). Run `npm run pilot:setup` then `npm run pilot` for the named-user pilot at `http://localhost:3000/pilot/`.
+
+The readiness report is in `artifacts/CardSnap-Architecture-Readiness.pdf`. The React application remains a fictional-only public demonstration; arbitrary public uploads are disabled.
+
+## Original frontend development notes
 
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 

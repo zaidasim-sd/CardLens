@@ -1,0 +1,27 @@
+// Run only against the account confirmed by its owner as a test account.
+import 'dotenv/config';
+import assert from 'node:assert/strict';
+import { writeFileSync } from 'node:fs';
+import { Store } from '../server/pilot/store.js';
+import { ConstantContact, transfer } from '../server/pilot/constant-contact.js';
+import { createRecord, transition, defaults } from '../server/pilot/workflow.js';
+const store=new Store(process.env.DATA_PATH||'./.data/development.sqlite',process.env.DATA_KEY);
+const cc=new ConstantContact(store);const tenant='demo';
+const token=store.get(tenant,'integration','cc');if(!token)throw new Error('Account owner OAuth consent is required');
+await cc.token(tenant,{grant_type:'refresh_token',refresh_token:token.refresh_token});
+const options=await cc.configuration(tenant);const listName='CardSnap Readiness Test 2026-09-24';
+let list=options.lists.find(l=>l.name===listName);
+if(!list)list=await cc.request(tenant,'/contact_lists',{method:'POST',body:JSON.stringify({name:listName,description:'Fictional architecture validation only. No campaigns or automations.'})});
+let field=options.customFields.find(f=>f.label===process.env.CC_CUSTOM_FIELD_LABEL);
+if(!field)field=await cc.request(tenant,'/contact_custom_fields',{method:'POST',body:JSON.stringify({label:process.env.CC_CUSTOM_FIELD_LABEL||'Lead Source',type:'string'})});
+store.put(tenant,'config','cc',{listId:list.list_id,sourceFieldId:field.custom_field_id,testAccountConfirmed:true});
+const users=store.all(tenant,'user');const assistant={...users.find(u=>u.role==='assistant'),tenant};const reviewer={...users.find(u=>u.role==='reviewer'),tenant};
+const data={fullName:'Alice Example',companyName:'Fictional Aviation',email:`cardsnap-readiness-${Date.now()}@example.com`,phone:'+1 202 555 0101',event:defaults.dropdowns.event[0],fictional:true};
+let r=createRecord(store,assistant,data);r=transition(store,assistant,r.id,'submit',r.version);r=transition(store,reviewer,r.id,r.status==='possible_duplicate'?'distinct':'approve',r.version);
+r=await transfer(store,cc,reviewer,r.id);assert.equal(r.status,'transferred',r.errorCode);
+const matches=await cc.lookup(tenant,data.email);assert.equal(matches.length,1);const remote=matches[0];assert.equal(remote.contact_id,r.ccId);assert.equal(remote.first_name,'Alice');assert.equal(remote.last_name,'Example');assert.equal(remote.company_name,data.companyName);assert.ok(remote.list_memberships.includes(list.list_id));assert.ok(remote.custom_fields.some(f=>f.custom_field_id===field.custom_field_id&&f.value===data.event));assert.equal(remote.phone_numbers[0].phone_number.replace(/\D/g,''),'12025550101');
+assert.equal((await transfer(store,cc,reviewer,r.id)).ccId,r.ccId);
+let duplicateStatus;try{await cc.create(tenant,data,{listId:list.list_id,sourceFieldId:field.custom_field_id});}catch(e){duplicateStatus=e.httpStatus;}assert.equal(duplicateStatus,409);
+let duplicate=createRecord(store,assistant,data);duplicate=transition(store,assistant,duplicate.id,'submit',duplicate.version);assert.equal(duplicate.status,'possible_duplicate');duplicate=transition(store,reviewer,duplicate.id,'distinct',duplicate.version);duplicate=await transfer(store,cc,reviewer,duplicate.id);assert.equal(duplicate.status,'possible_duplicate');
+const evidence={at:new Date().toISOString(),accountType:'User-confirmed test account',oauth:'passed',tokenRefreshAndSignatureValidation:'passed',listDiscovery:'passed',preferredListFound:options.lists.some(l=>l.name===process.env.CC_LIST_NAME),testList:listName,listId:list.list_id,customField:field.label,contactCreation:'passed',fieldMapping:'passed',listAssignment:'passed',sourceAssignment:'passed',providerDuplicateHTTPStatus:duplicateStatus,appDuplicateWarning:'passed',repeatTransfer:'same receipt; no second create',remoteContactId:r.ccId,recordId:r.id,rateLimits:'429 cooldown verified by fault injection, not live saturation',updates:'Not enabled; reviewer links existing records without overwriting',emailCampaigns:'Not requested or sent'};
+writeFileSync('validation/constant-contact-live.json',JSON.stringify(evidence,null,2));console.log(JSON.stringify(evidence,null,2));store.audit(tenant,reviewer.id,'live_validation_completed',r.id);store.db.close();
