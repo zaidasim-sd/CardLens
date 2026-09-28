@@ -2,9 +2,13 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import ocrRoutes from "./routes/ocr.js";
+import { validateOcrConfig } from "./services/ocrService.js";
 
 // Load environment variables
 dotenv.config();
+
+// Validate OCR configuration
+validateOcrConfig();
 
 const app = express();
 const port = process.env.PORT || 3000;

@@ -37,13 +37,18 @@ router.post(
 
       let frontText = "";
       let backText = "";
+      let frontResult = null;
+      let backResult = null;
 
       if (frontFile) {
         try {
-          const ocrResult = await performOCR(frontFile.buffer);
-          frontText = ocrResult.rawText || "";
+          frontResult = await performOCR(frontFile.buffer);
+          frontText = frontResult.rawText || "";
         } catch (err) {
           console.error("Front card OCR error:", err.message);
+          if (!backFile) {
+            throw err;
+          }
         }
       }
 
@@ -53,11 +58,18 @@ router.post(
           if (frontFile) {
             await new Promise((res) => setTimeout(res, 600));
           }
-          const ocrResultBack = await performOCR(backFile.buffer);
-          backText = ocrResultBack.rawText || "";
+          backResult = await performOCR(backFile.buffer);
+          backText = backResult.rawText || "";
         } catch (err) {
           console.warn("Back card OCR warning (falling back to front only):", err.message);
+          if (!frontText) {
+            throw err;
+          }
         }
+      }
+
+      if (!frontResult && !backResult) {
+        throw new Error("Unable to scan this business card. Please try again.");
       }
 
       const combinedRawText = backText
@@ -72,6 +84,8 @@ router.post(
       res.json({
         rawText: combinedRawText,
         parsed: parsed,
+        provider: frontResult?.provider || backResult?.provider || "google",
+        success: true,
       });
     } catch (error) {
       console.error("OCR Route Error:", error.message);
