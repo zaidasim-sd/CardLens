@@ -9,7 +9,7 @@ const navItems = [
 
 export default function Header() {
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-20 sm:h-22 shrink-0 items-center justify-between border-b border-border/80 bg-background/95 px-3 sm:px-6 md:px-8 backdrop-blur-md md:sticky">
+    <header className="relative fixed inset-x-0 top-0 z-40 flex h-20 sm:h-22 shrink-0 items-center justify-between border-b border-border/80 bg-background/95 px-3 sm:px-6 md:px-8 backdrop-blur-md md:sticky">
       {/* Official CardSnap by V71 Logo Area (Left-most, Enlarged & Professional) */}
       <div className="flex items-center justify-start shrink-0">
         <NavLink
@@ -25,8 +25,8 @@ export default function Header() {
         </NavLink>
       </div>
 
-      {/* Navigation Links - Centered (Hidden on Mobile, Mobile uses fixed bottom nav bar) */}
-      <nav className="hidden md:flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-900/80 p-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      {/* Navigation Links - Centered on Desktop (Hidden on Mobile, Mobile uses fixed bottom nav bar) */}
+      <nav className="hidden md:flex md:absolute md:left-1/2 md:-translate-x-1/2 items-center gap-1.5 bg-slate-100/80 dark:bg-slate-900/80 p-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-xs">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
