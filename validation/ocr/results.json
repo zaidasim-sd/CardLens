@@ -1,4 +1,5 @@
 {
+  "complete": true,
   "provider": "Tesseract.js local baseline, not a cloud-provider validation",
   "cards": 30,
   "pages": 33,
@@ -8,13 +9,16 @@
     "email": 0.9666666666666667,
     "phone": 1
   },
-  "meanMilliseconds": 204,
+  "meanMilliseconds": 219,
   "manualCorrectionCards": 4,
+  "exports": {
+    "transferred": 30
+  },
   "results": [
     {
       "id": 1,
       "category": "clear",
-      "milliseconds": 261,
+      "milliseconds": 254,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -34,12 +38,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-d134dd8e101341850adc21a51a521f59a0feb26cf9d68c50570e2dca686395ec",
+        "contactId": "f556d4d2-b7f7-11f1-a42d-02420a320002"
       }
     },
     {
       "id": 2,
       "category": "blurred",
-      "milliseconds": 181,
+      "milliseconds": 229,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -59,12 +68,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-96e01ab9edf211a2204df805ffc832cf2bd75f4f833c2614ba8ddc76d88c63de",
+        "contactId": "f6156a28-b7f7-11f1-bfc8-02420a320002"
       }
     },
     {
       "id": 3,
       "category": "alternate layout",
-      "milliseconds": 180,
+      "milliseconds": 184,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -84,12 +98,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-baddeb01eb95fdf28d313d1003e197c3176a3fc167ff27f55699f67e0ea94045",
+        "contactId": "f6b04278-b7f7-11f1-b788-02420a320002"
       }
     },
     {
       "id": 4,
       "category": "small text",
-      "milliseconds": 189,
+      "milliseconds": 169,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -109,12 +128,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-940b43d9134a9beb835beaf48c94341d6bfc54bd25e748fed9ab82cc2e3ea2ec",
+        "contactId": "f7d5d8ac-b7f7-11f1-bfc8-02420a320002"
       }
     },
     {
       "id": 5,
       "category": "multiple phones",
-      "milliseconds": 205,
+      "milliseconds": 203,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -134,12 +158,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-f8d425d3d1b799063df3561e336fc7c8b2fd86b5a6790f388f31c79c2f60b9d3",
+        "contactId": "f8f30a70-b7f7-11f1-9257-02420a320002"
       }
     },
     {
       "id": 6,
       "category": "international",
-      "milliseconds": 209,
+      "milliseconds": 192,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -159,12 +188,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-877acf4d7bc0c1cdd27bf86a834a8598a44d1827456fbfe8ada1d613b32f07b8",
+        "contactId": "f9c49f5e-b7f7-11f1-9257-02420a320002"
       }
     },
     {
       "id": 7,
       "category": "dense logo",
-      "milliseconds": 242,
+      "milliseconds": 235,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -184,12 +218,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-3c0f38352980d1113d110f510582be9ecc8545bc66f23aab691c95eaf8b981c6",
+        "contactId": "fad53f5c-b7f7-11f1-9831-02420a320002"
       }
     },
     {
       "id": 8,
       "category": "front and back",
-      "milliseconds": 272,
+      "milliseconds": 309,
       "matches": {
         "fullName": true,
         "companyName": false,
@@ -209,12 +248,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-c34e5ce90066ca8e35d53d3aaf6829ccf8fbaa6a9e5acd0710072cddcd142990",
+        "contactId": "fbc082aa-b7f7-11f1-bfc8-02420a320002"
       }
     },
     {
       "id": 9,
       "category": "clear",
-      "milliseconds": 188,
+      "milliseconds": 213,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -234,12 +278,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-964210fe499300f8c3bf2cf3f0ffa845428a360e08dd2009abdc33580be1da91",
+        "contactId": "fc9e45b8-b7f7-11f1-b2f6-02420a320002"
       }
     },
     {
       "id": 10,
       "category": "blurred",
-      "milliseconds": 194,
+      "milliseconds": 186,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -259,12 +308,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-6062b370606af2e129cfd2ce521df9d808053ba987667f9911798288917f4b20",
+        "contactId": "fdc10980-b7f7-11f1-9831-02420a320002"
       }
     },
     {
       "id": 11,
       "category": "alternate layout",
-      "milliseconds": 195,
+      "milliseconds": 213,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -284,12 +338,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-3a21b8fdd0216f46d9be3cad49ec326ca0b1a6823abd3c58b56ff3c711d08924",
+        "contactId": "fecaac00-b7f7-11f1-9495-02420a320002"
       }
     },
     {
       "id": 12,
       "category": "small text",
-      "milliseconds": 218,
+      "milliseconds": 207,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -309,12 +368,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-c29d2b7909cc0291c7d3bf6da3b789c5b536e119f0e9c3c8e2babcb1988276f1",
+        "contactId": "0004f7e2-b7f8-11f1-bfc8-02420a320002"
       }
     },
     {
       "id": 13,
       "category": "multiple phones",
-      "milliseconds": 197,
+      "milliseconds": 230,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -334,12 +398,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-f719873b08b44dda77ea64b977682137cdffc6fa8648381ed73b115b3fd9216b",
+        "contactId": "012ebbe4-b7f8-11f1-b2ec-02420a320002"
       }
     },
     {
       "id": 14,
       "category": "international",
-      "milliseconds": 182,
+      "milliseconds": 201,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -359,12 +428,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-ea4ec0332a829b36b8d1bdb32d51fea7900f05c928fc0565ee5d12184717a975",
+        "contactId": "0247edac-b7f8-11f1-a42d-02420a320002"
       }
     },
     {
       "id": 15,
       "category": "dense logo",
-      "milliseconds": 201,
+      "milliseconds": 238,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -384,12 +458,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-b23d135827205dc05e7e1da95d7152803ed1efbbae4408b93ff5332a5642877a",
+        "contactId": "0361b326-b7f8-11f1-b788-02420a320002"
       }
     },
     {
       "id": 16,
       "category": "front and back",
-      "milliseconds": 280,
+      "milliseconds": 284,
       "matches": {
         "fullName": true,
         "companyName": false,
@@ -409,12 +488,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-1de4d67c38644f1fd149939457bfcef03f138605a276584a8fd431107c2b9351",
+        "contactId": "0498c9dc-b7f8-11f1-9831-02420a320002"
       }
     },
     {
       "id": 17,
       "category": "clear",
-      "milliseconds": 186,
+      "milliseconds": 187,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -434,12 +518,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-ce759485ba63e4cd122e5b04137375cddb7f8202fd719a78f6add00d63ad46c6",
+        "contactId": "059be508-b7f8-11f1-8c55-02420a320002"
       }
     },
     {
       "id": 18,
       "category": "blurred",
-      "milliseconds": 200,
+      "milliseconds": 190,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -459,12 +548,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-876bb83ed1ca2aab925350d833cf10161054dc0fdd67046280f6a6f3d313088e",
+        "contactId": "0675ab94-b7f8-11f1-a42d-02420a320002"
       }
     },
     {
       "id": 19,
       "category": "alternate layout",
-      "milliseconds": 189,
+      "milliseconds": 202,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -484,12 +578,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-b0beb0fbe9ed164a81e9abeb1c86992b49421678b433fb3ecb9ce2b9220115c1",
+        "contactId": "0798e77a-b7f8-11f1-b788-02420a320002"
       }
     },
     {
       "id": 20,
       "category": "small text",
-      "milliseconds": 179,
+      "milliseconds": 196,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -509,12 +608,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-3b4a10df4acf19912f499fa6b705bba39ebb8832d23498608b532f778f973471",
+        "contactId": "08bd22b0-b7f8-11f1-bfc8-02420a320002"
       }
     },
     {
       "id": 21,
       "category": "multiple phones",
-      "milliseconds": 231,
+      "milliseconds": 228,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -534,12 +638,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-225f7d23236ad846966961a14705708fb0fc366957bc7774d4ec350861bc85d9",
+        "contactId": "09d59a9c-b7f8-11f1-9257-02420a320002"
       }
     },
     {
       "id": 22,
       "category": "international",
-      "milliseconds": 183,
+      "milliseconds": 253,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -559,12 +668,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-92afc75c5c79d36f576907dce866e0d41a214fb1dcbf0cc514519ca11d8fad3b",
+        "contactId": "0af6eb38-b7f8-11f1-b2ec-02420a320002"
       }
     },
     {
       "id": 23,
       "category": "dense logo",
-      "milliseconds": 217,
+      "milliseconds": 214,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -584,12 +698,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-9ca6625148bd977483e4528abf0492857fa8c78f6532359cdbb0cdcd9f89bd3f",
+        "contactId": "0c0b0180-b7f8-11f1-9f20-02420a320002"
       }
     },
     {
       "id": 24,
       "category": "front and back",
-      "milliseconds": 274,
+      "milliseconds": 326,
       "matches": {
         "fullName": true,
         "companyName": false,
@@ -609,12 +728,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-457a5aab48ba52646c0c58f01a1d895f51cbcb2d2e3982962db31a6257f5606e",
+        "contactId": "0d2efc4c-b7f8-11f1-87fb-02420a320002"
       }
     },
     {
       "id": 25,
       "category": "clear",
-      "milliseconds": 175,
+      "milliseconds": 208,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -634,12 +758,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-29e5190625f0d03039084fdffbd3510b862bbc7d6219cf304020223626543ef8",
+        "contactId": "0e503cc6-b7f8-11f1-8bc3-02420a320002"
       }
     },
     {
       "id": 26,
       "category": "blurred",
-      "milliseconds": 184,
+      "milliseconds": 200,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -659,12 +788,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-b10748463f01ba430cc8d07f97bd0d306d70b5880fc4cef7274554d6a1b40225",
+        "contactId": "0f590a44-b7f8-11f1-bfc8-02420a320002"
       }
     },
     {
       "id": 27,
       "category": "alternate layout",
-      "milliseconds": 167,
+      "milliseconds": 174,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -684,12 +818,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-35ee2577a96a8ae86199901675acba75f05c08963f9dfc7d533c9f76bbf835a1",
+        "contactId": "102c72b2-b7f8-11f1-9f20-02420a320002"
       }
     },
     {
       "id": 28,
       "category": "small text",
-      "milliseconds": 165,
+      "milliseconds": 197,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -709,12 +848,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-0220e458888a6dcaeacc09d87e5af07c4566a981f91adfd3c07458e473078389",
+        "contactId": "10ec2a9e-b7f8-11f1-8c55-02420a320002"
       }
     },
     {
       "id": 29,
       "category": "multiple phones",
-      "milliseconds": 192,
+      "milliseconds": 244,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -734,12 +878,17 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-43d387b5319b6aa00214dc9ad06c900a0d17a34ea053834428725eb50a160243",
+        "contactId": "1205513a-b7f8-11f1-8c55-02420a320002"
       }
     },
     {
       "id": 30,
       "category": "international",
-      "milliseconds": 189,
+      "milliseconds": 198,
       "matches": {
         "fullName": true,
         "companyName": true,
@@ -759,6 +908,11 @@
         "city": "",
         "country": "",
         "notes": ""
+      },
+      "export": {
+        "status": "transferred",
+        "recordId": "ocr-6fb5783b6494f038109d5b152c1561d60a50a755205cdac5ed98936f0ebec6a0",
+        "contactId": "131b5538-b7f8-11f1-8c55-02420a320002"
       }
     }
   ]

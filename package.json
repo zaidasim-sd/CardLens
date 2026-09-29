@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "pilot:setup": "node scripts/setup-pilot.js",
     "pilot": "node server/pilot/start.js",
-    "test": "node --test server/pilot/pilot.test.js shared/contactValidation.test.mjs",
+    "test": "node --test server/pilot/pilot.test.js shared/contactValidation.test.mjs scripts/export-ocr.test.js",
     "test:ocr": "node scripts/benchmark-ocr.js"
   },
   "dependencies": {
