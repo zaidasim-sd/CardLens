@@ -14,10 +14,18 @@ import {
   AlertTriangle,
   Play,
   FileEdit,
+  Sparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import OCRReviewModal from "@/components/scanner/OCRReviewModal";
 import { SINGLE_DEMO_CARD } from "@/config/demoCards";
@@ -293,6 +301,7 @@ export default function ScanPage() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -501,27 +510,51 @@ export default function ScanPage() {
                 <Button
                   size="lg"
                   onClick={() => setIsCameraOpen(true)}
-                  className="h-13 w-full rounded-xl bg-slate-900 px-6 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition-transform hover:-translate-y-0.5 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 sm:w-auto sm:flex-1"
+                  className="h-13 w-full rounded-xl bg-slate-900 px-6 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition-transform hover:-translate-y-0.5 hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 sm:w-auto sm:flex-1 cursor-pointer"
                 >
-                  <Camera className="size-4" /> Scan a business card
+                  <Camera className="size-4" /> Scan Card
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   onClick={() => navigate("/verified")}
-                  className="h-13 w-full rounded-xl border-slate-300 bg-transparent px-6 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto"
+                  className="h-13 w-full rounded-xl border-slate-300 bg-transparent px-6 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800 sm:w-auto cursor-pointer"
                 >
-                  View review queue <ArrowRight className="size-4" />
+                  Review Queue <ArrowRight className="size-4" />
                 </Button>
               </div>
+
+              {/* Compact Trust Row */}
+              <div className="mx-auto mt-6 flex max-w-xl flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/80 px-4 py-2.5 text-center text-xs dark:border-slate-800 dark:bg-slate-900/50 shadow-xs sm:flex-row sm:flex-wrap sm:gap-x-2.5 sm:gap-y-1">
+                <span className="inline-flex items-center gap-1.5 font-semibold text-slate-900 dark:text-white">
+                  <Sparkles className="size-3.5 text-slate-700 dark:text-slate-300" aria-hidden="true" />
+                  Enhanced card reading
+                </span>
+                <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
+                <span className="font-medium text-slate-800 dark:text-slate-200">
+                  Powered by Google Cloud Vision
+                </span>
+                <span className="hidden text-slate-300 dark:text-slate-600 sm:inline">•</span>
+                <span className="text-slate-600 dark:text-slate-400">
+                  Every detail remains editable before submission.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsInfoModalOpen(true)}
+                  className="text-slate-600 underline underline-offset-2 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                >
+                  How card reading works
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 px-3 text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white"
+                className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 px-3 text-sm font-medium text-slate-500 underline-offset-4 hover:text-slate-900 hover:underline dark:text-slate-400 dark:hover:text-white cursor-pointer"
               >
                 <UploadCloud className="size-4" /> Have an image already? Upload a card
               </button>
-              <button type="button" onClick={handleTriggerDemoCard} className="mx-auto mt-2 flex min-h-11 items-center justify-center px-3 text-sm text-slate-500 underline underline-offset-4">
+              <button type="button" onClick={handleTriggerDemoCard} className="mx-auto mt-2 flex min-h-11 items-center justify-center px-3 text-sm text-slate-500 underline underline-offset-4 cursor-pointer">
                 Try anonymised demo
               </button>
             </div>
@@ -563,23 +596,50 @@ export default function ScanPage() {
 
                   {/* Processing Status Checklist */}
                   {isScanning ? (
-                    <div className="space-y-3 py-2">
-                      <div className="flex items-center justify-between text-xs font-semibold">
-                        <span className="text-slate-900 dark:text-white flex items-center gap-2">
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          Extracting text & parsing fields…
+                    <div className="space-y-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                            <RefreshCw className="size-4 animate-spin text-slate-600 dark:text-slate-400" aria-hidden="true" />
+                            <span>Reading card details</span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            Enhanced by Google Cloud Vision
+                          </p>
+                        </div>
+                        <span className="text-xs font-semibold text-slate-500 tabular-nums">
+                          {scanProgress}%
                         </span>
-                        <span>{scanProgress}%</span>
                       </div>
-                      <Progress value={scanProgress} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        OCR engine is reading full name, company, email, phone, and address…
-                      </p>
+                      <Progress value={scanProgress} className="h-1.5 bg-slate-200/80 dark:bg-slate-800" />
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                        <span>Every detail remains editable before submission.</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsInfoModalOpen(true)}
+                          className="underline underline-offset-2 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+                        >
+                          How card reading works
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {scanError || <>Click <strong className="text-foreground">Scan &amp; Extract</strong> to process this image with our OCR engine and review extracted contact fields before saving.</>}
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {scanError || (
+                          <>
+                            Select <strong className="text-foreground">Scan and extract</strong> to read this card. Every detail remains editable before submission.
+                          </>
+                        )}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsInfoModalOpen(true)}
+                        className="inline-flex items-center text-xs text-slate-500 underline underline-offset-2 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                      >
+                        How card reading works
+                      </button>
+                    </div>
                   )}
                   {scanError && !isScanning && (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
@@ -605,11 +665,11 @@ export default function ScanPage() {
                   >
                     {isScanning ? (
                       <>
-                        <RefreshCw className="w-4 h-4 animate-spin" /> Processing…
+                        <RefreshCw className="w-4 h-4 animate-spin" /> Reading card details…
                       </>
                     ) : (
                       <>
-                        <Scan className="w-4 h-4 text-white dark:text-slate-900" /> Scan &amp; Extract Contact
+                        <Scan className="w-4 h-4 text-white dark:text-slate-900" /> Scan and extract
                       </>
                     )}
                   </Button>
@@ -697,6 +757,36 @@ export default function ScanPage() {
           clearSelection();
         }}
       />
+
+      {/* Information Modal: How card reading works */}
+      <Dialog open={isInfoModalOpen} onOpenChange={setIsInfoModalOpen}>
+        <DialogContent className="max-w-md w-[92vw] sm:max-w-[440px] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-background shadow-xl">
+          <DialogHeader className="space-y-2 text-left">
+            <div className="flex items-center gap-2">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200">
+                <Sparkles className="size-4" aria-hidden="true" />
+              </div>
+              <DialogTitle className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+                How card reading works
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 pt-1">
+              CardSnap by Vision71 uses Google Cloud Vision as its primary text-extraction service. Every extracted detail should be reviewed and corrected before submission.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-5 flex justify-end">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setIsInfoModalOpen(false)}
+              className="rounded-xl bg-slate-900 px-5 text-xs font-semibold text-white hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 cursor-pointer"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -813,7 +813,7 @@ export default function OCRReviewModal({
                     )}
                   </div>
                   <DialogDescription className="text-xs md:text-sm text-slate-600 dark:text-slate-400">
-                    Check the details before submitting for review. OCR can make mistakes. Edit any field as needed.
+                    Check the details before submitting for review. Every detail remains editable before submission.
                   </DialogDescription>
                 </div>
               </DialogHeader>
