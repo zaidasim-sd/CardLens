@@ -20,11 +20,11 @@ Use the official MongoDB driver with a cached client, application encryption usi
 
 ## Environment variable names
 
-Names explicitly required by the brief are `MONGODB_URI`, `ENCRYPTION_KEY`, `BACKUP_KEY`, `GOOGLE_VISION_API_KEY`, `APP_BASE_URL`, `CRON_SECRET`, `ALLOWED_ORIGINS`, `OCR_SPACE_APPROVED`, `OCR_MONTHLY_CAP`, `SHEET_TARGET_APPROVED`, `CC_ENV`, `CC_REAL_ACCOUNT_APPROVED` and `DEMO_MODE`.
+Names explicitly required by the brief are `MONGODB_URI`, `ENCRYPTION_KEY`, `BACKUP_KEY`, `GOOGLE_VISION_API_KEY`, `APP_BASE_URL`, `CRON_SECRET`, `ALLOWED_ORIGINS`, `OCR_MONTHLY_CAP`, `SHEET_TARGET_APPROVED`, `CC_ENV`, `CC_REAL_ACCOUNT_APPROVED` and `DEMO_MODE`.
 
 Step 1 adds `MONGODB_DB`, `MONGODB_TEST_DB`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` and `SEED_TENANT_ID`. Step 2 adds `ENCRYPTION_KEY` and `ENCRYPTION_KEY_VERSION`. Step 4 adds `APP_BASE_URL` and `CRON_SECRET`. Step 5 adds `BACKUP_KEY`, `BACKUP_OUTPUT`, `RESTORE_MONGODB_URI` and `RESTORE_DB`.
 
-Existing configuration names include `PORT`, `APP_ENV`, `APP_ORIGIN`, `OCR_PROVIDER_MODE`, `OCR_SPACE_API_KEY`, `CC_CLIENT_ID`, `CC_CLIENT_SECRET`, `CC_REDIRECT_URI`, `CC_LIST_NAME`, `CC_CUSTOM_FIELD_LABEL`, `CC_FROM_EMAIL`, `CC_FROM_NAME` and `DATA_KEY`. These names are inventory only and do not imply production approval. Sheets variable names remain to be defined during Step 7. No values are recorded here.
+Existing configuration names include `PORT`, `APP_ENV`, `APP_ORIGIN`, `CC_CLIENT_ID`, `CC_CLIENT_SECRET`, `CC_REDIRECT_URI`, `CC_LIST_NAME`, `CC_CUSTOM_FIELD_LABEL`, `CC_FROM_EMAIL`, `CC_FROM_NAME` and `DATA_KEY`. These names are inventory only and do not imply production approval. Sheets variable names remain to be defined during Step 7. No values are recorded here.
 
 ## Verification results
 

@@ -1,70 +1,17 @@
-import axios from "axios";
+const GOOGLE_VISION_URL = "https://vision.googleapis.com/v1/images:annotate";
 
-/**
- * Google Cloud Vision API OCR Provider
- *
- * Performs text detection using Google Cloud Vision REST API.
- * Uses GOOGLE_VISION_API_KEY environment variable.
- *
- * @param {Buffer} imageBuffer - Raw image buffer
- * @param {string} apiKey - Google Cloud Vision API key
- * @returns {Promise<{ rawText: string, provider: 'google', success: boolean }>}
- */
-export async function scanWithGoogleVision(imageBuffer, apiKey) {
-  if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
-    throw new Error("GOOGLE_VISION_API_KEY is missing or invalid.");
-  }
-
-  const base64Image = Buffer.isBuffer(imageBuffer)
-    ? imageBuffer.toString("base64")
-    : Buffer.from(imageBuffer).toString("base64");
-
-  const requestBody = {
-    requests: [
-      {
-        image: {
-          content: base64Image,
-        },
-        features: [
-          {
-            type: "TEXT_DETECTION",
-          },
-        ],
-      },
-    ],
-  };
-
-  const response = await axios.post(
-    `https://vision.googleapis.com/v1/images:annotate?key=${encodeURIComponent(apiKey.trim())}`,
-    requestBody,
-    {
-      headers: {
-        "Content-Type": "application/json",
-      },
-      timeout: 20000, // 20s timeout
-    }
-  );
-
-  const data = response.data;
+export async function scanWithGoogleVision(imageBuffer, apiKey, fetcher = fetch) {
+  if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) throw new Error("Google Vision is not configured");
+  const response = await fetcher(GOOGLE_VISION_URL, {
+    method: "POST",
+    signal: AbortSignal.timeout(20000),
+    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey.trim() },
+    body: JSON.stringify({ requests: [{ image: { content: Buffer.from(imageBuffer).toString("base64") }, features: [{ type: "TEXT_DETECTION" }] }] }),
+  });
+  if (!response.ok) throw new Error("Google Vision request failed");
+  const data = await response.json();
   const firstResponse = data?.responses?.[0];
-
-  if (!firstResponse) {
-    throw new Error("Invalid or empty response from Google Cloud Vision API.");
-  }
-
-  if (firstResponse.error) {
-    const errorMsg = firstResponse.error.message || "Google Cloud Vision processing error.";
-    throw new Error(errorMsg);
-  }
-
-  const rawText =
-    firstResponse.fullTextAnnotation?.text ||
-    firstResponse.textAnnotations?.[0]?.description ||
-    "";
-
-  return {
-    rawText: rawText.trim(),
-    provider: "google",
-    success: true,
-  };
+  if (!firstResponse || firstResponse.error) throw new Error("Google Vision processing failed");
+  const rawText = firstResponse.fullTextAnnotation?.text || firstResponse.textAnnotations?.[0]?.description || "";
+  return { rawText: rawText.trim(), provider: "google", success: true };
 }
