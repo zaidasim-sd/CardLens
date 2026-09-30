@@ -15,7 +15,10 @@
     "test:step2": "node --test server/cards/*.test.mjs",
     "test:step3": "node --test server/audit/*.test.mjs",
     "test:step4": "node --test server/retention/*.test.mjs",
-    "seed:admin": "node scripts/seed-admin.mjs"
+    "test:step5": "node --test scripts/lib/*.test.mjs",
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/restore.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -25,6 +28,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@tailwindcss/postcss": "^4.3.3",
     "axios": "^1.20.0",
+    "bson": "^6.10.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.3.0",
