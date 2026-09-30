@@ -34,7 +34,7 @@ export default function SignInPage() {
         <div><Label htmlFor="email">Email</Label><Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="username" /></div>
         <div><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={12} required autoComplete="current-password" /></div>
         {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
-        <Button className="w-full" disabled={busy}>{busy ? "Signing in" : "Sign in"}</Button>
+        <Button type="submit" className="w-full" disabled={busy}>{busy ? "Signing in" : "Sign in"}</Button>
       </form>
     </div>
   );

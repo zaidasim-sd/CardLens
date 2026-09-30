@@ -3,6 +3,7 @@
 .data
 artifacts
 docs/pilot-privacy
+docs/*.docx
 output
 tmp
 validation
