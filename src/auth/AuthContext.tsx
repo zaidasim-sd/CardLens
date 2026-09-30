@@ -16,7 +16,7 @@ interface AuthValue {
   user: SignedInUser | null;
   loading: boolean;
   csrfToken: string;
-  signIn: (tenantId: string, email: string, password: string) => Promise<void>;
+  signIn: (emailOrTenantId: string, passwordOrEmail: string, optionalPassword?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -24,8 +24,13 @@ interface AuthValue {
 const AuthContext = createContext<AuthValue | null>(null);
 
 async function json(response: Response) {
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "The request could not be completed.");
+  let body: any = null;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error(`Server connection issue (${response.status}). Please check backend status.`);
+  }
+  if (!response.ok) throw new Error(body?.error || "The request could not be completed.");
   return body;
 }
 
@@ -51,13 +56,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  const signIn = useCallback(async (tenantId: string, email: string, password: string) => {
+  const signIn = useCallback(async (emailOrTenantId: string, passwordOrEmail: string, optionalPassword?: string) => {
+    let tenantId = "";
+    let email = "";
+    let password = "";
+    if (optionalPassword !== undefined) {
+      tenantId = emailOrTenantId;
+      email = passwordOrEmail;
+      password = optionalPassword;
+    } else {
+      email = emailOrTenantId;
+      password = passwordOrEmail;
+    }
+
     const preauth = await json(await fetch("/api/auth?action=csrf", { credentials: "include" }));
     const body = await json(await fetch("/api/auth?action=sign_in", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": preauth.csrfToken },
-      body: JSON.stringify({ tenantId, email, password }),
+      body: JSON.stringify({ tenantId: tenantId || "vision71-internal", email, password }),
     }));
     setUser(body.user);
     setCsrfToken(body.csrfToken);

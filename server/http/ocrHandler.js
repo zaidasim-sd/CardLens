@@ -20,8 +20,18 @@ function digest(value) {
 }
 
 function allowedOrigins(env) {
-  return String(env.ALLOWED_ORIGINS || env.APP_BASE_URL || env.APP_ORIGIN || "")
+  const configured = String(env.ALLOWED_ORIGINS || env.APP_BASE_URL || env.APP_ORIGIN || "")
     .split(",").map((value) => value.trim()).filter(Boolean);
+  if (env.APP_ENV === "development" || env.NODE_ENV !== "production") {
+    return [
+      ...configured,
+      "https://localhost:5173",
+      "http://localhost:5173",
+      "https://127.0.0.1:5173",
+      "http://127.0.0.1:5173",
+    ];
+  }
+  return configured;
 }
 
 function verifyOrigin(req, env) {

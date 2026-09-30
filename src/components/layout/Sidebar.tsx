@@ -15,7 +15,7 @@ export default function Sidebar() {
           <img
             src="/CardSnapLogo_Black.png"
             alt="CardSnap by V71"
-            className="h-11 sm:h-12 w-auto object-contain dark:invert max-w-[220px]"
+            className="h-16 w-auto object-contain dark:invert max-w-[220px]"
           />
         </NavLink>
       </div>

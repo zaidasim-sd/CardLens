@@ -71,30 +71,34 @@ export async function signIn(db, { tenantId, email, password, ip, sessionToken, 
   if (!anonymous || anonymous.absoluteExpiresAt <= now || anonymous.csrfHash !== digest(csrfToken || "")) {
     throw authError("CSRF_INVALID", 403, "The request could not be verified.");
   }
+  const emailLower = String(email || "").trim().toLowerCase();
+  const userQuery = { emailLower, removedAt: { $exists: false } };
+  if (tenantId) userQuery.tenantId = tenantId;
+  const user = await db.collection("users").findOne(userQuery);
+  const effectiveTenantId = user?.tenantId || tenantId || "vision71-internal";
+
   try {
     await consumeIpRateLimit(db, ip, now);
   } catch (error) {
-    await writeAudit(db, { tenantId, action: "failed_sign_in", outcome: "refused", now });
+    await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "refused", now });
     throw error;
   }
-  const emailLower = String(email || "").trim().toLowerCase();
-  const user = await db.collection("users").findOne({ tenantId, emailLower, removedAt: { $exists: false } });
   if (user?.lockedUntil && user.lockedUntil > now) {
-    await writeAudit(db, { tenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
+    await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
     throw authError("ACCOUNT_LOCKED", 423, "This account is temporarily locked.");
   }
   if (user?.expiresAt && user.expiresAt <= now) {
-    await writeAudit(db, { tenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
+    await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
     throw authError("ACCOUNT_EXPIRED", 403, "This account has expired.");
   }
   const valid = user ? await verifyPassword(password, user.passwordHash) : false;
   if (!valid) {
-    await db.collection("loginAttempts").insertOne({ tenantId, emailLower, createdAt: now, outcome: "failed" });
+    await db.collection("loginAttempts").insertOne({ tenantId: effectiveTenantId, emailLower, createdAt: now, outcome: "failed" });
     if (user) {
-      const count = await db.collection("loginAttempts").countDocuments({ tenantId, emailLower, createdAt: { $gte: new Date(now.getTime() - LOCK_WINDOW_MS) } });
+      const count = await db.collection("loginAttempts").countDocuments({ tenantId: effectiveTenantId, emailLower, createdAt: { $gte: new Date(now.getTime() - LOCK_WINDOW_MS) } });
       if (count >= 5) await db.collection("users").updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(now.getTime() + LOCK_WINDOW_MS) } });
     }
-    await writeAudit(db, { tenantId, actor: user, action: "failed_sign_in", outcome: "failed", now });
+    await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "failed", now });
     throw authError("INVALID_CREDENTIALS", 401, "Email or password is incorrect.");
   }
   const newSessionToken = token();
@@ -104,9 +108,9 @@ export async function signIn(db, { tenantId, email, password, ip, sessionToken, 
     tenantId: user.tenantId, createdAt: now, lastSeenAt: now,
     absoluteExpiresAt: new Date(now.getTime() + SESSION_ABSOLUTE_MS), anonymous: false,
   } });
-  await db.collection("loginAttempts").deleteMany({ tenantId, emailLower });
+  await db.collection("loginAttempts").deleteMany({ tenantId: user.tenantId, emailLower });
   await db.collection("users").updateOne({ _id: user._id }, { $unset: { lockedUntil: "" }, $set: { lastSignedInAt: now } });
-  await writeAudit(db, { tenantId, actor: user, action: "sign_in", outcome: "success", now });
+  await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "sign_in", outcome: "success", now });
   return { sessionToken: newSessionToken, csrfToken: newCsrfToken, user: publicUser(user) };
 }
 
@@ -167,6 +171,9 @@ export async function removeUser(db, actor, id, now = new Date()) {
   requireAction(actor, "manage_users");
   if (!ObjectId.isValid(id)) throw authError("USER_NOT_FOUND", 404, "Account not found.");
   const userId = new ObjectId(id);
+  if (String(actor.id) === String(userId)) {
+    throw authError("CANNOT_DELETE_SELF", 400, "You cannot delete your own account.");
+  }
   const result = await db.collection("users").updateOne(
     { _id: userId, tenantId: actor.tenantId, removedAt: { $exists: false } },
     { $set: { removedAt: now, removedBy: new ObjectId(actor.id) } },

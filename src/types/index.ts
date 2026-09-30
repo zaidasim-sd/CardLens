@@ -44,7 +44,9 @@ export interface ContactRecord {
   tenantId?: string;
   capturedBy?: string;
   reviewedBy?: string | null;
+  reviewedByName?: string | null;
   reviewedAt?: string | null;
+  reviewerComment?: string;
   transferStatus?: "not_started";
   sheetStatus?: string;
   restricted?: boolean;

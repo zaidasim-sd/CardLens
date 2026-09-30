@@ -32,10 +32,22 @@ app.all("/api/export", exportHandler);
 // Routes
 app.all("/api/ocr", ocrHandler);
 
+app.get("/api/config/exhibitions", (req, res) => {
+  res.json({
+    exhibitions: [
+      { label: "Select exhibition", value: "" },
+    ],
+  });
+});
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.listen(port, () => {
-  console.log(`Backend server running on http://localhost:${port}`);
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`Backend server running on http://127.0.0.1:${port}`);
+});
+
+server.on("error", (error) => {
+  console.error("Backend server error:", error);
 });

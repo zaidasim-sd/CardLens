@@ -2,57 +2,76 @@ import { NavLink } from "react-router-dom";
 import { Scan, ListChecks, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
-import { Button } from "@/components/ui/button";
+import UserProfileDropdown from "./UserProfileDropdown";
 
 const navItems = [
   { name: "Scan Card", to: "/", icon: Scan, roles: ["exhibition_assistant"] },
-  { name: "My submissions", to: "/submissions", icon: ListChecks, roles: ["exhibition_assistant"] },
+  { name: "Review Queue", to: "/submissions", icon: ListChecks, roles: ["exhibition_assistant", "aventure_reviewer"] },
   { name: "User accounts", to: "/users", icon: Users, roles: ["vision71_administrator"] },
 ];
 
 export default function Header() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
+
   return (
-    <header className="relative fixed inset-x-0 top-0 z-40 flex h-20 sm:h-22 shrink-0 items-center justify-between border-b border-border/80 bg-background/95 px-3 sm:px-6 md:px-8 backdrop-blur-md md:sticky">
-      {/* Official CardSnap by V71 Logo Area (Left-most, Enlarged & Professional) */}
-      <div className="flex items-center justify-start shrink-0">
+    <header className="sticky top-0 z-40 flex h-18 sm:h-20 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 sm:px-6 md:px-8 backdrop-blur-md dark:bg-slate-900/95 dark:border-slate-800">
+      {/* Brand Logo - Left */}
+      <div className="flex items-center justify-start shrink-0 min-w-0">
         <NavLink
           to="/"
-          className="flex items-center py-1.5 hover:opacity-90 transition-opacity min-w-0"
+          className="flex items-center py-1 hover:opacity-90 transition-opacity"
           title="CardSnap by Vision71"
         >
           <img
             src="/CardSnapLogo_Black.png"
             alt="CardSnap by Vision71"
-            className="h-14 sm:h-16 md:h-17 w-auto object-contain select-none dark:invert transition-transform hover:scale-[1.02]"
+            className="h-13 sm:h-13 md:h-13 w-auto object-contain select-none dark:invert transition-transform hover:scale-[1.01]"
           />
         </NavLink>
       </div>
 
-      {/* Navigation Links - Centered on Desktop (Hidden on Mobile, Mobile uses fixed bottom nav bar) */}
-      <nav className="hidden md:flex md:absolute md:left-1/2 md:-translate-x-1/2 items-center gap-1.5 bg-slate-100/80 dark:bg-slate-900/80 p-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        {navItems.filter((item) => user && item.roles.includes(user.role)).map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap",
-                  isActive
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white"
-                )
-              }
-            >
-              <Icon className="w-4 h-4" />
-              <span>{item.name}</span>
-            </NavLink>
-          );
-        })}
+      {/* Center Nav Links on Desktop */}
+      <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/60 shadow-xs">
+        {navItems
+          .filter((item) => user && item.roles.includes(user.role))
+          .map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
+                    isActive
+                      ? "bg-white text-blue-700 shadow-xs font-semibold dark:bg-slate-900 dark:text-blue-300"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/80"
+                  )
+                }
+              >
+                <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>{item.name}</span>
+              </NavLink>
+            );
+          })}
       </nav>
-      <div className="flex items-center gap-3"><span className="hidden text-sm sm:inline">{user?.name}</span><Button type="button" variant="outline" onClick={() => void signOut()}>Sign out</Button></div>
+
+      {/* Right Side: Profile & Avatar Dropdown (Desktop & Mobile) */}
+      <div className="flex items-center justify-end shrink-0 gap-2">
+        {user && (
+          <>
+            {/* Desktop Profile Trigger with user name */}
+            <div className="hidden sm:block">
+              <UserProfileDropdown />
+            </div>
+
+            {/* Mobile Profile Trigger */}
+            <div className="sm:hidden">
+              <UserProfileDropdown isMobileCompact />
+            </div>
+          </>
+        )}
+      </div>
     </header>
   );
 }

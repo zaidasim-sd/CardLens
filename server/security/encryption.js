@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes } from "node:crypto";
 
 function keyBuffer() {
-  const value = process.env.ENCRYPTION_KEY;
+  const value = process.env.ENCRYPTION_KEY || process.env.DATA_KEY;
   if (!value) throw new Error("ENCRYPTION_KEY is required");
   const key = /^[0-9a-f]{64}$/i.test(value) ? Buffer.from(value, "hex") : Buffer.from(value, "base64");
   if (key.length !== 32) throw new Error("ENCRYPTION_KEY must decode to exactly 32 bytes");
