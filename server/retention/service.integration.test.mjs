@@ -27,16 +27,17 @@ before(async () => {
   await client.connect();
   db = client.db(databaseName);
   await ensureDatabaseIndexes(db);
+  await db.collection("users").insertOne({ _id: new ObjectId(reviewer.id), tenantId, role: "aventure_reviewer", name: "Fake Reviewer", email: "retention.reviewer@example.test", emailLower: "retention.reviewer@example.test" });
 });
 
 after(async () => {
-  for (const name of ["cards", "cardImages", "settings", "auditLogs"]) await db.collection(name).deleteMany({ tenantId });
+  for (const name of ["cards", "cardImages", "settings", "auditLogs", "users"]) await db.collection(name).deleteMany({ tenantId });
   await client.close();
 });
 
 function cardInput(suffix) {
   const value = { ...contact, fullName: `Riley Fixture ${suffix}`, email: `riley.${suffix}@example.test`, phone: `+44 7700 90${suffix.padStart(4, "0")}` };
-  return { rawOCRText: `Fake OCR ${suffix}`, ocrData: value, verifiedData: value, status: "submitted", imageBase64: Buffer.from(`fake image ${suffix}`).toString("base64"), imageMimeType: "image/jpeg" };
+  return { rawOCRText: `Fake OCR ${suffix}`, ocrData: value, verifiedData: value, status: "submitted", assignedReviewerId: reviewer.id, imageBase64: Buffer.from(`fake image ${suffix}`).toString("base64"), imageMimeType: "image/jpeg" };
 }
 
 test("expired image is deleted by the sweep and logged", async () => {

@@ -15,6 +15,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/verified" element={<VerifiedQueuePage />} />
+            <Route path="/submissions" element={<VerifiedQueuePage />} />
             <Route path="/users" element={<UserAdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

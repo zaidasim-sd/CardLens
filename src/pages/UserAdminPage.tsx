@@ -8,9 +8,9 @@ import { apiFetch } from "@/lib/api";
 import { cardApi } from "@/lib/cardApi";
 
 const roleLabels: Record<Role, string> = {
-  exhibition_assistant: "Exhibition Assistant",
-  aventure_reviewer: "Aventure Reviewer",
-  aventure_administrator: "Aventure Administrator",
+  exhibition_assistant: "Capturer",
+  aventure_reviewer: "Reviewer",
+  aventure_administrator: "Administrator",
   vision71_support: "Vision71 Support",
 };
 

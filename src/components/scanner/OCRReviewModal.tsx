@@ -15,6 +15,7 @@ import { checkDuplicateContact } from "@/lib/duplicateChecker";
 import DuplicateWarningModal from "./DuplicateWarningModal";
 import ViewCardModal from "@/components/verified/ViewCardModal";
 import type { OCRData, ContactRecord } from "@/types";
+import { apiFetch } from "@/lib/api";
 
 const schema = z.object({
   fullName: z.string().optional(),
@@ -504,6 +505,8 @@ export default function OCRReviewModal({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isExistingContactOpen, setIsExistingContactOpen] = useState(false);
   const [isZoomImageOpen, setIsZoomImageOpen] = useState(false);
+  const [reviewers, setReviewers] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [assignedReviewerId, setAssignedReviewerId] = useState("");
 
   const {
     register,
@@ -544,12 +547,23 @@ export default function OCRReviewModal({
     }
   }, [isOpen, ocrData, reset]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    void apiFetch("/api/users?action=reviewers")
+      .then((body) => {
+        setReviewers(body.users || []);
+        setAssignedReviewerId((current) => current || body.users?.[0]?.id || "");
+      })
+      .catch(() => setReviewers([]));
+  }, [isOpen]);
+
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
     setIsSaving(true);
     try {
       const isManual = !originalImage;
       const fileName = originalImage instanceof File ? originalImage.name : undefined;
-      const record = await cardApi.create({ originalImage: originalImage || undefined, originalFileName: fileName, rawOCRText: rawText, ocrData, verifiedData, isDemo, source: isManual ? "manual" : "ocr", allowDuplicate });
+      if (!assignedReviewerId) throw new Error("Choose a reviewer");
+      const record = await cardApi.create({ originalImage: originalImage || undefined, originalFileName: fileName, rawOCRText: rawText, ocrData, verifiedData, assignedReviewerId, isDemo, source: isManual ? "manual" : "ocr", allowDuplicate });
       setSavedRecord(record);
       toast.success("Contact submitted for review");
     } catch (error) {
@@ -777,10 +791,10 @@ export default function OCRReviewModal({
                   onClick={() => {
                     setIsOpen(false);
                     onSuccess();
-                    navigate("/verified");
+                    navigate("/submissions");
                   }}
                 >
-                  View review queue <ArrowRight className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
+                  View my submissions <ArrowRight className="w-3.5 h-3.5 text-slate-900 dark:text-white" />
                 </Button>
               </div>
             </div>
@@ -866,6 +880,20 @@ export default function OCRReviewModal({
                           placeholder="Add a short note (optional)"
                           className="w-full resize-y rounded-xl border border-input bg-background px-3 py-2 text-sm"
                         />
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label htmlFor="assignedReviewer">Reviewer</Label>
+                        <select
+                          id="assignedReviewer"
+                          value={assignedReviewerId}
+                          onChange={(event) => setAssignedReviewerId(event.target.value)}
+                          required
+                          className="h-11 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                        >
+                          <option value="">Select reviewer</option>
+                          {reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.name} {reviewer.email}</option>)}
+                        </select>
+                        {!reviewers.length ? <p className="text-xs text-amber-700">An administrator must create a reviewer account before submission.</p> : null}
                       </div>
                     </div>
                   </form>

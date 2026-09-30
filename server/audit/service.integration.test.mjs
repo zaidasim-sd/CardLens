@@ -40,6 +40,7 @@ before(async () => {
   await client.connect();
   db = client.db(databaseName);
   await ensureDatabaseIndexes(db);
+  await db.collection("users").insertOne({ _id: new ObjectId(reviewer.id), tenantId, role: "aventure_reviewer", name: "Fake Reviewer", email: "reviewer.audit@example.test", emailLower: "reviewer.audit@example.test" });
 });
 
 after(async () => {
@@ -73,12 +74,12 @@ test("implemented actions each append exactly one audit entry", async () => {
   const failedPreauth = await createPreauthSession(db);
   await assertOneFailure("failed_sign_in", () => signIn(db, { tenantId, email: assistant.email, password: "WrongPassword123!", ip: "192.0.2.34", sessionToken: failedPreauth.sessionToken, csrfToken: failedPreauth.csrfToken }), "INVALID_CREDENTIALS");
   await assertOne("sign_out", () => signOut(db, signedIn.sessionToken, signedIn.csrfToken));
-  const first = await assertOne("upload", () => createCard(db, assistant, { rawOCRText: "Fake OCR words", ocrData: fakeContact, verifiedData: fakeContact, status: "submitted" }));
+  const first = await assertOne("upload", () => createCard(db, assistant, { rawOCRText: "Fake OCR words", ocrData: fakeContact, verifiedData: fakeContact, status: "submitted", assignedReviewerId: reviewer.id }));
   await assertOne("review", () => listCards(db, reviewer));
   await assertOne("correction", () => updateCard(db, reviewer, first.id, { verifiedData: { ...fakeContact, jobTitle: "Corrected Test Role" } }));
   await assertOne("approval", () => updateCard(db, reviewer, first.id, { verifiedData: fakeContact, status: "approved" }));
   const secondContact = { ...fakeContact, fullName: "Jordan Fixture", companyName: "Second Example Company", email: "second@example.test", phone: "+1 202 555 0188" };
-  const second = await assertOne("upload", () => createCard(db, assistant, { rawOCRText: "Different fake OCR words", ocrData: secondContact, verifiedData: secondContact, status: "submitted" }));
+  const second = await assertOne("upload", () => createCard(db, assistant, { rawOCRText: "Different fake OCR words", ocrData: secondContact, verifiedData: secondContact, status: "submitted", assignedReviewerId: reviewer.id }));
   await assertOne("rejection", () => updateCard(db, reviewer, second.id, { verifiedData: secondContact, status: "rejected" }));
   await assertOne("support_access", () => aggregateCounts(db, support));
   await assertOneFailure("support_access", () => aggregateCounts(db, reviewer), "FORBIDDEN");

@@ -5,6 +5,7 @@ import { useAuth } from "@/auth/AuthContext";
 
 const navItems = [
   { name: "Scan Card", to: "/", icon: Scan, roles: ["exhibition_assistant"] },
+  { name: "Submissions", to: "/submissions", icon: ListChecks, roles: ["exhibition_assistant"] },
   { name: "Review Queue", to: "/verified", icon: ListChecks, roles: ["aventure_reviewer"] },
   { name: "Users", to: "/users", icon: Users, roles: ["aventure_administrator"] },
 ];

@@ -182,6 +182,19 @@ export async function listUsers(db, actor) {
   return users.map(publicUser);
 }
 
+export async function listReviewers(db, actor) {
+  if (!actor || !["exhibition_assistant", "aventure_reviewer", "aventure_administrator"].includes(actor.role)) {
+    throw authError("FORBIDDEN", 403, "Access denied.");
+  }
+  const users = await db.collection("users").find({
+    tenantId: actor.tenantId,
+    role: "aventure_reviewer",
+    removedAt: { $exists: false },
+    $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: new Date() } }],
+  }, { projection: { name: 1, email: 1, role: 1, tenantId: 1, expiresAt: 1 } }).sort({ name: 1 }).toArray();
+  return users.map(publicUser);
+}
+
 export async function seedAdministrator(db, input, now = new Date()) {
   validatePassword(input.password);
   const email = String(input.email || "").trim();

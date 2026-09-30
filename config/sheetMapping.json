@@ -1,0 +1,19 @@
+{
+  "proposal": true,
+  "columns": [
+    { "header": "Exhibition name", "field": "event" },
+    { "header": "Contact name", "field": "fullName" },
+    { "header": "Company name", "field": "companyName" },
+    { "header": "Job title", "field": "jobTitle" },
+    { "header": "Email address", "field": "email" },
+    { "header": "Phone number", "field": "phone" },
+    { "header": "Short notes", "field": "notes" },
+    { "header": "Date and time captured", "field": "capturedAt" },
+    { "header": "Captured by", "field": "capturedByName" },
+    { "header": "Record status", "field": "status" },
+    { "header": "Reviewed by", "field": "reviewedByName" },
+    { "header": "Review date", "field": "reviewedAt" },
+    { "header": "Constant Contact transfer status", "field": "transferStatus" },
+    { "header": "CardSnap record ID", "field": "recordId" }
+  ]
+}

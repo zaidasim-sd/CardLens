@@ -12,6 +12,7 @@ const tenantId = `fake_cards_tenant_${Date.now()}`;
 const otherTenantId = `${tenantId}_other`;
 const assistant = { id: new ObjectId().toString(), tenantId, role: "exhibition_assistant" };
 const reviewer = { id: new ObjectId().toString(), tenantId, role: "aventure_reviewer" };
+const unassignedReviewer = { id: new ObjectId().toString(), tenantId, role: "aventure_reviewer" };
 const otherReviewer = { id: new ObjectId().toString(), tenantId: otherTenantId, role: "aventure_reviewer" };
 const administrator = { id: new ObjectId().toString(), tenantId, role: "aventure_administrator" };
 const fakeContact = {
@@ -39,6 +40,7 @@ before(async () => {
   await client.connect();
   db = client.db(databaseName);
   await ensureDatabaseIndexes(db);
+  await db.collection("users").insertOne({ _id: new ObjectId(reviewer.id), tenantId, role: "aventure_reviewer", name: "Fake Reviewer", email: "reviewer@example.test" });
   record = await createCard(db, assistant, {
     rawOCRText: "Morgan Example fake OCR text",
     ocrData: fakeContact,
@@ -48,6 +50,7 @@ before(async () => {
     imageMimeType: "image/jpeg",
     status: "submitted",
     source: "ocr",
+    assignedReviewerId: reviewer.id,
   });
 });
 
@@ -55,6 +58,7 @@ after(async () => {
   await db.collection("cardImages").deleteMany({ tenantId: { $in: [tenantId, otherTenantId] } });
   await db.collection("cards").deleteMany({ tenantId: { $in: [tenantId, otherTenantId] } });
   await db.collection("auditLogs").deleteMany({ tenantId: { $in: [tenantId, otherTenantId] } });
+  await db.collection("users").deleteMany({ tenantId: { $in: [tenantId, otherTenantId] } });
   await client.close();
 });
 
@@ -90,11 +94,16 @@ test("tenant separation prevents reads from another tenant", async () => {
   assert.equal((await listCards(db, otherReviewer)).some((item) => item.id === record.id), false);
 });
 
+test("only the assigned reviewer receives a submitted record", async () => {
+  assert.equal((await listCards(db, reviewer)).some((item) => item.id === record.id), true);
+  assert.equal((await listCards(db, unassignedReviewer)).some((item) => item.id === record.id), false);
+});
+
 test("duplicate checking covers tenant email phone and name with company", async () => {
   const emailMatch = await findDuplicate(db, assistant, { ...fakeContact, phone: "", fullName: "", companyName: "" });
   assert.equal(emailMatch.id, record.id);
-  assert.equal(emailMatch.restricted, true);
-  assert.equal(emailMatch.verifiedData.email, undefined);
+  assert.equal(emailMatch.restricted, undefined);
+  assert.equal(emailMatch.verifiedData.email, fakeContact.email);
   assert.equal((await findDuplicate(db, assistant, { ...fakeContact, email: "", fullName: "", companyName: "" })).id, record.id);
   assert.equal((await findDuplicate(db, assistant, { ...fakeContact, email: "", phone: "" })).id, record.id);
   const otherAssistant = { ...assistant, id: new ObjectId().toString(), tenantId: otherTenantId };
