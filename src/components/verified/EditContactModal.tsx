@@ -40,7 +40,7 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isMeetingContextOpen, setIsMeetingContextOpen] = useState(false);
 
-  const { register, handleSubmit, reset, watch, setValue } = useForm<EditFormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<EditFormData>({
     defaultValues: {
       fullName: "",
       jobTitle: "",
@@ -218,7 +218,17 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="email" className="font-semibold text-sm">Email Address</Label>
-                    <Input id="email" type="text" {...register("email")} placeholder="e.g. nauman@digitechinfra.com" className="h-10" />
+                    <Input
+                      id="email"
+                      type="email"
+                      aria-invalid={Boolean(errors.email)}
+                      {...register("email", {
+                        validate: (value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || "Enter a valid email address",
+                      })}
+                      placeholder="e.g. nauman@digitechinfra.com"
+                      className="h-10"
+                    />
+                    {errors.email && <p className="text-xs text-red-600">{errors.email.message}</p>}
                   </div>
 
                   <div className="space-y-1.5">

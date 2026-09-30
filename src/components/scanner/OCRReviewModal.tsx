@@ -476,7 +476,7 @@ interface Props {
   setIsOpen: (val: boolean) => void;
   ocrData: OCRData;
   rawText: string;
-  originalImage: File | Blob;
+  originalImage?: File | Blob | null;
   imageUrl: string;
   onSuccess: () => void;
   isDemo?: boolean;
@@ -547,8 +547,9 @@ export default function OCRReviewModal({
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
     setIsSaving(true);
     try {
-      const fileName = (originalImage as File).name || "demo-card.png";
-      const record = await cardApi.create({ originalImage, originalFileName: fileName, rawOCRText: rawText, ocrData, verifiedData, isDemo, allowDuplicate });
+      const isManual = !originalImage;
+      const fileName = originalImage instanceof File ? originalImage.name : undefined;
+      const record = await cardApi.create({ originalImage: originalImage || undefined, originalFileName: fileName, rawOCRText: rawText, ocrData, verifiedData, isDemo, source: isManual ? "manual" : "ocr", allowDuplicate });
       setSavedRecord(record);
       toast.success("Contact submitted for review");
     } catch (error) {

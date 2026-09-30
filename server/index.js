@@ -1,12 +1,11 @@
 import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
-import ocrRoutes from "./routes/ocr.js";
 import { validateOcrConfig } from "./services/ocrService.js";
 import { authHandler, usersHandler } from "./http/authHandlers.js";
 import { cardsHandler, storageHealthHandler } from "./http/cardHandlers.js";
 import supportHandler from "../api/support.js";
 import { retentionSettingsHandler, sweepHandler } from "./http/retentionHandlers.js";
+import ocrHandler from "./http/ocrHandler.js";
 
 // Load environment variables
 dotenv.config();
@@ -18,7 +17,6 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
 app.all("/api/auth", authHandler);
@@ -30,7 +28,7 @@ app.all("/api/retention", retentionSettingsHandler);
 app.all("/api/cron/sweep", sweepHandler);
 
 // Routes
-app.use("/api/ocr", ocrRoutes);
+app.all("/api/ocr", ocrHandler);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

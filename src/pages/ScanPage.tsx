@@ -31,6 +31,9 @@ import OCRReviewModal from "@/components/scanner/OCRReviewModal";
 import { SINGLE_DEMO_CARD } from "@/config/demoCards";
 import type { OCRData } from "@/types";
 import { cropBusinessCardImage } from "@/lib/imageCrop";
+import { apiFetch } from "@/lib/api";
+
+const OCR_FAILURE_MESSAGE = "We could not read this card. Capture the card again or enter the details manually.";
 
 // ─── Camera Modal (rendered into document.body via portal) ───────────────────
 function CameraModal({
@@ -383,23 +386,16 @@ export default function ScanPage() {
     }, 350);
 
     try {
-      const response = await fetch("/api/ocr", { method: "POST", body: formData });
+      const data = await apiFetch("/api/ocr", { method: "POST", body: formData });
       clearInterval(interval);
       setScanProgress(100);
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || "Failed to scan business card");
-      }
-
-      const data = await response.json();
       if (!hasReadableContact(data.rawText, data.parsed)) throw new Error(NO_CONTACT_MESSAGE);
       setOcrData(data.parsed);
       setRawText(data.rawText);
       setIsReviewModalOpen(true);
     } catch (error: unknown) {
       clearInterval(interval);
-      const message = error instanceof Error ? error.message : "Unable to read this card. Check your connection and try again.";
+      const message = OCR_FAILURE_MESSAGE;
       setScanError(message);
       toast.error(message);
     } finally {
@@ -456,12 +452,10 @@ export default function ScanPage() {
       country: "",
       notes: "",
     };
-    const dummyBlob = new Blob(["manual-entry"], { type: "image/png" });
-    const dummyFile = new File([dummyBlob], "manual-entry.png", { type: "image/png" });
-    setSelectedFile(dummyFile);
+    setSelectedFile(null);
     setPreviewUrl("/demo-card.svg");
     setOcrData(blankData);
-    setRawText("Manual Contact Entry");
+    setRawText("");
     setIsDemoMode(false);
     setIsReviewModalOpen(true);
   };
@@ -749,7 +743,7 @@ export default function ScanPage() {
         setIsOpen={setIsReviewModalOpen}
         ocrData={ocrData}
         rawText={rawText}
-        originalImage={selectedFile!}
+        originalImage={selectedFile}
         imageUrl={previewUrl!}
         isDemo={isDemoMode}
         onSuccess={() => {

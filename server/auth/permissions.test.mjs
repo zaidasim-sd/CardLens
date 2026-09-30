@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { ACTIONS, can, requireAction, ROLES } from "./permissions.js";
 
 const expected = {
-  exhibition_assistant: ["capture_card", "view_own_draft", "correct_own_draft", "submit_own_draft"],
-  aventure_reviewer: ["view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction", "transfer_approved_card"],
+  exhibition_assistant: ["capture_card", "use_ocr", "view_own_draft", "correct_own_draft", "submit_own_draft"],
+  aventure_reviewer: ["use_ocr", "view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction", "transfer_approved_card"],
   aventure_administrator: ["manage_users", "manage_lists", "change_retention", "delete_record", "end_pilot_export"],
   vision71_support: ["view_aggregate_counts"],
 };
