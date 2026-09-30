@@ -1,7 +1,9 @@
 # CardSnap Version 1 one page recommendation
 
-**Decision owner:** Ali Bhai  
-**Scope:** Internal testing followed by the first Aventure exhibition  
+**Decision owner:** Ali Bhai
+
+**Scope:** Internal testing followed by the first Aventure exhibition
+
 **Status:** Recommendation only. No production resource should be created until written approval.
 
 | Area | Recommendation |
