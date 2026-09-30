@@ -129,10 +129,10 @@ export function parseOCRText(text) {
   // ── Step 3: Extract Phone & Alternate Phone Numbers ──
   // Supports international (+92-319-1980857, +1 800...), local (0319-1980857), and labelled (WhatsApp:, Tel:, Mob:)
   const phoneLabelRegex = /\b(?:whatsapp|tel|phone|mob|mobile|cell|ph|fax)\s*[:\-\s]*/i;
-  const phonePattern = /(?:\+\d{1,4}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/;
+  const phonePattern = /\+?\d[\d ().-]{5,}\d/;
 
   let phoneCount = 0;
-  for (let i = remainingTokens.length - 1; i >= 0; i--) {
+  for (let i = 0; i < remainingTokens.length; i++) {
     const token = remainingTokens[i];
     const hasPhoneLabel = phoneLabelRegex.test(token);
     const hasDigits = (token.match(/\d/g) || []).length >= 7;
@@ -141,20 +141,22 @@ export function parseOCRText(text) {
       // Clean phone number: remove labels like "WhatsApp: ", "Email: ", trailing artifact digits
       let cleanPhone = token.replace(phoneLabelRegex, "").trim();
       // Extract the actual numeric phone part
-      const phoneMatch = cleanPhone.match(/(?:\+\d{1,4}[-.\s]?)?\(?\d{2,5}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/);
+      const phoneMatch = cleanPhone.match(phonePattern);
       if (phoneMatch) {
         cleanPhone = phoneMatch[0].trim();
       }
 
-      if (cleanPhone) {
+      if (phoneMatch && cleanPhone.replace(/\D/g, '').length >= 7 && cleanPhone.replace(/\D/g, '').length <= 15) {
         if (phoneCount === 0) {
           fields.phone = cleanPhone;
           phoneCount++;
           consumeToken(i);
+          i--;
         } else if (phoneCount === 1) {
           fields.alternatePhone = cleanPhone;
           phoneCount++;
           consumeToken(i);
+          i--;
         }
       }
     }
@@ -226,7 +228,7 @@ export function parseOCRText(text) {
     "technologies", "technology", "software", "solutions", "systems", "corp",
     "corporation", "inc", "incorporated", "ltd", "limited", "llc", "group",
     "holdings", "enterprises", "studio", "labs", "digital", "media", "agency",
-    "global", "services", "industries", "vision71"
+    "global", "services", "industries", "vision71", "aviation", "airlines", "aerospace", "airways", "maintenance"
   ];
 
   const addressPrefixes = ["head office", "office", "address", "street", "plot", "building", "road", "avenue", "flat", "suite", "p.o. box", "96-a", "b-"];
@@ -243,8 +245,8 @@ export function parseOCRText(text) {
     if (addressPrefixes.some(pref => tokenLower.startsWith(pref))) continue;
 
     // Check domain match (e.g. "vision71" matching "vision71tech")
-    const matchesDomain = domain && domain.length >= 4 && (tokenClean.includes(domain.replace("tech", "")) || domain.includes(tokenClean));
-    const matchesKeyword = companyKeywords.some(kw => tokenLower.includes(kw));
+    const matchesDomain = domain && !['example','gmail','outlook','yahoo','hotmail'].includes(domain) && domain.length >= 4 && tokenClean.length >= 4 && (tokenClean.includes(domain) || domain.includes(tokenClean));
+    const matchesKeyword = companyKeywords.some(kw => new RegExp(`\\b${kw}\\b`).test(tokenLower));
 
     if (matchesDomain || matchesKeyword) {
       companyIndex = i;
@@ -262,7 +264,7 @@ export function parseOCRText(text) {
       const tok = remainingTokens[i];
       const tokLower = tok.toLowerCase();
       if (
-        companyKeywords.some(kw => tokLower.includes(kw)) &&
+        companyKeywords.some(kw => new RegExp(`\\b${kw}\\b`).test(tokLower)) &&
         !addressPrefixes.some(p => tokLower.startsWith(p))
       ) {
         fields.companyName = `${fields.companyName} ${tok}`.replace(/™|®|©/g, "").replace(/\s+/g, " ").trim();

@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.data/
+artifacts/qa/
+*.traineddata*
