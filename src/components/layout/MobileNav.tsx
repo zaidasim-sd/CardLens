@@ -1,16 +1,19 @@
 import { NavLink } from "react-router-dom";
-import { Scan, ListChecks } from "lucide-react";
+import { Scan, ListChecks, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/auth/AuthContext";
 
 const navItems = [
-  { name: "Scan Card", to: "/", icon: Scan },
-  { name: "Review Queue", to: "/verified", icon: ListChecks },
+  { name: "Scan Card", to: "/", icon: Scan, roles: ["exhibition_assistant"] },
+  { name: "Review Queue", to: "/verified", icon: ListChecks, roles: ["aventure_reviewer"] },
+  { name: "Users", to: "/users", icon: Users, roles: ["aventure_administrator"] },
 ];
 
 export default function MobileNav() {
+  const { user } = useAuth();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom,0px))] shrink-0 items-center justify-around border-t border-border/80 bg-background/95 px-4 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-md md:hidden">
-      {navItems.map((item) => {
+      {navItems.filter((item) => user && item.roles.includes(user.role)).map((item) => {
         const Icon = item.icon;
         return (
           <NavLink

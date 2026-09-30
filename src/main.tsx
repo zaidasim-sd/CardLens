@@ -12,10 +12,11 @@ import '@fontsource/poppins/700.css'
 import '@fontsource/poppins/800.css'
 import '@fontsource/poppins/900.css'
 import { Toaster } from "@/components/ui/sonner"
+import { AuthProvider } from "@/auth/AuthContext"
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <AuthProvider><App /></AuthProvider>
     <Toaster position="top-right" />
   </StrictMode>,
 )

@@ -1,13 +1,17 @@
 import { NavLink } from "react-router-dom";
-import { Scan, ListChecks } from "lucide-react";
+import { Scan, ListChecks, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/auth/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
-  { name: "Scan Card", to: "/", icon: Scan },
-  { name: "Review Queue", to: "/verified", icon: ListChecks },
+  { name: "Scan Card", to: "/", icon: Scan, roles: ["exhibition_assistant"] },
+  { name: "Review Queue", to: "/verified", icon: ListChecks, roles: ["aventure_reviewer"] },
+  { name: "User accounts", to: "/users", icon: Users, roles: ["aventure_administrator"] },
 ];
 
 export default function Header() {
+  const { user, signOut } = useAuth();
   return (
     <header className="relative fixed inset-x-0 top-0 z-40 flex h-20 sm:h-22 shrink-0 items-center justify-between border-b border-border/80 bg-background/95 px-3 sm:px-6 md:px-8 backdrop-blur-md md:sticky">
       {/* Official CardSnap by V71 Logo Area (Left-most, Enlarged & Professional) */}
@@ -27,7 +31,7 @@ export default function Header() {
 
       {/* Navigation Links - Centered on Desktop (Hidden on Mobile, Mobile uses fixed bottom nav bar) */}
       <nav className="hidden md:flex md:absolute md:left-1/2 md:-translate-x-1/2 items-center gap-1.5 bg-slate-100/80 dark:bg-slate-900/80 p-1.5 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        {navItems.map((item) => {
+        {navItems.filter((item) => user && item.roles.includes(user.role)).map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
@@ -48,7 +52,7 @@ export default function Header() {
           );
         })}
       </nav>
-
+      <div className="flex items-center gap-3"><span className="hidden text-sm sm:inline">{user?.name}</span><Button type="button" variant="outline" onClick={() => void signOut()}>Sign out</Button></div>
     </header>
   );
 }
