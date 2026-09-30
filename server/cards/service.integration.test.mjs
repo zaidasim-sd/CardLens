@@ -54,6 +54,7 @@ before(async () => {
 after(async () => {
   await db.collection("cardImages").deleteMany({ tenantId: { $in: [tenantId, otherTenantId] } });
   await db.collection("cards").deleteMany({ tenantId: { $in: [tenantId, otherTenantId] } });
+  await db.collection("auditLogs").deleteMany({ tenantId: { $in: [tenantId, otherTenantId] } });
   await client.close();
 });
 

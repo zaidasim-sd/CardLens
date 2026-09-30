@@ -5,6 +5,7 @@ import ocrRoutes from "./routes/ocr.js";
 import { validateOcrConfig } from "./services/ocrService.js";
 import { authHandler, usersHandler } from "./http/authHandlers.js";
 import { cardsHandler, storageHealthHandler } from "./http/cardHandlers.js";
+import supportHandler from "../api/support.js";
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +24,7 @@ app.all("/api/auth", authHandler);
 app.all("/api/users", usersHandler);
 app.all("/api/cards", cardsHandler);
 app.all("/api/storage-health", storageHealthHandler);
+app.all("/api/support", supportHandler);
 
 // Routes
 app.use("/api/ocr", ocrRoutes);

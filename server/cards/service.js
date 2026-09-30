@@ -1,6 +1,7 @@
 import { ObjectId } from "mongodb";
 import { blindIndex, decryptValue, encryptValue } from "../security/encryption.js";
 import { requireAction } from "../auth/permissions.js";
+import { writeAudit } from "../audit/service.js";
 
 export const RECORD_STATES = ["draft", "submitted", "correction_requested", "approved", "rejected", "transferred"];
 const IMAGE_LIMIT_BYTES = 500 * 1024;
@@ -125,6 +126,7 @@ export async function createCard(db, user, input, now = new Date()) {
     card.imageExpiresAt = expiresAt;
     await db.collection("cards").updateOne({ _id: inserted.insertedId, tenantId: user.tenantId }, { $set: { imageExpiresAt: expiresAt } });
   }
+  await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "upload", recordRef: inserted.insertedId, outcome: "success", now });
   return toPublic({ ...card, _id: inserted.insertedId });
 }
 
@@ -143,7 +145,9 @@ export async function listCards(db, user) {
     requireAction(user, "view_own_draft");
     query = { tenantId: user.tenantId, capturedBy: new ObjectId(user.id), status: { $in: ["draft", "correction_requested"] } };
   }
-  return (await db.collection("cards").find(query).sort({ createdAt: -1 }).toArray()).map(toPublic);
+  const records = (await db.collection("cards").find(query).sort({ createdAt: -1 }).toArray()).map(toPublic);
+  if (user.role === "aventure_reviewer") await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "review", recordRef: "queue", outcome: "success" });
+  return records;
 }
 
 export async function updateCard(db, user, id, input, now = new Date()) {
@@ -160,8 +164,17 @@ export async function updateCard(db, user, id, input, now = new Date()) {
   const payload = { ...existing, verifiedData: input.verifiedData || existing.verifiedData };
   const nextState = input.status || card.status;
   if (!RECORD_STATES.includes(nextState)) fail("STATE_INVALID", 400, "Record state is invalid.");
-  if (user.role === "exhibition_assistant" && nextState === "submitted") requireAction(user, "submit_own_draft", card);
+  if (user.role === "exhibition_assistant") {
+    if (nextState !== card.status && nextState !== "submitted") fail("STATE_INVALID", 409, "This record cannot enter that state.");
+    if (nextState === "submitted") requireAction(user, "submit_own_draft", card);
+  }
+  if (user.role === "aventure_reviewer" && ![card.status, "approved", "rejected", "correction_requested"].includes(nextState)) fail("STATE_INVALID", 409, "This record cannot enter that state.");
+  if (nextState === "approved") requireAction(user, "approve_card", card);
+  if (nextState === "rejected") requireAction(user, "reject_card", card);
+  if (nextState === "correction_requested") requireAction(user, "request_correction", card);
   await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { payload: encryptValue(payload), duplicateKeys: duplicateKeys(payload.verifiedData), status: nextState, updatedAt: now, verifiedAt: nextState === "submitted" ? now : card.verifiedAt } });
+  const action = nextState === "approved" ? "approval" : nextState === "rejected" ? "rejection" : "correction";
+  await writeAudit(db, { tenantId: user.tenantId, actor: user, action, recordRef: _id, outcome: "success", now });
   return toPublic(await db.collection("cards").findOne({ _id, tenantId: user.tenantId }));
 }
 

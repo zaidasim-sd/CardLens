@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { ObjectId } from "mongodb";
 import { hashPassword, validatePassword, verifyPassword } from "./password.js";
 import { requireAction, ROLES } from "./permissions.js";
+import { writeAudit } from "../audit/service.js";
 
 const SESSION_ABSOLUTE_MS = 8 * 60 * 60 * 1000;
 const SESSION_IDLE_MS = 30 * 60 * 1000;
@@ -70,11 +71,22 @@ export async function signIn(db, { tenantId, email, password, ip, sessionToken, 
   if (!anonymous || anonymous.absoluteExpiresAt <= now || anonymous.csrfHash !== digest(csrfToken || "")) {
     throw authError("CSRF_INVALID", 403, "The request could not be verified.");
   }
-  await consumeIpRateLimit(db, ip, now);
+  try {
+    await consumeIpRateLimit(db, ip, now);
+  } catch (error) {
+    await writeAudit(db, { tenantId, action: "failed_sign_in", outcome: "refused", now });
+    throw error;
+  }
   const emailLower = String(email || "").trim().toLowerCase();
   const user = await db.collection("users").findOne({ tenantId, emailLower, removedAt: { $exists: false } });
-  if (user?.lockedUntil && user.lockedUntil > now) throw authError("ACCOUNT_LOCKED", 423, "This account is temporarily locked.");
-  if (user?.expiresAt && user.expiresAt <= now) throw authError("ACCOUNT_EXPIRED", 403, "This account has expired.");
+  if (user?.lockedUntil && user.lockedUntil > now) {
+    await writeAudit(db, { tenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
+    throw authError("ACCOUNT_LOCKED", 423, "This account is temporarily locked.");
+  }
+  if (user?.expiresAt && user.expiresAt <= now) {
+    await writeAudit(db, { tenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
+    throw authError("ACCOUNT_EXPIRED", 403, "This account has expired.");
+  }
   const valid = user ? await verifyPassword(password, user.passwordHash) : false;
   if (!valid) {
     await db.collection("loginAttempts").insertOne({ tenantId, emailLower, createdAt: now, outcome: "failed" });
@@ -82,6 +94,7 @@ export async function signIn(db, { tenantId, email, password, ip, sessionToken, 
       const count = await db.collection("loginAttempts").countDocuments({ tenantId, emailLower, createdAt: { $gte: new Date(now.getTime() - LOCK_WINDOW_MS) } });
       if (count >= 5) await db.collection("users").updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(now.getTime() + LOCK_WINDOW_MS) } });
     }
+    await writeAudit(db, { tenantId, actor: user, action: "failed_sign_in", outcome: "failed", now });
     throw authError("INVALID_CREDENTIALS", 401, "Email or password is incorrect.");
   }
   const newSessionToken = token();
@@ -93,6 +106,7 @@ export async function signIn(db, { tenantId, email, password, ip, sessionToken, 
   } });
   await db.collection("loginAttempts").deleteMany({ tenantId, emailLower });
   await db.collection("users").updateOne({ _id: user._id }, { $unset: { lockedUntil: "" }, $set: { lastSignedInAt: now } });
+  await writeAudit(db, { tenantId, actor: user, action: "sign_in", outcome: "success", now });
   return { sessionToken: newSessionToken, csrfToken: newCsrfToken, user: publicUser(user) };
 }
 
@@ -122,9 +136,10 @@ export async function rotateCsrf(db, session) {
 }
 
 export async function signOut(db, sessionToken, csrfToken) {
-  const { session } = await authenticate(db, sessionToken);
+  const { session, user } = await authenticate(db, sessionToken);
   verifyCsrf(session, csrfToken);
   await db.collection("sessions").deleteOne({ _id: session._id });
+  await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "sign_out", outcome: "success" });
 }
 
 export async function createUser(db, actor, input, now = new Date()) {
@@ -145,6 +160,7 @@ export async function createUser(db, actor, input, now = new Date()) {
   };
   if (input.role === "vision71_support") user.expiresAt = new Date(now.getTime() + SUPPORT_LIFETIME_MS);
   const result = await db.collection("users").insertOne(user);
+  await writeAudit(db, { tenantId: actor.tenantId, actor, action: "user_created", recordRef: result.insertedId, outcome: "success", now });
   return publicUser({ ...user, _id: result.insertedId });
 }
 export async function removeUser(db, actor, id, now = new Date()) {
@@ -157,6 +173,7 @@ export async function removeUser(db, actor, id, now = new Date()) {
   );
   if (!result.matchedCount) throw authError("USER_NOT_FOUND", 404, "Account not found.");
   await db.collection("sessions").deleteMany({ userId, tenantId: actor.tenantId });
+  await writeAudit(db, { tenantId: actor.tenantId, actor, action: "user_removed", recordRef: userId, outcome: "success", now });
 }
 
 export async function listUsers(db, actor) {
@@ -172,6 +189,7 @@ export async function seedAdministrator(db, input, now = new Date()) {
   if (existing) throw authError("ADMIN_EXISTS", 409, "The administrator account already exists.");
   const user = { tenantId: input.tenantId, email, emailLower: email.toLowerCase(), name: input.name, role: "aventure_administrator", passwordHash: await hashPassword(input.password), createdAt: now, seeded: true };
   const result = await db.collection("users").insertOne(user);
+  await writeAudit(db, { tenantId: input.tenantId, actor: { id: result.insertedId, role: user.role }, action: "user_created", recordRef: result.insertedId, outcome: "success", now });
   return publicUser({ ...user, _id: result.insertedId });
 }
 

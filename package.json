@@ -13,6 +13,7 @@
     "test": "node --test",
     "test:step1": "node --test server/auth/*.test.mjs",
     "test:step2": "node --test server/cards/*.test.mjs",
+    "test:step3": "node --test server/audit/*.test.mjs",
     "seed:admin": "node scripts/seed-admin.mjs"
   },
   "dependencies": {

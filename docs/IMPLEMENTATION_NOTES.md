@@ -4,7 +4,7 @@
 
 On 2026/09/30, the required fetch, checkout of main and pull completed successfully. The local branch `impl/production-controls` was created from updated main at `b15d41a`.
 
-Steps 1 and 2 are complete. `MONGODB_URI` was provided through the ignored local `.env` file. Atlas integration tests use the isolated database named by `MONGODB_TEST_DB` and fake named accounts and contacts. No secret value was printed or written to a tracked file.
+Steps 1, 2 and 3 are complete. `MONGODB_URI` was provided through the ignored local `.env` file. Atlas integration tests use the isolated database named by `MONGODB_TEST_DB` and fake named accounts and contacts. No secret value was printed or written to a tracked file.
 
 Existing untracked documents, data and artifacts were preserved.
 
@@ -45,9 +45,12 @@ Existing configuration names include `PORT`, `APP_ENV`, `APP_ORIGIN`, `OCR_PROVI
 <tr><td>Step 2</td><td>One tenant cannot read another tenant record</td><td><code>tenant separation prevents reads from another tenant</code></td><td>Pass against Atlas</td></tr>
 <tr><td>Step 2</td><td>Duplicate checks cover email, phone with at least 7 digits, and name with company across the tenant</td><td><code>duplicate checking covers tenant email phone and name with company</code></td><td>Pass against Atlas</td></tr>
 <tr><td>Step 2</td><td>Administrator storage health reports use against the 512 MB limit and warns at 80 percent</td><td><code>storage health reports the free cluster limit to administrators</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 3</td><td>Every implemented action appends exactly one audit entry</td><td><code>implemented actions each append exactly one audit entry</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 3</td><td>Future controlled actions use the same append only writer</td><td><code>future controlled actions use the same append only audit writer</code></td><td>Pass for transfer, deletion, retention change, export and image deletion</td></tr>
+<tr><td>Step 3</td><td>Audit entries never contain contact or card details</td><td><code>audit entries contain references and never contact details</code></td><td>Pass across every test audit entry</td></tr>
 </table>
 
-The Step 1 suite passed 72 tests on 2026/09/30. The Step 2 suite passed 7 tests on 2026/09/30. The TypeScript build passed after both steps. Lint completed with warnings and no errors. Steps 3 through 9 have not started. No restore test report exists because no restore has been performed.
+The Step 1 suite passed 72 tests on 2026/09/30. The Step 2 suite passed 7 tests on 2026/09/30. The Step 3 suite passed 3 tests on 2026/09/30. The TypeScript build passed after these steps. Lint completed with warnings and no errors. Steps 4 through 9 have not started. No restore test report exists because no restore has been performed.
 
 ## Assumptions to confirm
 

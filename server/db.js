@@ -35,5 +35,6 @@ export async function ensureDatabaseIndexes(db) {
     db.collection("cards").createIndex({ tenantId: 1, "duplicateKeys.phones": 1 }),
     db.collection("cards").createIndex({ tenantId: 1, "duplicateKeys.nameCompany": 1 }),
     db.collection("cardImages").createIndex({ tenantId: 1, cardId: 1 }, { unique: true }),
+    db.collection("auditLogs").createIndex({ tenantId: 1, time: -1 }),
   ]);
 }

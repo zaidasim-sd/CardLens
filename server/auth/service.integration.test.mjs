@@ -22,7 +22,7 @@ before(async () => {
 });
 
 after(async () => {
-  for (const name of ["sessions", "loginAttempts", "rateLimits", "users"]) await db.collection(name).deleteMany({ $or: [{ tenantId }, { key: { $regex: "^signin:" } }] });
+  for (const name of ["sessions", "loginAttempts", "rateLimits", "users", "auditLogs"]) await db.collection(name).deleteMany({ $or: [{ tenantId }, { key: { $regex: "^signin:" } }] });
   await client.close();
 });
 
