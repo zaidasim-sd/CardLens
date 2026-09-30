@@ -40,6 +40,7 @@ export interface ContactRecord {
   source?: "ocr" | "manual";
   hasImage?: boolean;
   imageExpiresAt?: string | null;
+  imageExpiredAt?: string | null;
   tenantId?: string;
   capturedBy?: string;
   restricted?: boolean;

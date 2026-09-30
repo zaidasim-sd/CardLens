@@ -49,4 +49,8 @@ export const cardApi = {
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
     return new Blob([bytes], { type: response.mimeType });
   },
+
+  async delete(id: string) {
+    await apiFetch(`/api/cards?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
 };

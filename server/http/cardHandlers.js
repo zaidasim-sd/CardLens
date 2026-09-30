@@ -1,7 +1,7 @@
 import { getDb, ensureDatabaseIndexes } from "../db.js";
 import { authenticate, verifyCsrf } from "../auth/service.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
-import { createCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "../cards/service.js";
+import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "../cards/service.js";
 
 function send(res, status, body) {
   return res.status(status).json(body);
@@ -41,6 +41,10 @@ export async function cardsHandler(req, res) {
     if (req.method === "POST" && action === "duplicate") return send(res, 200, { duplicate: await findDuplicate(db, auth.user, req.body?.verifiedData, req.body?.excludingId) });
     if (req.method === "POST" && action === "records") return send(res, 201, { record: await createCard(db, auth.user, req.body) });
     if (req.method === "PATCH" && action === "records") return send(res, 200, { record: await updateCard(db, auth.user, req.query?.id, req.body) });
+    if (req.method === "DELETE" && action === "records") {
+      await deleteCard(db, auth.user, req.query?.id);
+      return send(res, 200, { ok: true });
+    }
     return send(res, 405, { error: "Method not allowed." });
   } catch (error) {
     return handleError(res, error);

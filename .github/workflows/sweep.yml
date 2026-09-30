@@ -1,0 +1,17 @@
+name: Sweep expired card images
+
+on:
+  schedule:
+    - cron: "15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete expired card images
+        run: |
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_BASE_URL }}/api/cron/sweep"

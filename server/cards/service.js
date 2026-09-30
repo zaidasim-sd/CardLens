@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { blindIndex, decryptValue, encryptValue } from "../security/encryption.js";
 import { requireAction } from "../auth/permissions.js";
 import { writeAudit } from "../audit/service.js";
+import { getRetentionHours, sweepExpiredImages } from "../retention/service.js";
 
 export const RECORD_STATES = ["draft", "submitted", "correction_requested", "approved", "rejected", "transferred"];
 const IMAGE_LIMIT_BYTES = 500 * 1024;
@@ -54,6 +55,7 @@ function toPublic(card) {
     verifiedAt: card.verifiedAt?.toISOString(),
     hasImage: Boolean(card.hasImage),
     imageExpiresAt: card.imageExpiresAt?.toISOString() || null,
+    imageExpiredAt: card.imageExpiredAt?.toISOString() || null,
     ...payload,
   };
 }
@@ -117,14 +119,16 @@ export async function createCard(db, user, input, now = new Date()) {
     verifiedAt: status === "submitted" ? now : null,
     payload: encryptValue(payload),
     duplicateKeys: keys,
-    hasImage: Boolean(image),
+    hasImage: false,
   };
   const inserted = await db.collection("cards").insertOne(card);
-  if (image) {
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const retentionHours = image ? await getRetentionHours(db, user.tenantId) : 0;
+  if (image && retentionHours > 0) {
+    const expiresAt = new Date(now.getTime() + retentionHours * 60 * 60 * 1000);
     await db.collection("cardImages").insertOne({ tenantId: user.tenantId, cardId: inserted.insertedId, encryptedImage: encryptValue(image), mimeType: input.imageMimeType || "image/jpeg", byteLength: image.length, createdAt: now, expiresAt });
+    card.hasImage = true;
     card.imageExpiresAt = expiresAt;
-    await db.collection("cards").updateOne({ _id: inserted.insertedId, tenantId: user.tenantId }, { $set: { imageExpiresAt: expiresAt } });
+    await db.collection("cards").updateOne({ _id: inserted.insertedId, tenantId: user.tenantId }, { $set: { hasImage: true, imageExpiresAt: expiresAt } });
   }
   await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "upload", recordRef: inserted.insertedId, outcome: "success", now });
   return toPublic({ ...card, _id: inserted.insertedId });
@@ -140,6 +144,7 @@ export async function listCards(db, user) {
   let query;
   if (user.role === "aventure_reviewer") {
     requireAction(user, "view_review_queue");
+    await sweepExpiredImages(db, { tenantId: user.tenantId, actor: user });
     query = { tenantId: user.tenantId, status: { $in: ["submitted", "correction_requested", "approved", "rejected", "transferred"] } };
   } else {
     requireAction(user, "view_own_draft");
@@ -202,4 +207,14 @@ export async function storageHealth(db, user) {
   const usedBytes = collections.reduce((sum, item) => sum + item.bytes, 0);
   const limitBytes = 512 * 1024 * 1024;
   return { usedBytes, limitBytes, percentUsed: Number(((usedBytes / limitBytes) * 100).toFixed(2)), warning: usedBytes >= limitBytes * 0.8, collections };
+}
+
+export async function deleteCard(db, user, id, now = new Date()) {
+  requireAction(user, "delete_record");
+  const _id = cardId(id);
+  const card = await db.collection("cards").findOne({ _id, tenantId: user.tenantId }, { projection: { _id: 1 } });
+  if (!card) fail("CARD_NOT_FOUND", 404, "Record not found.");
+  await db.collection("cardImages").deleteMany({ cardId: _id, tenantId: user.tenantId });
+  await db.collection("cards").deleteOne({ _id, tenantId: user.tenantId });
+  await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "deletion", recordRef: _id, outcome: "success", now });
 }

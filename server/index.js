@@ -6,6 +6,7 @@ import { validateOcrConfig } from "./services/ocrService.js";
 import { authHandler, usersHandler } from "./http/authHandlers.js";
 import { cardsHandler, storageHealthHandler } from "./http/cardHandlers.js";
 import supportHandler from "../api/support.js";
+import { retentionSettingsHandler, sweepHandler } from "./http/retentionHandlers.js";
 
 // Load environment variables
 dotenv.config();
@@ -25,6 +26,8 @@ app.all("/api/users", usersHandler);
 app.all("/api/cards", cardsHandler);
 app.all("/api/storage-health", storageHealthHandler);
 app.all("/api/support", supportHandler);
+app.all("/api/retention", retentionSettingsHandler);
+app.all("/api/cron/sweep", sweepHandler);
 
 // Routes
 app.use("/api/ocr", ocrRoutes);

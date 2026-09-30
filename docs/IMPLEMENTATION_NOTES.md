@@ -4,7 +4,7 @@
 
 On 2026/09/30, the required fetch, checkout of main and pull completed successfully. The local branch `impl/production-controls` was created from updated main at `b15d41a`.
 
-Steps 1, 2 and 3 are complete. `MONGODB_URI` was provided through the ignored local `.env` file. Atlas integration tests use the isolated database named by `MONGODB_TEST_DB` and fake named accounts and contacts. No secret value was printed or written to a tracked file.
+Steps 1 through 4 are complete. `MONGODB_URI` was provided through the ignored local `.env` file. Atlas integration tests use the isolated database named by `MONGODB_TEST_DB` and fake named accounts and contacts. No secret value was printed or written to a tracked file.
 
 Existing untracked documents, data and artifacts were preserved.
 
@@ -22,7 +22,7 @@ Use the official MongoDB driver with a cached client, application encryption usi
 
 Names explicitly required by the brief are `MONGODB_URI`, `ENCRYPTION_KEY`, `BACKUP_KEY`, `GOOGLE_VISION_API_KEY`, `APP_BASE_URL`, `CRON_SECRET`, `ALLOWED_ORIGINS`, `OCR_SPACE_APPROVED`, `OCR_MONTHLY_CAP`, `SHEET_TARGET_APPROVED`, `CC_ENV`, `CC_REAL_ACCOUNT_APPROVED` and `DEMO_MODE`.
 
-Step 1 adds `MONGODB_DB`, `MONGODB_TEST_DB`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` and `SEED_TENANT_ID`. Step 2 adds `ENCRYPTION_KEY` and `ENCRYPTION_KEY_VERSION`.
+Step 1 adds `MONGODB_DB`, `MONGODB_TEST_DB`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` and `SEED_TENANT_ID`. Step 2 adds `ENCRYPTION_KEY` and `ENCRYPTION_KEY_VERSION`. Step 4 adds `APP_BASE_URL` and `CRON_SECRET`.
 
 Existing configuration names include `PORT`, `APP_ENV`, `APP_ORIGIN`, `OCR_PROVIDER_MODE`, `OCR_SPACE_API_KEY`, `CC_CLIENT_ID`, `CC_CLIENT_SECRET`, `CC_REDIRECT_URI`, `CC_LIST_NAME`, `CC_CUSTOM_FIELD_LABEL`, `CC_FROM_EMAIL`, `CC_FROM_NAME` and `DATA_KEY`. These names are inventory only and do not imply production approval. Sheets variable names remain to be defined during Step 7. No values are recorded here.
 
@@ -48,9 +48,13 @@ Existing configuration names include `PORT`, `APP_ENV`, `APP_ORIGIN`, `OCR_PROVI
 <tr><td>Step 3</td><td>Every implemented action appends exactly one audit entry</td><td><code>implemented actions each append exactly one audit entry</code></td><td>Pass against Atlas</td></tr>
 <tr><td>Step 3</td><td>Future controlled actions use the same append only writer</td><td><code>future controlled actions use the same append only audit writer</code></td><td>Pass for transfer, deletion, retention change, export and image deletion</td></tr>
 <tr><td>Step 3</td><td>Audit entries never contain contact or card details</td><td><code>audit entries contain references and never contact details</code></td><td>Pass across every test audit entry</td></tr>
+<tr><td>Step 4</td><td>An expired image is deleted on schedule and the deletion is logged</td><td><code>expired image is deleted by the sweep and logged</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 4</td><td>Retention 0 never stores an image</td><td><code>retention 0 never stores an image</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 4</td><td>Deleting a record removes its image and contact fields</td><td><code>administrator deletion removes image and contact fields and is logged</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 4</td><td>Retention limits, cron secret and TTL safety index are enforced</td><td><code>retention bounds and protected sweep secret are enforced</code></td><td>Pass</td></tr>
 </table>
 
-The Step 1 suite passed 72 tests on 2026/09/30. The Step 2 suite passed 7 tests on 2026/09/30. The Step 3 suite passed 3 tests on 2026/09/30. The TypeScript build passed after these steps. Lint completed with warnings and no errors. Steps 4 through 9 have not started. No restore test report exists because no restore has been performed.
+The Step 1 suite passed 72 tests on 2026/09/30. The Step 2 suite passed 7 tests on 2026/09/30. The Step 3 suite passed 3 tests on 2026/09/30. The Step 4 suite passed 4 tests on 2026/09/30. The TypeScript build passed after these steps. Lint completed with warnings and no errors. Steps 5 through 9 have not started. No restore test report exists because no restore has been performed.
 
 ## Assumptions to confirm
 
@@ -60,7 +64,6 @@ The Step 1 suite passed 72 tests on 2026/09/30. The Step 2 suite passed 7 tests 
 4. The sign in IP limit is 20 attempts in 15 minutes because the brief requires a per IP limit without specifying the count.
 5. Removing an account is a soft removal so references remain valid. The account is excluded from authentication and all its sessions are deleted immediately.
 6. The setup file records Sheets configuration as pending because its exact variable names are not specified in the brief.
-7. The image retention duration remains fixed at the approved default of 24 hours until the configurable setting is implemented in Step 4.
 
 ## Open items
 
@@ -72,3 +75,4 @@ The Step 1 suite passed 72 tests on 2026/09/30. The Step 2 suite passed 7 tests 
 6. Move local secret configuration to `.env.local` before deployment setup is finalized. The current ignored `.env` file was accepted for Step 1 verification.
 7. Sheets mapping and destination, Constant Contact mapping and destination, and any OCR.space use require the approvals described in the brief. Real destination approval flags must remain false.
 8. A person must generate and configure the production `ENCRYPTION_KEY`. Step 2 tests generate an unrecorded temporary key at run time.
+9. A person must add `APP_BASE_URL` and `CRON_SECRET` to GitHub Actions and Vercel before the hourly image sweep can run outside tests.
