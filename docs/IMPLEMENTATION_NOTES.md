@@ -4,7 +4,7 @@
 
 On 2026/09/30, the required fetch, checkout of main and pull completed successfully. The local branch `impl/production-controls` was created from updated main at `b15d41a`.
 
-Step 1 is complete. `MONGODB_URI` was provided through the ignored local `.env` file. The connection to Atlas and all Step 1 tests passed using the isolated `cardsnap_step1_test` database and fake named accounts. No secret value was printed or written to a tracked file.
+Steps 1 and 2 are complete. `MONGODB_URI` was provided through the ignored local `.env` file. Atlas integration tests use the isolated database named by `MONGODB_TEST_DB` and fake named accounts and contacts. No secret value was printed or written to a tracked file.
 
 Existing untracked documents, data and artifacts were preserved.
 
@@ -22,7 +22,7 @@ Use the official MongoDB driver with a cached client, application encryption usi
 
 Names explicitly required by the brief are `MONGODB_URI`, `ENCRYPTION_KEY`, `BACKUP_KEY`, `GOOGLE_VISION_API_KEY`, `APP_BASE_URL`, `CRON_SECRET`, `ALLOWED_ORIGINS`, `OCR_SPACE_APPROVED`, `OCR_MONTHLY_CAP`, `SHEET_TARGET_APPROVED`, `CC_ENV`, `CC_REAL_ACCOUNT_APPROVED` and `DEMO_MODE`.
 
-Step 1 adds `MONGODB_DB`, `MONGODB_TEST_DB`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` and `SEED_TENANT_ID`.
+Step 1 adds `MONGODB_DB`, `MONGODB_TEST_DB`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` and `SEED_TENANT_ID`. Step 2 adds `ENCRYPTION_KEY` and `ENCRYPTION_KEY_VERSION`.
 
 Existing configuration names include `PORT`, `APP_ENV`, `APP_ORIGIN`, `OCR_PROVIDER_MODE`, `OCR_SPACE_API_KEY`, `CC_CLIENT_ID`, `CC_CLIENT_SECRET`, `CC_REDIRECT_URI`, `CC_LIST_NAME`, `CC_CUSTOM_FIELD_LABEL`, `CC_FROM_EMAIL`, `CC_FROM_NAME` and `DATA_KEY`. These names are inventory only and do not imply production approval. Sheets variable names remain to be defined during Step 7. No values are recorded here.
 
@@ -38,9 +38,16 @@ Existing configuration names include `PORT`, `APP_ENV`, `APP_ORIGIN`, `OCR_PROVI
 <tr><td>Step 1</td><td>A Vision71 Support account stops working after 24 hours</td><td><code>Vision71 Support account stops working after 24 hours</code></td><td>Pass against Atlas</td></tr>
 <tr><td>Step 1</td><td>Sessions enforce the approved lifetime and idle limit</td><td><code>session absolute and idle limits are enforced</code></td><td>Pass against Atlas</td></tr>
 <tr><td>Step 1</td><td>CSRF tokens are tied to server sessions</td><td><code>CSRF token is tied to its server session</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 2</td><td>Records save and load from central storage</td><td><code>records save and load from central storage</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 2</td><td>No card data remains in browser persistence</td><td><code>browser source has no persistent card storage</code></td><td>Pass. IndexedDB packages and browser database code are removed.</td></tr>
+<tr><td>Step 2</td><td>Stored contact and image values are unreadable ciphertext</td><td><code>stored contact and image values are unreadable ciphertext</code></td><td>Pass against direct MongoDB reads</td></tr>
+<tr><td>Step 2</td><td>Every encryption uses a random IV and records a key version</td><td><code>encryption uses a random IV and records its key version</code></td><td>Pass</td></tr>
+<tr><td>Step 2</td><td>One tenant cannot read another tenant record</td><td><code>tenant separation prevents reads from another tenant</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 2</td><td>Duplicate checks cover email, phone with at least 7 digits, and name with company across the tenant</td><td><code>duplicate checking covers tenant email phone and name with company</code></td><td>Pass against Atlas</td></tr>
+<tr><td>Step 2</td><td>Administrator storage health reports use against the 512 MB limit and warns at 80 percent</td><td><code>storage health reports the free cluster limit to administrators</code></td><td>Pass against Atlas</td></tr>
 </table>
 
-The Step 1 suite passed 72 tests on 2026/09/30. The TypeScript build passed. Lint completed with existing warnings and no errors. Steps 2 through 9 have not started. No restore test report exists because no restore has been performed.
+The Step 1 suite passed 72 tests on 2026/09/30. The Step 2 suite passed 7 tests on 2026/09/30. The TypeScript build passed after both steps. Lint completed with warnings and no errors. Steps 3 through 9 have not started. No restore test report exists because no restore has been performed.
 
 ## Assumptions to confirm
 
@@ -50,6 +57,7 @@ The Step 1 suite passed 72 tests on 2026/09/30. The TypeScript build passed. Lin
 4. The sign in IP limit is 20 attempts in 15 minutes because the brief requires a per IP limit without specifying the count.
 5. Removing an account is a soft removal so references remain valid. The account is excluded from authentication and all its sessions are deleted immediately.
 6. The setup file records Sheets configuration as pending because its exact variable names are not specified in the brief.
+7. The image retention duration remains fixed at the approved default of 24 hours until the configurable setting is implemented in Step 4.
 
 ## Open items
 
@@ -60,3 +68,4 @@ The Step 1 suite passed 72 tests on 2026/09/30. The TypeScript build passed. Lin
 5. A person must check the Google Vision free monthly quota and any payment card requirement before enabling it. The planned default monthly request cap is 900.
 6. Move local secret configuration to `.env.local` before deployment setup is finalized. The current ignored `.env` file was accepted for Step 1 verification.
 7. Sheets mapping and destination, Constant Contact mapping and destination, and any OCR.space use require the approvals described in the brief. Real destination approval flags must remain false.
+8. A person must generate and configure the production `ENCRYPTION_KEY`. Step 2 tests generate an unrecorded temporary key at run time.

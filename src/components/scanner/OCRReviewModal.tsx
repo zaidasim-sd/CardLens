@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { storageService } from "@/lib/db";
+import { cardApi } from "@/lib/cardApi";
 import { checkDuplicateContact } from "@/lib/duplicateChecker";
 import DuplicateWarningModal from "./DuplicateWarningModal";
 import ViewCardModal from "@/components/verified/ViewCardModal";
@@ -544,24 +544,11 @@ export default function OCRReviewModal({
     }
   }, [isOpen, ocrData, reset]);
 
-  const saveRecordToDB = async (verifiedData: OCRData) => {
+  const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
     setIsSaving(true);
     try {
       const fileName = (originalImage as File).name || "demo-card.png";
-      const record: ContactRecord = {
-        id: crypto.randomUUID(),
-        originalImage: originalImage,
-        originalFileName: fileName,
-        createdAt: new Date().toISOString(),
-        verifiedAt: new Date().toISOString(),
-        rawOCRText: rawText,
-        ocrData: ocrData,
-        verifiedData: verifiedData,
-        status: "VERIFIED" as const,
-        isDemo: isDemo,
-      };
-
-      await storageService.saveRecord(record);
+      const record = await cardApi.create({ originalImage, originalFileName: fileName, rawOCRText: rawText, ocrData, verifiedData, isDemo, allowDuplicate });
       setSavedRecord(record);
       toast.success("Contact submitted for review");
     } catch (error) {
@@ -929,7 +916,7 @@ export default function OCRReviewModal({
           matchReason={duplicateMatch.reason}
           onSaveAnyway={() => {
             setIsDuplicateModalOpen(false);
-            saveRecordToDB(duplicateMatch.pendingVerifiedData);
+            saveRecordToDB(duplicateMatch.pendingVerifiedData, true);
           }}
           onViewExisting={() => {
             setIsDuplicateModalOpen(false);

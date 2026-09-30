@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { storageService } from "@/lib/db";
-import { cropBusinessCardImage } from "@/lib/imageCrop";
+import { cardApi } from "@/lib/cardApi";
 import type { ContactRecord, OCRData } from "@/types";
 import { ModernContactTypeSelect, ModernFieldSelect, MET_AT_OPTIONS, PRODUCT_INTEREST_OPTIONS, RELATIONSHIP_OWNER_OPTIONS } from "../scanner/OCRReviewModal";
 
@@ -39,7 +38,6 @@ interface EditFormData {
 
 export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [croppedImage, setCroppedImage] = useState<File | null>(null);
   const [isMeetingContextOpen, setIsMeetingContextOpen] = useState(false);
 
   const { register, handleSubmit, reset, watch, setValue } = useForm<EditFormData>({
@@ -88,29 +86,20 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
       });
 
       setImageUrl(null);
-      setCroppedImage(null);
       if (record.isDemo) {
         setImageUrl("/democard.png");
-      } else if (record.originalImage && record.originalImage.size >= 100) {
-        void cropBusinessCardImage(record.originalImage, record.originalFileName)
-          .then((cropped) => {
+      } else if (record.hasImage) {
+        void cardApi.image(record.id)
+          .then((image) => {
             if (cancelled) return;
-            objectUrl = URL.createObjectURL(cropped);
-            setCroppedImage(cropped);
+            objectUrl = URL.createObjectURL(image);
             setImageUrl(objectUrl);
           })
           .catch(() => {
             if (cancelled) return;
-            try {
-              objectUrl = URL.createObjectURL(record.originalImage);
-              setCroppedImage(null);
-              setImageUrl(objectUrl);
-            } catch {
-              setImageUrl("/democard.png");
-            }
+            setImageUrl("/democard.png");
           });
       } else {
-        setCroppedImage(null);
         setImageUrl("/democard.png");
       }
     }
@@ -146,16 +135,7 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
         }
       };
 
-      await storageService.updateRecord(record.id, {
-        verifiedData: updatedVerifiedData,
-        verifiedAt: new Date().toISOString(),
-        ...(croppedImage
-          ? {
-              originalImage: croppedImage,
-              originalFileName: croppedImage.name,
-            }
-          : {}),
-      });
+      await cardApi.update(record.id, updatedVerifiedData, record.status);
 
       toast.success("Contact details updated successfully.");
       setIsOpen(false);

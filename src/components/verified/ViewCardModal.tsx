@@ -3,6 +3,7 @@ import { Eye, X, Download, Mail, Phone, MapPin, Globe } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import type { ContactRecord } from "@/types";
+import { cardApi } from "@/lib/cardApi";
 
 interface Props {
   isOpen: boolean;
@@ -30,6 +31,15 @@ export default function ViewCardModal({ isOpen, setIsOpen, record, onViewQueue }
       return () => {
         if (url) URL.revokeObjectURL(url);
       };
+    } else if (record?.hasImage) {
+      let active = true;
+      let url: string | null = null;
+      void cardApi.image(record.id).then((image) => {
+        if (!active) return;
+        url = URL.createObjectURL(image);
+        setImageUrl(url);
+      }).catch(() => setImageUrl("/demo-card.svg"));
+      return () => { active = false; if (url) URL.revokeObjectURL(url); };
     } else {
       setImageUrl("/demo-card.svg");
     }

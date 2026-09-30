@@ -22,14 +22,11 @@ export interface OCRData {
   meetingContext?: MeetingContext;
 }
 
-export type RecordStatus = 
-  | "SCANNED" 
-  | "VERIFIED"
-  | "ARCHIVED";
+export type RecordStatus = "draft" | "submitted" | "correction_requested" | "approved" | "rejected" | "transferred";
 
 export interface ContactRecord {
   id: string; // uuid
-  originalImage: Blob; // The actual image data
+  originalImage?: Blob;
   originalFileName: string;
   createdAt: string; // ISO date
   verifiedAt?: string;
@@ -40,5 +37,11 @@ export interface ContactRecord {
   
   status: RecordStatus;
   isDemo?: boolean;
+  source?: "ocr" | "manual";
+  hasImage?: boolean;
+  imageExpiresAt?: string | null;
+  tenantId?: string;
+  capturedBy?: string;
+  restricted?: boolean;
 }
 

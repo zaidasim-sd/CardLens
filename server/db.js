@@ -29,5 +29,11 @@ export async function ensureDatabaseIndexes(db) {
     db.collection("loginAttempts").createIndex({ createdAt: 1 }, { expireAfterSeconds: 900 }),
     db.collection("rateLimits").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection("rateLimits").createIndex({ key: 1 }, { unique: true }),
+    db.collection("cards").createIndex({ tenantId: 1, status: 1, createdAt: -1 }),
+    db.collection("cards").createIndex({ tenantId: 1, capturedBy: 1, status: 1 }),
+    db.collection("cards").createIndex({ tenantId: 1, "duplicateKeys.email": 1 }),
+    db.collection("cards").createIndex({ tenantId: 1, "duplicateKeys.phones": 1 }),
+    db.collection("cards").createIndex({ tenantId: 1, "duplicateKeys.nameCompany": 1 }),
+    db.collection("cardImages").createIndex({ tenantId: 1, cardId: 1 }, { unique: true }),
   ]);
 }

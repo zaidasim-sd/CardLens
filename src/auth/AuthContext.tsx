@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { setApiCsrfToken } from "@/lib/api";
 
 export type Role = "exhibition_assistant" | "aventure_reviewer" | "aventure_administrator" | "vision71_support";
 
@@ -38,9 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const body = await json(await fetch("/api/auth?action=session", { credentials: "include" }));
       setUser(body.user);
       setCsrfToken(body.csrfToken);
+      setApiCsrfToken(body.csrfToken);
     } catch {
       setUser(null);
       setCsrfToken("");
+      setApiCsrfToken("");
     } finally {
       setLoading(false);
     }
@@ -58,12 +61,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }));
     setUser(body.user);
     setCsrfToken(body.csrfToken);
+    setApiCsrfToken(body.csrfToken);
   }, []);
 
   const signOut = useCallback(async () => {
     await json(await fetch("/api/auth?action=sign_out", { method: "POST", credentials: "include", headers: { "X-CSRF-Token": csrfToken } }));
     setUser(null);
     setCsrfToken("");
+    setApiCsrfToken("");
   }, [csrfToken]);
 
   const value = useMemo(() => ({ user, loading, csrfToken, signIn, signOut, refresh }), [user, loading, csrfToken, signIn, signOut, refresh]);

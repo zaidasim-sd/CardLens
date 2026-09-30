@@ -99,12 +99,12 @@ export default function DuplicateWarningModal({
         </div>
 
         <div className="mt-5 flex w-full flex-col gap-2.5">
-          <Button
+          {!existingContact.restricted && <Button
             onClick={onViewExisting}
             className="min-h-11 w-full rounded-xl bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
           >
             Review existing contact
-          </Button>
+          </Button>}
           <Button variant="outline" onClick={onClose} className="min-h-11 w-full rounded-xl">
             Go back and edit
           </Button>
