@@ -1,0 +1,10 @@
+{
+  "proposal": true,
+  "fields": {
+    "email": "email_address.address",
+    "fullName": "first_name and last_name",
+    "companyName": "company_name",
+    "phone": "phone_numbers",
+    "event": "custom_fields"
+  }
+}
