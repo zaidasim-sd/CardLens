@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { MongoClient, ObjectId } from "mongodb";
 import { ensureDatabaseIndexes } from "../db.js";
-import { createCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "./service.js";
+import { createCard, findDuplicate, getCard, getCardImage, listCards, storageHealth } from "./service.js";
 import { encryptValue } from "../security/encryption.js";
 
 const databaseName = process.env.MONGODB_TEST_DB || "cardsnap_step1_test";
@@ -12,9 +12,8 @@ const tenantId = `fake_cards_tenant_${Date.now()}`;
 const otherTenantId = `${tenantId}_other`;
 const assistant = { id: new ObjectId().toString(), tenantId, role: "exhibition_assistant" };
 const reviewer = { id: new ObjectId().toString(), tenantId, role: "aventure_reviewer" };
-const unassignedReviewer = { id: new ObjectId().toString(), tenantId, role: "aventure_reviewer" };
 const otherReviewer = { id: new ObjectId().toString(), tenantId: otherTenantId, role: "aventure_reviewer" };
-const administrator = { id: new ObjectId().toString(), tenantId, role: "aventure_administrator" };
+const administrator = { id: new ObjectId().toString(), tenantId, role: "vision71_administrator" };
 const fakeContact = {
   fullName: "Morgan Example",
   jobTitle: "Test Coordinator",
@@ -50,7 +49,6 @@ before(async () => {
     imageMimeType: "image/jpeg",
     status: "submitted",
     source: "ocr",
-    assignedReviewerId: reviewer.id,
   });
 });
 
@@ -63,11 +61,9 @@ after(async () => {
 });
 
 test("records save and load from central storage", async () => {
-  const loaded = await getCard(db, reviewer, record.id);
+  const loaded = await getCard(db, assistant, record.id);
   assert.equal(loaded.verifiedData.email, fakeContact.email);
-  assert.equal((await listCards(db, reviewer)).some((item) => item.id === record.id), true);
-  const updated = await updateCard(db, reviewer, record.id, { verifiedData: { ...fakeContact, jobTitle: "Updated Fake Role" } });
-  assert.equal(updated.verifiedData.jobTitle, "Updated Fake Role");
+  assert.equal((await listCards(db, assistant)).some((item) => item.id === record.id), true);
 });
 
 test("stored contact and image values are unreadable ciphertext", async () => {
@@ -77,7 +73,7 @@ test("stored contact and image values are unreadable ciphertext", async () => {
   for (const secret of [fakeContact.fullName, fakeContact.email, fakeContact.phone, "fake OCR text", "fake encrypted card image"]) assert.equal(raw.includes(secret), false);
   assert.equal(typeof storedCard.payload.data, "string");
   assert.equal(typeof storedImage.encryptedImage.data, "string");
-  const image = await getCardImage(db, reviewer, record.id);
+  const image = await getCardImage(db, assistant, record.id);
   assert.equal(image.data.toString(), "fake encrypted card image");
 });
 
@@ -91,12 +87,12 @@ test("encryption uses a random IV and records its key version", () => {
 
 test("tenant separation prevents reads from another tenant", async () => {
   await assert.rejects(getCard(db, otherReviewer, record.id), { code: "CARD_NOT_FOUND" });
-  assert.equal((await listCards(db, otherReviewer)).some((item) => item.id === record.id), false);
+  await assert.rejects(listCards(db, otherReviewer), { code: "FORBIDDEN" });
 });
 
-test("only the assigned reviewer receives a submitted record", async () => {
-  assert.equal((await listCards(db, reviewer)).some((item) => item.id === record.id), true);
-  assert.equal((await listCards(db, unassignedReviewer)).some((item) => item.id === record.id), false);
+test("the sender sees the submitted record and its current status", async () => {
+  const submitted = (await listCards(db, assistant)).find((item) => item.id === record.id);
+  assert.equal(submitted.status, "submitted");
 });
 
 test("duplicate checking covers tenant email phone and name with company", async () => {

@@ -43,11 +43,9 @@ export interface ContactRecord {
   imageExpiredAt?: string | null;
   tenantId?: string;
   capturedBy?: string;
-  assignedReviewerId?: string | null;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
-  transferStatus?: "not_started" | "pending" | "transferred" | "failed";
+  transferStatus?: "not_started";
   sheetStatus?: string;
   restricted?: boolean;
 }
-

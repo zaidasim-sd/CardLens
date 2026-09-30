@@ -6,7 +6,7 @@ import { cardsHandler, storageHealthHandler } from "./http/cardHandlers.js";
 import supportHandler from "../api/support.js";
 import { retentionSettingsHandler, sweepHandler } from "./http/retentionHandlers.js";
 import ocrHandler from "./http/ocrHandler.js";
-import constantContactHandler from "./http/constantContactHandler.js";
+import exportHandler from "./http/exportHandler.js";
 
 // Load environment variables
 dotenv.config();
@@ -27,7 +27,7 @@ app.all("/api/storage-health", storageHealthHandler);
 app.all("/api/support", supportHandler);
 app.all("/api/retention", retentionSettingsHandler);
 app.all("/api/cron/sweep", sweepHandler);
-app.all("/api/constant-contact", constantContactHandler);
+app.all("/api/export", exportHandler);
 
 // Routes
 app.all("/api/ocr", ocrHandler);
@@ -39,4 +39,3 @@ app.get("/api/health", (req, res) => {
 app.listen(port, () => {
   console.log(`Backend server running on http://localhost:${port}`);
 });
-

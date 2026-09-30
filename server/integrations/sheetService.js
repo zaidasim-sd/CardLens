@@ -1,4 +1,5 @@
 import { GoogleAuth } from "google-auth-library";
+import { ObjectId } from "mongodb";
 import mapping from "../../config/sheetMapping.json" with { type: "json" };
 
 export function safeSheetValue(value) {
@@ -22,6 +23,7 @@ export function sheetRow(card, people = {}) {
     reviewedByName: people.reviewedByName || "",
     reviewedAt: card.reviewedAt || "",
     transferStatus: card.transferStatus || "not_started",
+    reviewerComment: card.reviewerComment || "",
     recordId: card.id,
   };
   return mapping.columns.map((column) => safeSheetValue(values[column.field]));
@@ -59,8 +61,19 @@ export function createSheetGateway(env = process.env, fetcher = fetch) {
   if (!selected) return null;
   const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(selected.sheetId)}`;
   return {
+    async configure() {
+      const headers = mapping.columns.map((column) => column.header);
+      const range = encodeURIComponent(`${selected.tab}!A1:O1`);
+      await googleRequest(env, `${base}/values/${range}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [headers] }) }, fetcher);
+      const statusColumn = headers.indexOf("Record status");
+      await googleRequest(env, `${base}:batchUpdate`, { method: "POST", body: JSON.stringify({ requests: [
+        { setDataValidation: { range: { sheetId: selected.tabId, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: statusColumn, endColumnIndex: statusColumn + 1 }, rule: { condition: { type: "ONE_OF_LIST", values: ["Pending Review", "Approved", "Return for Correction", "Rejected"].map((userEnteredValue) => ({ userEnteredValue })) }, strict: true, showCustomUi: true } } },
+        { setBasicFilter: { filter: { range: { sheetId: selected.tabId, startRowIndex: 0, endRowIndex: 1000, startColumnIndex: 0, endColumnIndex: headers.length } } } },
+      ] }) }, fetcher);
+      return { columns: headers.length };
+    },
     async append(row) {
-      const range = encodeURIComponent(`${selected.tab}!A:N`);
+      const range = encodeURIComponent(`${selected.tab}!A:O`);
       const result = await googleRequest(env, `${base}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { method: "POST", body: JSON.stringify({ values: [row] }) }, fetcher);
       const updatedRange = result.updates?.updatedRange || "";
       const rowNumber = Number(updatedRange.match(/!(?:[A-Z]+)(\d+):/)?.[1]);
@@ -68,13 +81,54 @@ export function createSheetGateway(env = process.env, fetcher = fetch) {
       return rowNumber;
     },
     async update(rowNumber, row) {
-      const range = encodeURIComponent(`${selected.tab}!A${rowNumber}:N${rowNumber}`);
+      const range = encodeURIComponent(`${selected.tab}!A${rowNumber}:O${rowNumber}`);
       await googleRequest(env, `${base}/values/${range}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [row] }) }, fetcher);
+    },
+    async readAll() {
+      const range = encodeURIComponent(`${selected.tab}!A:O`);
+      return (await googleRequest(env, `${base}/values/${range}`, {}, fetcher)).values || [];
     },
     async remove(rowNumber) {
       await googleRequest(env, `${base}:batchUpdate`, { method: "POST", body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId: selected.tabId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber } } }] }) }, fetcher);
     },
   };
+}
+
+const SHEET_TO_RECORD_STATUS = new Map([
+  ["Pending Review", "submitted"],
+  ["Approved", "approved"],
+  ["Return for Correction", "correction_requested"],
+  ["Rejected", "rejected"],
+]);
+
+export async function refreshStatusesFromSheet(db, tenantId, options = {}) {
+  const gateway = options.gateway === undefined ? createSheetGateway(options.env) : options.gateway;
+  if (!gateway) return { skipped: true, updated: 0 };
+  const rows = await gateway.readAll();
+  if (rows.length < 2) return { updated: 0 };
+  const headers = rows[0];
+  const statusIndex = headers.indexOf("Record status");
+  const commentIndex = headers.indexOf("Reviewer comment");
+  const idIndex = headers.indexOf("CardSnap record ID");
+  if (statusIndex < 0 || idIndex < 0) throw Object.assign(new Error("Sheet columns are invalid"), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+  let updated = 0;
+  for (const row of rows.slice(1)) {
+    const nextStatus = SHEET_TO_RECORD_STATUS.get(String(row[statusIndex] || "").trim());
+    const id = String(row[idIndex] || "").trim();
+    if (!nextStatus || !id) continue;
+    if (!ObjectId.isValid(id)) continue;
+    const _id = new ObjectId(id);
+    const card = await db.collection("cards").findOne({ _id, tenantId });
+    if (!card || card.status === nextStatus) continue;
+    const now = new Date();
+    const update = { status: nextStatus, updatedAt: now, reviewerComment: commentIndex >= 0 ? String(row[commentIndex] || "") : "" };
+    if (nextStatus !== "submitted") { update.reviewedAt = now; update.reviewedByName = options.reviewerName || process.env.SHEET_REVIEWER_NAME || "Hala"; }
+    await db.collection("cards").updateOne({ _id, tenantId }, { $set: update });
+    const action = nextStatus === "approved" ? "approval" : nextStatus === "rejected" ? "rejection" : nextStatus === "correction_requested" ? "correction" : "review";
+    if (nextStatus !== "submitted") await (await import("../audit/service.js")).writeAudit(db, { tenantId, actor: { id: "sheet_reviewer", role: "aventure_reviewer" }, action, recordRef: _id, outcome: "success", now });
+    updated += 1;
+  }
+  return { updated };
 }
 
 async function names(db, card) {

@@ -5,14 +5,16 @@ import { randomBytes } from "node:crypto";
 import { MongoClient, ObjectId } from "mongodb";
 import { ensureDatabaseIndexes } from "../db.js";
 import { createPreauthSession, createUser, removeUser, signIn, signOut } from "../auth/service.js";
-import { createCard, listCards, updateCard } from "../cards/service.js";
+import { createCard } from "../cards/service.js";
 import { aggregateCounts } from "../support/service.js";
 import { writeAudit } from "./service.js";
+import { refreshStatusesFromSheet } from "../integrations/sheetService.js";
+import sheetMapping from "../../config/sheetMapping.json" with { type: "json" };
 
 const databaseName = process.env.MONGODB_TEST_DB || "cardsnap_step1_test";
 const tenantId = `fake_audit_tenant_${Date.now()}`;
 const password = "FakePassword123!";
-const administrator = { id: new ObjectId().toString(), tenantId, role: "aventure_administrator" };
+const administrator = { id: new ObjectId().toString(), tenantId, role: "vision71_administrator" };
 const reviewer = { id: new ObjectId().toString(), tenantId, role: "aventure_reviewer" };
 const support = { id: new ObjectId().toString(), tenantId, role: "vision71_support" };
 const fakeContact = {
@@ -65,6 +67,12 @@ async function assertOneFailure(action, operation, expectedCode) {
   assert.equal(entries[0].action, action);
 }
 
+function sheetGateway(id, status) {
+  const headings = sheetMapping.columns.map((column) => column.header);
+  const row = headings.map((heading) => heading === "Record status" ? status : heading === "CardSnap record ID" ? id : "");
+  return { readAll: async () => [headings, row] };
+}
+
 test("implemented actions each append exactly one audit entry", async () => {
   assistant = await assertOne("user_created", () => createUser(db, administrator, { email: "assistant@example.test", name: "Fake Assistant", role: "exhibition_assistant", password }));
   const removed = await assertOne("user_created", () => createUser(db, administrator, { email: "removed.audit@example.test", name: "Fake Removed Account", role: "exhibition_assistant", password }));
@@ -75,12 +83,11 @@ test("implemented actions each append exactly one audit entry", async () => {
   await assertOneFailure("failed_sign_in", () => signIn(db, { tenantId, email: assistant.email, password: "WrongPassword123!", ip: "192.0.2.34", sessionToken: failedPreauth.sessionToken, csrfToken: failedPreauth.csrfToken }), "INVALID_CREDENTIALS");
   await assertOne("sign_out", () => signOut(db, signedIn.sessionToken, signedIn.csrfToken));
   const first = await assertOne("upload", () => createCard(db, assistant, { rawOCRText: "Fake OCR words", ocrData: fakeContact, verifiedData: fakeContact, status: "submitted", assignedReviewerId: reviewer.id }));
-  await assertOne("review", () => listCards(db, reviewer));
-  await assertOne("correction", () => updateCard(db, reviewer, first.id, { verifiedData: { ...fakeContact, jobTitle: "Corrected Test Role" } }));
-  await assertOne("approval", () => updateCard(db, reviewer, first.id, { verifiedData: fakeContact, status: "approved" }));
+  await assertOne("correction", () => refreshStatusesFromSheet(db, tenantId, { gateway: sheetGateway(first.id, "Return for Correction") }));
+  await assertOne("approval", () => refreshStatusesFromSheet(db, tenantId, { gateway: sheetGateway(first.id, "Approved") }));
   const secondContact = { ...fakeContact, fullName: "Jordan Fixture", companyName: "Second Example Company", email: "second@example.test", phone: "+1 202 555 0188" };
   const second = await assertOne("upload", () => createCard(db, assistant, { rawOCRText: "Different fake OCR words", ocrData: secondContact, verifiedData: secondContact, status: "submitted", assignedReviewerId: reviewer.id }));
-  await assertOne("rejection", () => updateCard(db, reviewer, second.id, { verifiedData: secondContact, status: "rejected" }));
+  await assertOne("rejection", () => refreshStatusesFromSheet(db, tenantId, { gateway: sheetGateway(second.id, "Rejected") }));
   await assertOne("support_access", () => aggregateCounts(db, support));
   await assertOneFailure("support_access", () => aggregateCounts(db, reviewer), "FORBIDDEN");
 });

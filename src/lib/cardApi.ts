@@ -10,7 +10,7 @@ async function toBase64(blob: Blob) {
 }
 
 export const cardApi = {
-  async create(input: { originalImage?: Blob; originalFileName?: string; rawOCRText: string; ocrData: OCRData; verifiedData: OCRData; assignedReviewerId: string; isDemo?: boolean; source?: "ocr" | "manual"; allowDuplicate?: boolean }) {
+  async create(input: { originalImage?: Blob; originalFileName?: string; rawOCRText: string; ocrData: OCRData; verifiedData: OCRData; isDemo?: boolean; source?: "ocr" | "manual"; allowDuplicate?: boolean }) {
     const image = input.originalImage ? await compressCardImage(input.originalImage) : null;
     const body = {
       rawOCRText: input.rawOCRText,
@@ -19,7 +19,6 @@ export const cardApi = {
       originalFileName: input.originalFileName,
       isDemo: input.isDemo,
       source: input.source || "ocr",
-      assignedReviewerId: input.assignedReviewerId,
       status: "submitted",
       allowDuplicate: input.allowDuplicate,
       imageBase64: image ? await toBase64(image) : undefined,
@@ -55,7 +54,4 @@ export const cardApi = {
     await apiFetch(`/api/cards?id=${encodeURIComponent(id)}`, { method: "DELETE" });
   },
 
-  async transfer(id: string) {
-    return apiFetch("/api/constant-contact?action=transfer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-  },
 };

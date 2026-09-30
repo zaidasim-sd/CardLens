@@ -18,15 +18,6 @@ export default function VerifiedQueuePage() {
     catch (caught) { setError(caught instanceof Error ? caught.message : "The queue could not be loaded."); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  async function changeState(record: ContactRecord, status: ContactRecord["status"]) {
-    try { await cardApi.update(record.id, record.verifiedData, status); await load(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "The record could not be changed."); }
-  }
-  async function transfer(record: ContactRecord) {
-    try { await cardApi.transfer(record.id); await load(); }
-    catch (caught) { setError(caught instanceof Error ? caught.message : "The contact could not be transferred."); }
-  }
-
   return (
     <section className="mx-auto w-full max-w-4xl py-6 sm:py-12">
       <header className="mb-7 space-y-3">
@@ -48,8 +39,7 @@ export default function VerifiedQueuePage() {
         <div className="mt-3 grid gap-1 text-sm sm:grid-cols-2"><p>{record.verifiedData.email}</p><p>{record.verifiedData.phone}</p></div>
         {record.imageExpiredAt ? <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">The card image has expired. The contact fields remain available.</p> : null}
         <p className="mt-2 text-xs text-muted-foreground">Sheet status: {record.sheetStatus?.replaceAll("_", " ") || "not started"} · Transfer status: {record.transferStatus?.replaceAll("_", " ") || "not started"}</p>
-        {isReviewer && (record.status === "submitted" || record.status === "correction_requested") ? <div className="mt-4 flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setSelected(record)}>Correct details</Button><Button type="button" variant="outline" onClick={() => void changeState(record, "correction_requested")}>Return for correction</Button><Button type="button" variant="outline" onClick={() => void changeState(record, "rejected")}>Reject</Button><Button type="button" onClick={() => void changeState(record, "approved")}>Approve</Button></div> : null}
-        {isReviewer && record.status === "approved" ? <div className="mt-4"><Button type="button" onClick={() => void transfer(record)}>Transfer to Constant Contact</Button></div> : null}
+        {!isReviewer && record.status === "correction_requested" ? <div className="mt-4"><Button type="button" variant="outline" onClick={() => setSelected(record)}>Correct details</Button></div> : null}
       </li>)}</ul>
       <EditContactModal isOpen={Boolean(selected)} setIsOpen={(open) => { if (!open) setSelected(null); }} record={selected} onSuccess={() => { setSelected(null); void load(); }} />
     </section>

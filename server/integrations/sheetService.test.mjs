@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { addPendingSheetRecord, createSheetGateway, safeSheetValue, sheetRow, updateSheetRecord } from "./sheetService.js";
+import { ObjectId } from "mongodb";
+import { addPendingSheetRecord, createSheetGateway, refreshStatusesFromSheet, safeSheetValue, sheetRow, updateSheetRecord } from "./sheetService.js";
 
 function fakeDb() {
   const transfers = [];
@@ -64,4 +65,23 @@ test("unapproved configuration refuses any sheet other than the Vision71 test sh
     GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: "fake",
     SHEET_TARGET_APPROVED: "false",
   }), { code: "SHEET_TARGET_REFUSED" });
+});
+
+test("Hala Sheet status updates the sender record and writes a reference only audit", async () => {
+  const id = new ObjectId();
+  const stored = { _id: id, tenantId: "vision71-test", status: "submitted" };
+  const audits = [];
+  const db = { collection(name) {
+    if (name === "cards") return { findOne: async () => stored, updateOne: async (_query, update) => Object.assign(stored, update.$set) };
+    if (name === "auditLogs") return { insertOne: async (entry) => { audits.push(entry); } };
+    throw new Error(`Unexpected collection ${name}`);
+  } };
+  const headers = ["Record status", "Reviewer comment", "CardSnap record ID"];
+  const gateway = { readAll: async () => [headers, ["Approved", "Reviewed with fake data", String(id)]] };
+  const result = await refreshStatusesFromSheet(db, "vision71-test", { gateway, reviewerName: "Hala" });
+  assert.equal(result.updated, 1);
+  assert.equal(stored.status, "approved");
+  assert.equal(stored.reviewedByName, "Hala");
+  assert.equal(audits[0].action, "approval");
+  assert.equal(JSON.stringify(audits[0]).includes("Reviewed with fake data"), false);
 });

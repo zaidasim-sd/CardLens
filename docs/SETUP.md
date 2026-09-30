@@ -1,10 +1,14 @@
-# CardSnap setup
+# CardSnap staging setup
 
-1. Create a MongoDB Atlas account and one Free cluster without a payment card. Choose a region and create a database user with access to the CardSnap database only. Provide `MONGODB_URI` in the ignored `.env.local` file. The connection was provided in `.env` and verified for Step 1. Move it to `.env.local` before deployment setup is finalized.
-2. In Google Cloud, restrict the Vision API key to the Cloud Vision API only and provide `GOOGLE_VISION_API_KEY`.
-3. Create a Google service account and a fake test sheet owned by Vision71. Share the sheet with the service account. The exact environment variable names for the Sheets implementation will be recorded in Step 7 before configuration is required.
-4. Add the GitHub Actions secrets `APP_BASE_URL`, `CRON_SECRET`, `MONGODB_URI` and `BACKUP_KEY`.
-5. Set all implementation environment variables in Vercel and in an ignored local `.env.local` file. Never send secret values through repository files or chat.
-6. Generate `ENCRYPTION_KEY` and `BACKUP_KEY` as two different random 32 byte values. Their encoding will be documented when encryption is implemented.
-
-Only free services requiring no payment card may be used. Stop if a setup action requires payment or a payment card.
+1. Keep the separate Vision71 staging project and the `cardsnap_vision71_staging` database limited to fake or consenting Vision71 test data.
+2. Restrict the Google Vision key to Cloud Vision only and set `GOOGLE_VISION_API_KEY` in Vercel and the ignored local environment file.
+3. Create a Vision71 Google service account for internal testing. Set `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` outside the repository.
+4. Share only the Vision71 test Sheet with the service account. Set `GOOGLE_SHEET_ID` and `GOOGLE_SHEET_TEST_ID` to that test Sheet while `SHEET_TARGET_APPROVED` remains false.
+5. Set the actual Sheet tab name and numeric tab identifier, then run <code>npm run configure:sheet</code>. This writes the template headings, the four value status dropdown and a basic filter.
+6. Before live use, Aventure creates or copies the approved template into its own Drive and shares that Sheet with the Vision71 service account email. Change the target only after written approval.
+7. Add `APP_BASE_URL`, `CRON_SECRET`, `MONGODB_URI` and `BACKUP_KEY` to GitHub Actions.
+8. Keep `ENCRYPTION_KEY` and `BACKUP_KEY` as different random 32 byte values.
+9. Use <code>npm run seed:internal</code> with named email and password environment values to create or refresh internal accounts.
+10. Recreate the Vision71 Support account immediately before its test because it expires after 24 hours.
+11. Use the Approved CSV download for the agreed manual Constant Contact import. Do not configure an automatic Constant Contact route for Version 1.
+12. Confirm the login service, database, image storage, cloud region, retention period, backup method, expected monthly cost and access list with Ali before creating any production resource.

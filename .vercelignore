@@ -1,0 +1,11 @@
+.env
+.env.local
+.data
+artifacts
+docs/pilot-privacy
+output
+tmp
+validation
+eng.traineddata
+node_modules
+dist

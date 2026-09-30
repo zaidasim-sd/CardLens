@@ -30,7 +30,7 @@ before(async () => {
   const tenantId = "fake_backup_tenant";
   const userId = new ObjectId();
   await source.collection("cards").insertOne({ tenantId, capturedBy: userId, status: "approved", createdAt: new Date(), updatedAt: new Date(), payload: encryptValue({ verifiedData: { fullName: "Casey Example", email: "casey@example.test", phone: "+1 202 555 0111" }, rawOCRText: "Fake backup OCR" }) });
-  await source.collection("users").insertOne({ _id: userId, tenantId, email: "admin@example.test", emailLower: "admin@example.test", name: "Fake Backup Admin", role: "aventure_administrator", passwordHash: "must not be backed up", createdAt: new Date() });
+  await source.collection("users").insertOne({ _id: userId, tenantId, email: "admin@example.test", emailLower: "admin@example.test", name: "Fake Backup Admin", role: "vision71_administrator", passwordHash: "must not be backed up", createdAt: new Date() });
   await source.collection("lists").insertOne({ tenantId, key: "events", values: ["Fake Expo"] });
   await source.collection("settings").insertOne({ tenantId, key: "retentionHours", value: 24 });
   await source.collection("cardImages").insertOne({ tenantId, cardId: new ObjectId(), encryptedImage: "excluded" });

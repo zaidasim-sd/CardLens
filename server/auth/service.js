@@ -182,27 +182,13 @@ export async function listUsers(db, actor) {
   return users.map(publicUser);
 }
 
-export async function listReviewers(db, actor) {
-  if (!actor || !["exhibition_assistant", "aventure_reviewer", "aventure_administrator"].includes(actor.role)) {
-    throw authError("FORBIDDEN", 403, "Access denied.");
-  }
-  const users = await db.collection("users").find({
-    tenantId: actor.tenantId,
-    role: "aventure_reviewer",
-    removedAt: { $exists: false },
-    $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: new Date() } }],
-  }, { projection: { name: 1, email: 1, role: 1, tenantId: 1, expiresAt: 1 } }).sort({ name: 1 }).toArray();
-  return users.map(publicUser);
-}
-
 export async function seedAdministrator(db, input, now = new Date()) {
   validatePassword(input.password);
   const email = String(input.email || "").trim();
   const existing = await db.collection("users").findOne({ tenantId: input.tenantId, emailLower: email.toLowerCase(), removedAt: { $exists: false } });
   if (existing) throw authError("ADMIN_EXISTS", 409, "The administrator account already exists.");
-  const user = { tenantId: input.tenantId, email, emailLower: email.toLowerCase(), name: input.name, role: "aventure_administrator", passwordHash: await hashPassword(input.password), createdAt: now, seeded: true };
+  const user = { tenantId: input.tenantId, email, emailLower: email.toLowerCase(), name: input.name, role: "vision71_administrator", passwordHash: await hashPassword(input.password), createdAt: now, seeded: true };
   const result = await db.collection("users").insertOne(user);
   await writeAudit(db, { tenantId: input.tenantId, actor: { id: result.insertedId, role: user.role }, action: "user_created", recordRef: result.insertedId, outcome: "success", now });
   return publicUser({ ...user, _id: result.insertedId });
 }
-

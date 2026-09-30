@@ -2,8 +2,8 @@ import { ObjectId } from "mongodb";
 import { blindIndex, decryptValue, encryptValue } from "../security/encryption.js";
 import { requireAction } from "../auth/permissions.js";
 import { writeAudit } from "../audit/service.js";
-import { getRetentionHours, sweepExpiredImages } from "../retention/service.js";
-import { addPendingSheetRecord, updateSheetRecord } from "../integrations/sheetService.js";
+import { getRetentionHours } from "../retention/service.js";
+import { addPendingSheetRecord, refreshStatusesFromSheet, updateSheetRecord } from "../integrations/sheetService.js";
 
 export const RECORD_STATES = ["draft", "submitted", "correction_requested", "approved", "rejected", "transferred"];
 const IMAGE_LIMIT_BYTES = 500 * 1024;
@@ -50,11 +50,12 @@ function toPublic(card) {
     id: String(card._id),
     tenantId: card.tenantId,
     capturedBy: String(card.capturedBy),
-    assignedReviewerId: card.assignedReviewerId ? String(card.assignedReviewerId) : null,
     reviewedBy: card.reviewedBy ? String(card.reviewedBy) : null,
     reviewedAt: card.reviewedAt?.toISOString() || null,
     transferStatus: card.transferStatus || "not_started",
     sheetStatus: card.sheetStatus || "not_started",
+    reviewerComment: card.reviewerComment || "",
+    reviewedByName: card.reviewedByName || "",
     status: card.status,
     createdAt: card.createdAt.toISOString(),
     updatedAt: card.updatedAt.toISOString(),
@@ -73,7 +74,6 @@ function cardId(id) {
 
 function canRead(user, card) {
   if (card.tenantId !== user.tenantId) return false;
-  if (user.role === "aventure_reviewer") return !card.assignedReviewerId || String(card.assignedReviewerId) === user.id;
   return user.role === "exhibition_assistant" && String(card.capturedBy) === user.id;
 }
 
@@ -97,13 +97,6 @@ export async function createCard(db, user, input, now = new Date()) {
   if (!RECORD_STATES.includes(status) || !["draft", "submitted"].includes(status)) fail("STATE_INVALID", 400, "Record state is invalid.");
   if (status === "submitted") requireAction(user, "submit_own_draft", { tenantId: user.tenantId, capturedBy: user.id });
   const data = input.verifiedData || {};
-  let assignedReviewerId = null;
-  if (status === "submitted") {
-    if (!ObjectId.isValid(input.assignedReviewerId)) fail("REVIEWER_REQUIRED", 400, "Choose a reviewer.");
-    assignedReviewerId = new ObjectId(input.assignedReviewerId);
-    const reviewer = await db.collection("users").findOne({ _id: assignedReviewerId, tenantId: user.tenantId, role: "aventure_reviewer", removedAt: { $exists: false } });
-    if (!reviewer) fail("REVIEWER_INVALID", 400, "Choose an active reviewer.");
-  }
   const keys = duplicateKeys(data);
   if (!input.allowDuplicate) {
     const query = queryForDuplicates(user.tenantId, keys);
@@ -126,7 +119,6 @@ export async function createCard(db, user, input, now = new Date()) {
   const card = {
     tenantId: user.tenantId,
     capturedBy: new ObjectId(user.id),
-    assignedReviewerId,
     status,
     createdAt: now,
     updatedAt: now,
@@ -171,16 +163,12 @@ export async function getCard(db, user, id) {
 
 export async function listCards(db, user) {
   let query;
-  if (user.role === "aventure_reviewer") {
-    requireAction(user, "view_review_queue");
-    await sweepExpiredImages(db, { tenantId: user.tenantId, actor: user });
-    query = { tenantId: user.tenantId, assignedReviewerId: new ObjectId(user.id), status: { $in: ["submitted", "correction_requested", "approved", "rejected", "transferred"] } };
-  } else {
+  if (user.role === "exhibition_assistant") {
     requireAction(user, "view_own_draft");
+    try { await refreshStatusesFromSheet(db, user.tenantId); } catch {}
     query = { tenantId: user.tenantId, capturedBy: new ObjectId(user.id) };
-  }
+  } else fail("FORBIDDEN", 403, "Access denied.");
   const records = (await db.collection("cards").find(query).sort({ createdAt: -1 }).toArray()).map(toPublic);
-  if (user.role === "aventure_reviewer") await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "review", recordRef: "queue", outcome: "success" });
   return records;
 }
 
@@ -191,9 +179,7 @@ export async function updateCard(db, user, id, input, now = new Date()) {
   if (user.role === "exhibition_assistant") {
     requireAction(user, "correct_own_draft", card);
     if (!["draft", "correction_requested"].includes(card.status)) fail("STATE_INVALID", 409, "This record cannot be changed.");
-  } else {
-    requireAction(user, "correct_submitted_card", card);
-  }
+  } else fail("FORBIDDEN", 403, "Review changes are made in the approved Google Sheet.");
   const existing = decryptValue(card.payload);
   const payload = { ...existing, verifiedData: input.verifiedData || existing.verifiedData };
   const nextState = input.status || card.status;
@@ -202,18 +188,9 @@ export async function updateCard(db, user, id, input, now = new Date()) {
     if (nextState !== card.status && nextState !== "submitted") fail("STATE_INVALID", 409, "This record cannot enter that state.");
     if (nextState === "submitted") requireAction(user, "submit_own_draft", card);
   }
-  if (user.role === "aventure_reviewer" && ![card.status, "approved", "rejected", "correction_requested"].includes(nextState)) fail("STATE_INVALID", 409, "This record cannot enter that state.");
-  if (nextState === "approved") requireAction(user, "approve_card", card);
-  if (nextState === "rejected") requireAction(user, "reject_card", card);
-  if (nextState === "correction_requested") requireAction(user, "request_correction", card);
   const metadata = { payload: encryptValue(payload), duplicateKeys: duplicateKeys(payload.verifiedData), status: nextState, updatedAt: now, verifiedAt: nextState === "submitted" ? now : card.verifiedAt };
-  if (user.role === "aventure_reviewer" && nextState !== card.status) {
-    metadata.reviewedBy = new ObjectId(user.id);
-    metadata.reviewedAt = now;
-  }
   await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: metadata });
-  const action = nextState === "approved" ? "approval" : nextState === "rejected" ? "rejection" : "correction";
-  await writeAudit(db, { tenantId: user.tenantId, actor: user, action, recordRef: _id, outcome: "success", now });
+  await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "correction", recordRef: _id, outcome: "success", now });
   let updated = toPublic(await db.collection("cards").findOne({ _id, tenantId: user.tenantId }));
   try {
     const result = await updateSheetRecord(db, updated);

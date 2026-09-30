@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { setApiCsrfToken } from "@/lib/api";
 
-export type Role = "exhibition_assistant" | "aventure_reviewer" | "aventure_administrator" | "vision71_support";
+export type Role = "exhibition_assistant" | "aventure_reviewer" | "vision71_administrator" | "vision71_support";
 
 export interface SignedInUser {
   id: string;

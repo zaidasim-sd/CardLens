@@ -4,8 +4,8 @@ import { ACTIONS, can, requireAction, ROLES } from "./permissions.js";
 
 const expected = {
   exhibition_assistant: ["capture_card", "use_ocr", "view_own_draft", "correct_own_draft", "submit_own_draft"],
-  aventure_reviewer: ["use_ocr", "view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction", "transfer_approved_card"],
-  aventure_administrator: ["manage_users", "manage_lists", "change_retention", "delete_record", "end_pilot_export"],
+  aventure_reviewer: [],
+  vision71_administrator: ["manage_users", "manage_lists", "change_retention", "delete_record", "end_pilot_export"],
   vision71_support: ["view_aggregate_counts"],
 };
 
@@ -23,9 +23,9 @@ test("assistant access is limited to a draft captured by that assistant", () => 
   assert.throws(() => requireAction(user, "view_own_draft", { tenantId: "tenant_one", capturedBy: "assistant_two" }), { code: "FORBIDDEN" });
 });
 
-test("reviewer cannot approve a record captured by that reviewer", () => {
+test("reviewer cannot approve a record in CardSnap because review happens in the Sheet", () => {
   const user = { id: "reviewer_one", tenantId: "tenant_one", role: "aventure_reviewer" };
-  assert.throws(() => requireAction(user, "approve_card", { tenantId: "tenant_one", capturedBy: "reviewer_one" }), { code: "SELF_APPROVAL_FORBIDDEN" });
+  assert.throws(() => requireAction(user, "approve_card", { tenantId: "tenant_one", capturedBy: "reviewer_one" }), { code: "FORBIDDEN" });
 });
 
 test("record checks reject another tenant", () => {

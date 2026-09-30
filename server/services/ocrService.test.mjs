@@ -29,9 +29,32 @@ test("Google failure returns the approved message without provider details", asy
   process.env.GOOGLE_VISION_API_KEY = "fake-test-key";
   try {
     await assert.rejects(
-      performOCR(Buffer.from("fake-image"), { googleVisionProvider: async () => { throw new Error("secret upstream details"); } }),
+      performOCR(Buffer.from("fake-image"), { googleVisionProvider: async () => { throw new Error("secret upstream details"); }, wait: async () => {} }),
       { message: OCR_FAILURE_MESSAGE },
     );
+  } finally {
+    if (previousKey === undefined) delete process.env.GOOGLE_VISION_API_KEY;
+    else process.env.GOOGLE_VISION_API_KEY = previousKey;
+  }
+});
+
+test("temporary Google failure is retried securely before succeeding", async () => {
+  const previousKey = process.env.GOOGLE_VISION_API_KEY;
+  process.env.GOOGLE_VISION_API_KEY = "fake-test-key";
+  let attempts = 0;
+  const waits = [];
+  try {
+    const result = await performOCR(Buffer.from("fake-image"), {
+      googleVisionProvider: async () => {
+        attempts += 1;
+        if (attempts < 3) throw new Error("temporary failure");
+        return { rawText: "Fake Person", provider: "google", success: true };
+      },
+      wait: async (milliseconds) => waits.push(milliseconds),
+    });
+    assert.equal(result.provider, "google");
+    assert.equal(attempts, 3);
+    assert.deepEqual(waits, [250, 750]);
   } finally {
     if (previousKey === undefined) delete process.env.GOOGLE_VISION_API_KEY;
     else process.env.GOOGLE_VISION_API_KEY = previousKey;

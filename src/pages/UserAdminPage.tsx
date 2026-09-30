@@ -10,7 +10,7 @@ import { cardApi } from "@/lib/cardApi";
 const roleLabels: Record<Role, string> = {
   exhibition_assistant: "Capturer",
   aventure_reviewer: "Reviewer",
-  aventure_administrator: "Administrator",
+  vision71_administrator: "Administrator",
   vision71_support: "Vision71 Support",
 };
 
@@ -27,8 +27,8 @@ export default function UserAdminPage() {
     if (!response.ok) throw new Error(body.error);
     setUsers(body.users);
   }, []);
-  useEffect(() => { if (user?.role === "aventure_administrator") { void load().catch((error) => setMessage(error.message)); void apiFetch("/api/retention").then((body) => setRetentionHours(body.retentionHours)).catch((error) => setMessage(error.message)); } }, [load, user]);
-  if (user?.role !== "aventure_administrator") return <Navigate to="/" replace />;
+  useEffect(() => { if (user?.role === "vision71_administrator") { void load().catch((error) => setMessage(error.message)); void apiFetch("/api/retention").then((body) => setRetentionHours(body.retentionHours)).catch((error) => setMessage(error.message)); } }, [load, user]);
+  if (user?.role !== "vision71_administrator") return <Navigate to="/" replace />;
 
   async function create(event: FormEvent) {
     event.preventDefault();
@@ -64,6 +64,19 @@ export default function UserAdminPage() {
     catch (caught) { setMessage(caught instanceof Error ? caught.message : "The record could not be deleted."); }
   }
 
+  async function downloadApproved() {
+    setMessage("");
+    const response = await fetch("/api/export", { credentials: "include" });
+    if (!response.ok) { const body = await response.json(); setMessage(body.error || "The CSV could not be created."); return; }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "cardsnap-approved-contacts.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return <section className="mx-auto max-w-4xl space-y-8 py-8">
     <div><h1 className="text-3xl font-semibold">User accounts</h1><p className="mt-2 text-sm text-muted-foreground">Create and remove named accounts for this organisation.</p></div>
     <form onSubmit={create} className="grid gap-4 rounded-xl border bg-white p-5 sm:grid-cols-2">
@@ -77,5 +90,6 @@ export default function UserAdminPage() {
     <ul className="space-y-3">{users.map((account) => <li key={account.id} className="flex items-center justify-between rounded-xl border bg-white p-4"><div><p className="font-semibold">{account.name}</p><p className="text-sm text-muted-foreground">{account.email} · {roleLabels[account.role]}</p></div><Button type="button" variant="destructive" onClick={() => void remove(account.id)}>Remove</Button></li>)}</ul>
     <form onSubmit={saveRetention} className="space-y-3 rounded-xl border bg-white p-5"><h2 className="text-xl font-semibold">Card image retention</h2><p className="text-sm text-muted-foreground">Choose 0 to discard images immediately or a value up to 168 hours.</p><Label htmlFor="retention">Retention hours</Label><Input id="retention" type="number" min={0} max={168} step={1} value={retentionHours} onChange={(event) => setRetentionHours(Number(event.target.value))} required /><Button>Save retention</Button></form>
     <form onSubmit={deleteRecord} className="space-y-3 rounded-xl border border-red-200 bg-white p-5"><h2 className="text-xl font-semibold">Delete a record</h2><p className="text-sm text-muted-foreground">Enter the CardSnap record ID from the approved request.</p><Label htmlFor="recordId">Record ID</Label><Input id="recordId" value={recordId} onChange={(event) => setRecordId(event.target.value)} required /><Button variant="destructive">Delete record and image</Button></form>
+    <section className="space-y-3 rounded-xl border bg-white p-5"><h2 className="text-xl font-semibold">Approved contacts CSV</h2><p className="text-sm text-muted-foreground">Download only contacts approved in the Google Sheet for manual import into the agreed Constant Contact list.</p><Button type="button" onClick={() => void downloadApproved()}>Download Approved CSV</Button></section>
   </section>;
 }

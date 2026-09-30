@@ -14,6 +14,7 @@
     { "header": "Reviewed by", "field": "reviewedByName" },
     { "header": "Review date", "field": "reviewedAt" },
     { "header": "Constant Contact transfer status", "field": "transferStatus" },
+    { "header": "Reviewer comment", "field": "reviewerComment" },
     { "header": "CardSnap record ID", "field": "recordId" }
   ]
 }

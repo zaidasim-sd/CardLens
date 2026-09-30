@@ -34,3 +34,5 @@ dist-ssr
 .data/
 artifacts/qa/
 *.traineddata*
+.vercel
+.env*

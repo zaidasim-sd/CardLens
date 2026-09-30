@@ -1,5 +1,5 @@
 import { getDb, ensureDatabaseIndexes } from "../db.js";
-import { authenticate, createPreauthSession, createUser, listReviewers, listUsers, removeUser, rotateCsrf, signIn, signOut, verifyCsrf } from "../auth/service.js";
+import { authenticate, createPreauthSession, createUser, listUsers, removeUser, rotateCsrf, signIn, signOut, verifyCsrf } from "../auth/service.js";
 import { clearSessionCookie, parseCookies, sessionCookie, SESSION_COOKIE } from "../auth/cookies.js";
 
 function send(res, status, body, cookie) {
@@ -50,7 +50,6 @@ export async function usersHandler(req, res) {
     const db = await getDb();
     await ensureDatabaseIndexes(db);
     const auth = await authenticate(db, requestToken(req));
-    if (req.method === "GET" && req.query?.action === "reviewers") return send(res, 200, { users: await listReviewers(db, auth.user) });
     if (req.method === "GET") return send(res, 200, { users: await listUsers(db, auth.user) });
     verifyCsrf(auth.session, csrf(req));
     if (req.method === "POST") return send(res, 201, { user: await createUser(db, auth.user, req.body) });

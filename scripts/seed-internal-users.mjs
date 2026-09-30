@@ -5,7 +5,7 @@ import { writeAudit } from "../server/audit/service.js";
 
 const tenantId = process.env.INTERNAL_TEST_TENANT_ID;
 const accounts = [
-  { key: "ALI", name: "Muhammad Ali Zakaria", role: "aventure_administrator" },
+  { key: "ALI", name: "Muhammad Ali Zakaria", role: "vision71_administrator" },
   { key: "ZAID", name: "Zaid", role: "exhibition_assistant" },
   { key: "IBRAHIM", name: "Ibrahim", role: "exhibition_assistant" },
   { key: "HAROON", name: "Haroon", role: "aventure_reviewer" },
