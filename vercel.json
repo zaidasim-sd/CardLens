@@ -8,13 +8,17 @@
   "functions": {
     "api/cards.js": { "maxDuration": 120 },
     "api/constant-contact.js": { "maxDuration": 300 },
-    "api/cron/constant-contact.js": { "maxDuration": 300 },
+    "api/cron/sweep.js": { "maxDuration": 300 },
     "api/ocr.js": {
       "maxDuration": 30,
       "includeFiles": "node_modules/**"
     }
   },
   "rewrites": [
+    {
+      "source": "/api/cron/constant-contact",
+      "destination": "/api/cron/sweep?action=constant_contact"
+    },
     {
       "source": "/api/:path*",
       "destination": "/api/:path*"
