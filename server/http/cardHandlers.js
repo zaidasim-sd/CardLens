@@ -19,6 +19,7 @@ async function context(req) {
 }
 
 function handleError(res, error) {
+  if (!error.status || error.status >= 500) console.error("[cardsHandler error]", error);
   const body = { code: error.code || "SERVER_ERROR", error: error.status ? error.message : "The request could not be completed." };
   if (error.code === "DUPLICATE_FOUND") body.duplicate = error.duplicate;
   return send(res, error.status || 500, body);

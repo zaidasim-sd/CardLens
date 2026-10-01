@@ -63,13 +63,19 @@ export async function getReviewQueue(): Promise<ContactRecord[]> {
  */
 export async function updateContact(
   id: string,
-  verifiedData: OCRData,
-  status?: ContactRecord["status"]
+  verifiedData?: OCRData,
+  status?: ContactRecord["status"],
+  reviewerComment?: string
 ): Promise<ContactRecord> {
+  const body: Record<string, any> = {};
+  if (verifiedData) body.verifiedData = verifiedData;
+  if (status) body.status = status;
+  if (reviewerComment !== undefined) body.reviewerComment = reviewerComment;
+
   const response = await apiFetch(`/api/cards?id=${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ verifiedData, status }),
+    body: JSON.stringify(body),
   });
   return response.record as ContactRecord;
 }

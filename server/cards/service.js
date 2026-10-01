@@ -45,24 +45,34 @@ function queryForDuplicates(tenantId, keys, excludingId) {
 }
 
 function toPublic(card) {
-  const payload = decryptValue(card.payload);
+  let payload = {};
+  try {
+    payload = decryptValue(card.payload);
+  } catch (err) {
+    payload = {
+      verifiedData: {
+        fullName: "(Unreadable Record)",
+        notes: "This card was saved with an earlier encryption key.",
+      },
+    };
+  }
   return {
     id: String(card._id),
     tenantId: card.tenantId,
     capturedBy: String(card.capturedBy),
     reviewedBy: card.reviewedBy ? String(card.reviewedBy) : null,
-    reviewedAt: card.reviewedAt?.toISOString() || null,
+    reviewedAt: card.reviewedAt ? new Date(card.reviewedAt).toISOString() : null,
     transferStatus: card.transferStatus || "not_started",
     sheetStatus: card.sheetStatus || "not_started",
     reviewerComment: card.reviewerComment || "",
     reviewedByName: card.reviewedByName || "",
     status: card.status,
-    createdAt: card.createdAt.toISOString(),
-    updatedAt: card.updatedAt.toISOString(),
-    verifiedAt: card.verifiedAt?.toISOString(),
+    createdAt: card.createdAt ? new Date(card.createdAt).toISOString() : new Date().toISOString(),
+    updatedAt: card.updatedAt ? new Date(card.updatedAt).toISOString() : new Date().toISOString(),
+    verifiedAt: card.verifiedAt ? new Date(card.verifiedAt).toISOString() : null,
     hasImage: Boolean(card.hasImage),
-    imageExpiresAt: card.imageExpiresAt?.toISOString() || null,
-    imageExpiredAt: card.imageExpiredAt?.toISOString() || null,
+    imageExpiresAt: card.imageExpiresAt ? new Date(card.imageExpiresAt).toISOString() : null,
+    imageExpiredAt: card.imageExpiredAt ? new Date(card.imageExpiredAt).toISOString() : null,
     ...payload,
   };
 }
@@ -74,6 +84,7 @@ function cardId(id) {
 
 function canRead(user, card) {
   if (card.tenantId !== user.tenantId) return false;
+  if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") return true;
   return user.role === "exhibition_assistant" && String(card.capturedBy) === user.id;
 }
 
@@ -167,6 +178,10 @@ export async function listCards(db, user) {
     requireAction(user, "view_own_draft");
     try { await refreshStatusesFromSheet(db, user.tenantId); } catch {}
     query = { tenantId: user.tenantId, capturedBy: new ObjectId(user.id) };
+  } else if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") {
+    requireAction(user, "view_review_queue");
+    try { await refreshStatusesFromSheet(db, user.tenantId); } catch {}
+    query = { tenantId: user.tenantId };
   } else fail("FORBIDDEN", 403, "Access denied.");
   const records = (await db.collection("cards").find(query).sort({ createdAt: -1 }).toArray()).map(toPublic);
   return records;
@@ -179,7 +194,11 @@ export async function updateCard(db, user, id, input, now = new Date()) {
   if (user.role === "exhibition_assistant") {
     requireAction(user, "correct_own_draft", card);
     if (!["draft", "correction_requested"].includes(card.status)) fail("STATE_INVALID", 409, "This record cannot be changed.");
-  } else fail("FORBIDDEN", 403, "Review changes are made in the approved Google Sheet.");
+  } else if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") {
+    if (input.verifiedData) requireAction(user, "correct_submitted_card", card);
+  } else {
+    fail("FORBIDDEN", 403, "Access denied.");
+  }
   const existing = decryptValue(card.payload);
   const payload = { ...existing, verifiedData: input.verifiedData || existing.verifiedData };
   const nextState = input.status || card.status;
@@ -188,15 +207,43 @@ export async function updateCard(db, user, id, input, now = new Date()) {
     if (nextState !== card.status && nextState !== "submitted") fail("STATE_INVALID", 409, "This record cannot enter that state.");
     if (nextState === "submitted") requireAction(user, "submit_own_draft", card);
   }
-  const metadata = { payload: encryptValue(payload), duplicateKeys: duplicateKeys(payload.verifiedData), status: nextState, updatedAt: now, verifiedAt: nextState === "submitted" ? now : card.verifiedAt };
+  if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") {
+    if (nextState !== card.status) {
+      if (!["approved", "rejected", "correction_requested", "submitted"].includes(nextState)) {
+        fail("STATE_INVALID", 409, "This record cannot enter that state.");
+      }
+      if (nextState === "approved") requireAction(user, "approve_card", card);
+      if (nextState === "rejected") requireAction(user, "reject_card", card);
+      if (nextState === "correction_requested") requireAction(user, "request_correction", card);
+    }
+  }
+  const metadata = {
+    payload: encryptValue(payload),
+    duplicateKeys: duplicateKeys(payload.verifiedData),
+    status: nextState,
+    updatedAt: now,
+    verifiedAt: nextState === "submitted" ? now : card.verifiedAt,
+  };
+  if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") {
+    if (nextState !== card.status) {
+      metadata.reviewedBy = new ObjectId(user.id);
+      metadata.reviewedByName = user.name || "Reviewer";
+      metadata.reviewedAt = now;
+    }
+    if (input.reviewerComment !== undefined) {
+      metadata.reviewerComment = String(input.reviewerComment || "");
+    }
+  }
   await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: metadata });
-  await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "correction", recordRef: _id, outcome: "success", now });
+  const action = nextState === "approved" ? "approval" : nextState === "rejected" ? "rejection" : "correction";
+  await writeAudit(db, { tenantId: user.tenantId, actor: user, action, recordRef: _id, outcome: "success", now });
   let updated = toPublic(await db.collection("cards").findOne({ _id, tenantId: user.tenantId }));
   try {
     const result = await updateSheetRecord(db, updated);
     if (!result.skipped) {
-      await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: updated.status } });
-      updated.sheetStatus = updated.status;
+      const displayStatus = nextState === "approved" ? "Approved" : nextState === "rejected" ? "Rejected" : nextState === "correction_requested" ? "Return for Correction" : updated.status;
+      await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: displayStatus } });
+      updated.sheetStatus = displayStatus;
     }
   } catch {
     await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: "failed" } });

@@ -87,7 +87,12 @@ test("encryption uses a random IV and records its key version", () => {
 
 test("tenant separation prevents reads from another tenant", async () => {
   await assert.rejects(getCard(db, otherReviewer, record.id), { code: "CARD_NOT_FOUND" });
-  await assert.rejects(listCards(db, otherReviewer), { code: "FORBIDDEN" });
+  assert.equal((await listCards(db, otherReviewer)).some((item) => item.id === record.id), false);
+});
+
+test("reviewer sees tenant submitted records in review queue", async () => {
+  const records = await listCards(db, reviewer);
+  assert.equal(records.some((item) => item.id === record.id), true);
 });
 
 test("the sender sees the submitted record and its current status", async () => {

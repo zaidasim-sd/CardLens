@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ListChecks, Scan, Download, MapPin, Building2, AlertCircle, RefreshCw } from "lucide-react";
+import { ListChecks, Scan, Download, MapPin, Building2, AlertCircle, RefreshCw, ClipboardCheck } from "lucide-react";
 import { cardApi } from "@/lib/cardApi";
 import { exportApprovedContacts } from "@/lib/api/export";
+import { useAuth } from "@/auth/AuthContext";
 import type { ContactRecord } from "@/types";
 import { Button } from "@/components/ui/button";
 import EditContactModal from "@/components/verified/EditContactModal";
+import ReviewContactModal from "@/components/verified/ReviewContactModal";
 import { toast } from "sonner";
 
 export default function VerifiedQueuePage() {
+  const { user } = useAuth();
   const [records, setRecords] = useState<ContactRecord[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<ContactRecord | null>(null);
+  const [reviewRecord, setReviewRecord] = useState<ContactRecord | null>(null);
+
+  const canReview = user?.role === "aventure_reviewer" || user?.role === "vision71_administrator";
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -209,7 +215,11 @@ export default function VerifiedQueuePage() {
                   )}
                 </div>
 
-                <div className="shrink-0 self-start sm:self-auto">
+                <div
+                  className={`shrink-0 self-start sm:self-auto ${canReview ? "cursor-pointer hover:opacity-90 transition-opacity" : ""}`}
+                  onClick={() => canReview && setReviewRecord(record)}
+                  title={canReview ? "Click to review contact" : undefined}
+                >
                   {getStatusBadge(record.status, record.sheetStatus)}
                 </div>
               </div>
@@ -251,24 +261,51 @@ export default function VerifiedQueuePage() {
                   {record.reviewedByName ? ` · Reviewed by ${record.reviewedByName}` : ""}
                 </span>
 
-                {record.status === "correction_requested" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelected(record)}
-                    className="h-8 text-xs font-semibold rounded-lg border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 cursor-pointer"
-                  >
-                    Correct details
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {canReview && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setReviewRecord(record)}
+                      className="h-8 px-3 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <ClipboardCheck className="w-3.5 h-3.5" />
+                      <span>Review Details</span>
+                    </Button>
+                  )}
+
+                  {!canReview && record.status === "correction_requested" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelected(record)}
+                      className="h-8 text-xs font-semibold rounded-lg border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 cursor-pointer"
+                    >
+                      Correct details
+                    </Button>
+                  )}
+                </div>
               </div>
             </li>
           );
         })}
       </ul>
 
-      {/* Edit modal when correcting details */}
+      {/* Review modal for Reviewers to inspect and change status */}
+      <ReviewContactModal
+        isOpen={Boolean(reviewRecord)}
+        setIsOpen={(open) => {
+          if (!open) setReviewRecord(null);
+        }}
+        record={reviewRecord}
+        onSuccess={() => {
+          setReviewRecord(null);
+          void load();
+        }}
+      />
+
+      {/* Edit modal when assistant corrects details */}
       <EditContactModal
         isOpen={Boolean(selected)}
         setIsOpen={(open) => {
