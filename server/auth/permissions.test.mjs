@@ -20,6 +20,7 @@ for (const role of ROLES) {
 test("assistant access is limited to a draft captured by that assistant", () => {
   const user = { id: "assistant_one", tenantId: "tenant_one", role: "exhibition_assistant" };
   assert.doesNotThrow(() => requireAction(user, "view_own_draft", { tenantId: "tenant_one", capturedBy: "assistant_one" }));
+  assert.doesNotThrow(() => requireAction(user, "correct_own_draft", { tenantId: "tenant_one", capturedBy: { toString: () => "assistant_one" } }));
   assert.throws(() => requireAction(user, "view_own_draft", { tenantId: "tenant_one", capturedBy: "assistant_two" }), { code: "FORBIDDEN" });
 });
 

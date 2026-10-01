@@ -39,11 +39,12 @@ export function can(role, action) {
 export function requireAction(user, action, record) {
   if (!user || !can(user.role, action)) throw Object.assign(new Error("Access denied."), { code: "FORBIDDEN", status: 403 });
   if (record && record.tenantId !== user.tenantId) throw Object.assign(new Error("Access denied."), { code: "FORBIDDEN", status: 403 });
-  const userId = String(user.id || user._id);
-  if (record && ["view_own_draft", "correct_own_draft", "submit_own_draft"].includes(action) && record.capturedBy !== userId) {
+  const userId = String(user.id || user._id || "");
+  const cardCapturerId = record?.capturedBy ? String(record.capturedBy) : null;
+  if (record && ["view_own_draft", "correct_own_draft", "submit_own_draft"].includes(action) && cardCapturerId !== userId) {
     throw Object.assign(new Error("Access denied."), { code: "FORBIDDEN", status: 403 });
   }
-  if (action === "approve_card" && record?.capturedBy === userId) {
+  if (action === "approve_card" && cardCapturerId === userId) {
     throw Object.assign(new Error("A reviewer cannot approve a record they captured."), { code: "SELF_APPROVAL_FORBIDDEN", status: 403 });
   }
 }
