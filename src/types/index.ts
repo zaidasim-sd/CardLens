@@ -43,6 +43,7 @@ export interface ContactRecord {
   imageExpiredAt?: string | null;
   tenantId?: string;
   capturedBy?: string;
+  capturedByName?: string;
   reviewedBy?: string | null;
   reviewedByName?: string | null;
   reviewedAt?: string | null;

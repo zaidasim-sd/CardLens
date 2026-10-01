@@ -60,6 +60,7 @@ function toPublic(card) {
     id: String(card._id),
     tenantId: card.tenantId,
     capturedBy: String(card.capturedBy),
+    capturedByName: card.capturedByName || "",
     reviewedBy: card.reviewedBy ? String(card.reviewedBy) : null,
     reviewedAt: card.reviewedAt ? new Date(card.reviewedAt).toISOString() : null,
     transferStatus: card.transferStatus || "not_started",
@@ -130,6 +131,7 @@ export async function createCard(db, user, input, now = new Date()) {
   const card = {
     tenantId: user.tenantId,
     capturedBy: new ObjectId(user.id),
+    capturedByName: user.name || "Capturer",
     status,
     createdAt: now,
     updatedAt: now,
@@ -183,7 +185,17 @@ export async function listCards(db, user) {
     try { await refreshStatusesFromSheet(db, user.tenantId); } catch {}
     query = { tenantId: user.tenantId };
   } else fail("FORBIDDEN", 403, "Access denied.");
-  const records = (await db.collection("cards").find(query).sort({ createdAt: -1 }).toArray()).map(toPublic);
+  const rawCards = await db.collection("cards").find(query).sort({ createdAt: -1 }).toArray();
+  const capturerIds = [...new Set(rawCards.map((c) => c.capturedBy?.toString()).filter(Boolean))].map((id) => new ObjectId(id));
+  const capturers = capturerIds.length > 0 ? await db.collection("users").find({ _id: { $in: capturerIds } }, { projection: { _id: 1, name: 1, email: 1 } }).toArray() : [];
+  const capturerMap = new Map(capturers.map((u) => [u._id.toString(), u.name || u.email]));
+  const records = rawCards.map((card) => {
+    const pub = toPublic(card);
+    if (!pub.capturedByName && card.capturedBy) {
+      pub.capturedByName = capturerMap.get(card.capturedBy.toString()) || "";
+    }
+    return pub;
+  });
   return records;
 }
 

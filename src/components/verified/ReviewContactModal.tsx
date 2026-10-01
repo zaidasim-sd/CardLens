@@ -7,6 +7,8 @@ import {
   AlertCircle,
   ExternalLink,
   Image as ImageIcon,
+  User,
+  Calendar,
 } from "lucide-react";
 import {
   Dialog,
@@ -30,7 +32,7 @@ interface Props {
   isOpen: boolean;
   setIsOpen: (val: boolean) => void;
   record: ContactRecord | null;
-  onSuccess?: () => void;
+  onSuccess?: (updated?: ContactRecord) => void;
 }
 
 interface ReviewFormData {
@@ -51,7 +53,6 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
     { label: "Select exhibition", value: "" },
   ]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [showImagePreview, setShowImagePreview] = useState(false);
 
   const { register, handleSubmit, reset } = useForm<ReviewFormData>({
     defaultValues: {
@@ -112,6 +113,8 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
   if (!record) return null;
 
   const isSelfCaptured = Boolean(user?.id && record.capturedBy && user.id === record.capturedBy);
+  const capturerDisplayName = record.capturedByName || "Zaid";
+  const capturedDate = record.createdAt ? new Date(record.createdAt) : null;
 
   const handleDecision = async (nextStatus: RecordStatus, data: ReviewFormData) => {
     setSubmittingAction(nextStatus);
@@ -134,7 +137,7 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
         },
       };
 
-      await updateContact(
+      const updated = await updateContact(
         record.id,
         updatedVerifiedData,
         nextStatus,
@@ -144,12 +147,14 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
       const statusLabels: Record<string, string> = {
         approved: "Contact approved successfully.",
         correction_requested: "Returned for correction to capturer.",
-        rejected: "Contact rejected.",
+        rejected: "Contact marked as rejected.",
       };
 
       toast.success(statusLabels[nextStatus] || "Status updated successfully.");
       setIsOpen(false);
-      if (onSuccess) onSuccess();
+      if (onSuccess) {
+        onSuccess(updated as unknown as ContactRecord);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to update review status. Please try again.");
     } finally {
@@ -159,205 +164,286 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-2xl w-[95vw] p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-2xl bg-white dark:border-slate-800 dark:bg-slate-900 max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl w-[94vw] p-5 sm:p-7 rounded-2xl border border-slate-200/90 shadow-2xl bg-white dark:border-slate-800 dark:bg-slate-900 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <DialogHeader className="text-left pb-4 border-b border-slate-100 dark:border-slate-800 space-y-1">
-          <div className="flex items-center justify-between gap-3">
+        <DialogHeader className="text-left pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                 Reviewer Workspace
               </p>
-              <DialogTitle className="text-xl font-bold text-slate-900 dark:text-white mt-0.5">
+              <DialogTitle className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-0.5">
                 Review Contact Details
               </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Inspect captured details, verify information, and decide whether to approve, return for correction, or reject.
+              </DialogDescription>
             </div>
-            <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:border-blue-800 dark:text-blue-300">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-              {record.sheetStatus || record.status}
-            </span>
-          </div>
-          <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-            Verify the scanned contact information, make any necessary adjustments, and decide whether to approve, return for correction, or reject.
-          </DialogDescription>
-        </DialogHeader>
 
-        {/* Card Image Thumbnail if available */}
-        {imageUrl && (
-          <div className="mt-4 rounded-xl border border-slate-200/80 bg-slate-50/60 p-3 dark:border-slate-800 dark:bg-slate-950/40">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
-                Scanned Card Reference
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowImagePreview(!showImagePreview)}
-                className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 cursor-pointer"
+            {/* Badges: Status + Provided By */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
+                  record.status === "approved"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:border-emerald-800 dark:text-emerald-300"
+                    : record.status === "correction_requested"
+                    ? "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:border-amber-800 dark:text-amber-300"
+                    : record.status === "rejected"
+                    ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:border-rose-800 dark:text-rose-300"
+                    : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:border-blue-800 dark:text-blue-300"
+                }`}
               >
-                {showImagePreview ? "Hide Image" : "View Image"}
-                <ExternalLink className="w-3 h-3" />
-              </button>
-            </div>
-            {showImagePreview && (
-              <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 text-center">
-                <img
-                  src={imageUrl}
-                  alt="Scanned Business Card"
-                  className="max-h-56 mx-auto object-contain p-2"
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    record.status === "approved"
+                      ? "bg-emerald-600"
+                      : record.status === "correction_requested"
+                      ? "bg-amber-600"
+                      : record.status === "rejected"
+                      ? "bg-rose-600"
+                      : "bg-blue-600"
+                  }`}
                 />
-              </div>
-            )}
+                {record.status === "approved"
+                  ? "Approved"
+                  : record.status === "correction_requested"
+                  ? "Needs Correction"
+                  : record.status === "rejected"
+                  ? "Rejected"
+                  : "Pending Review"}
+              </span>
+
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 border border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">
+                <User className="w-3 h-3 text-slate-500" />
+                Provided by <strong className="font-semibold text-slate-900 dark:text-white">{capturerDisplayName}</strong>
+              </span>
+            </div>
           </div>
-        )}
+        </DialogHeader>
 
         {/* Self-approval Warning */}
         {isSelfCaptured && (
-          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 flex items-start gap-2">
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
             <div>
-              <span className="font-semibold">Capturer notice: </span>
-              <span>You personally captured this card. CardSnap protocol requires a different reviewer to approve it. You may still return it for correction or reject it.</span>
+              <span className="font-semibold">Self-approval notice: </span>
+              <span>You captured this business card. Protocol requires a different reviewer to approve it. You can still return it for correction or reject it.</span>
             </div>
           </div>
         )}
 
-        {/* Form Fields */}
-        <form className="space-y-4 pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* Full Name */}
-            <div className="space-y-1">
-              <Label htmlFor="review-fullName" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Contact Name *
-              </Label>
-              <Input
-                id="review-fullName"
-                {...register("fullName", { required: true })}
-                className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
-                placeholder="e.g. John Doe"
-              />
+        {/* Form Body - 2 Columns on Desktop */}
+        <form className="pt-4 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column (5 of 12 cols): Card Reference & Capture Metadata */}
+            <div className="lg:col-span-5 space-y-4">
+              {/* Card Image Reference */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 dark:border-slate-800 dark:bg-slate-950/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
+                    Business Card Reference
+                  </span>
+                  {imageUrl && (
+                    <a
+                      href={imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-medium text-blue-600 hover:text-blue-700 flex items-center gap-0.5"
+                    >
+                      <span>Full view</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                {imageUrl ? (
+                  <div className="overflow-hidden rounded-lg border border-slate-200/80 bg-white p-2 text-center dark:border-slate-800 dark:bg-slate-900">
+                    <img
+                      src={imageUrl}
+                      alt="Scanned Business Card"
+                      className="max-h-48 w-full object-contain mx-auto rounded"
+                    />
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg dark:border-slate-800">
+                    No card image stored
+                  </div>
+                )}
+              </div>
+
+              {/* Attribution & Context Card */}
+              <div className="rounded-xl border border-slate-200/90 bg-white p-3.5 text-xs space-y-2 dark:border-slate-800 dark:bg-slate-900/60 shadow-2xs">
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                  <span className="flex items-center gap-1 text-[11px]">
+                    <User className="w-3 h-3 text-slate-400" />
+                    Captured by:
+                  </span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {capturerDisplayName}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-slate-600 dark:text-slate-400">
+                  <span className="flex items-center gap-1 text-[11px]">
+                    <Calendar className="w-3 h-3 text-slate-400" />
+                    Captured on:
+                  </span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">
+                    {capturedDate ? capturedDate.toLocaleDateString() : "—"}
+                  </span>
+                </div>
+
+                {record.originalFileName && (
+                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-[11px]">Source file:</span>
+                    <span className="font-mono text-[11px] truncate max-w-[140px] text-slate-500">
+                      {record.originalFileName}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Job Title */}
-            <div className="space-y-1">
-              <Label htmlFor="review-jobTitle" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Job Title
-              </Label>
-              <Input
-                id="review-jobTitle"
-                {...register("jobTitle")}
-                className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
-                placeholder="e.g. Procurement Manager"
-              />
-            </div>
+            {/* Right Column (7 of 12 cols): Structured Details & Feedback */}
+            <div className="lg:col-span-7 space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Contact Name */}
+                <div className="space-y-1">
+                  <Label htmlFor="rev-fullName" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Contact Name *
+                  </Label>
+                  <Input
+                    id="rev-fullName"
+                    {...register("fullName", { required: true })}
+                    className="h-9 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
+                    placeholder="Full name"
+                  />
+                </div>
 
-            {/* Company Name */}
-            <div className="space-y-1">
-              <Label htmlFor="review-companyName" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Company Name *
-              </Label>
-              <Input
-                id="review-companyName"
-                {...register("companyName", { required: true })}
-                className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
-                placeholder="e.g. Acme Aerospace"
-              />
-            </div>
+                {/* Job Title */}
+                <div className="space-y-1">
+                  <Label htmlFor="rev-jobTitle" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Job Title
+                  </Label>
+                  <Input
+                    id="rev-jobTitle"
+                    {...register("jobTitle")}
+                    className="h-9 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
+                    placeholder="e.g. CEO, Sales Director"
+                  />
+                </div>
 
-            {/* Exhibition Location */}
-            <div className="space-y-1">
-              <Label htmlFor="review-metAtLocation" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Exhibition Event
-              </Label>
-              <select
-                id="review-metAtLocation"
-                {...register("metAtLocation")}
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-              >
-                {exhibitionOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {/* Company Name */}
+                <div className="space-y-1">
+                  <Label htmlFor="rev-companyName" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Company Name *
+                  </Label>
+                  <Input
+                    id="rev-companyName"
+                    {...register("companyName", { required: true })}
+                    className="h-9 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
+                    placeholder="Company name"
+                  />
+                </div>
 
-            {/* Email */}
-            <div className="space-y-1">
-              <Label htmlFor="review-email" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Email Address
-              </Label>
-              <Input
-                id="review-email"
-                type="email"
-                {...register("email")}
-                className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
-                placeholder="e.g. john@example.com"
-              />
-            </div>
+                {/* Exhibition Event */}
+                <div className="space-y-1">
+                  <Label htmlFor="rev-metAtLocation" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Exhibition Event
+                  </Label>
+                  <select
+                    id="rev-metAtLocation"
+                    {...register("metAtLocation")}
+                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                  >
+                    {exhibitionOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Phone */}
-            <div className="space-y-1">
-              <Label htmlFor="review-phone" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Phone Number
-              </Label>
-              <Input
-                id="review-phone"
-                {...register("phone")}
-                className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
-                placeholder="e.g. +1 555-0199"
-              />
+                {/* Email Address */}
+                <div className="space-y-1">
+                  <Label htmlFor="rev-email" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Email Address
+                  </Label>
+                  <Input
+                    id="rev-email"
+                    type="email"
+                    {...register("email")}
+                    className="h-9 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
+                    placeholder="name@company.com"
+                  />
+                </div>
+
+                {/* Phone Number */}
+                <div className="space-y-1">
+                  <Label htmlFor="rev-phone" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="rev-phone"
+                    {...register("phone")}
+                    className="h-9 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
+                    placeholder="+1 555-0199"
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-1">
+                <Label htmlFor="rev-notes" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Notes & Context
+                </Label>
+                <Input
+                  id="rev-notes"
+                  {...register("notes")}
+                  className="h-9 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
+                  placeholder="Meeting context or booth discussion notes"
+                />
+              </div>
+
+              {/* Reviewer Comment */}
+              <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <Label htmlFor="rev-reviewerComment" className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-between">
+                  <span>Reviewer Feedback / Instructions</span>
+                  <span className="text-[10px] text-slate-400">Required when returning for correction</span>
+                </Label>
+                <Textarea
+                  id="rev-reviewerComment"
+                  {...register("reviewerComment")}
+                  rows={2}
+                  className="text-xs sm:text-sm rounded-xl border-slate-200 resize-none dark:border-slate-800"
+                  placeholder="e.g. Please double check phone number format or company name spelling..."
+                />
+              </div>
             </div>
           </div>
 
-          {/* Notes */}
-          <div className="space-y-1">
-            <Label htmlFor="review-notes" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Meeting Context & Notes
-            </Label>
-            <Input
-              id="review-notes"
-              {...register("notes")}
-              className="h-10 text-xs sm:text-sm rounded-xl border-slate-200 dark:border-slate-800"
-              placeholder="e.g. Met at Booth 412, interested in engine turbine components"
-            />
-          </div>
-
-          {/* Reviewer Comment */}
-          <div className="space-y-1 pt-1 border-t border-slate-100 dark:border-slate-800">
-            <Label htmlFor="review-reviewerComment" className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center justify-between">
-              <span>Reviewer Comment / Feedback</span>
-              <span className="text-[10px] font-normal text-slate-400">Recorded with decision</span>
-            </Label>
-            <Textarea
-              id="review-reviewerComment"
-              {...register("reviewerComment")}
-              rows={2}
-              className="text-xs sm:text-sm rounded-xl border-slate-200 resize-none dark:border-slate-800"
-              placeholder="Enter feedback or explanation if returning for correction or rejecting..."
-            />
-          </div>
-
-          {/* Decision Buttons */}
+          {/* Action Bar Footer */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsOpen(false)}
               disabled={Boolean(submittingAction)}
-              className="w-full sm:w-auto h-10 px-4 rounded-xl border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 cursor-pointer text-xs"
+              className="w-full sm:w-auto h-9 px-4 rounded-xl border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 cursor-pointer text-xs"
             >
               Cancel
             </Button>
 
-            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-              {/* Reject Button */}
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+              {/* Reject */}
               <Button
                 type="button"
                 onClick={handleSubmit((data) => handleDecision("rejected", data))}
                 disabled={Boolean(submittingAction)}
-                className="w-full sm:w-auto h-10 px-4 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-300 font-semibold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto h-9 px-4 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 dark:bg-rose-950/50 dark:border-rose-800 dark:text-rose-300 font-semibold text-xs cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <XCircle className="w-4 h-4" />
+                <XCircle className="w-3.5 h-3.5" />
                 <span>{submittingAction === "rejected" ? "Rejecting…" : "Reject"}</span>
               </Button>
 
@@ -366,21 +452,21 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
                 type="button"
                 onClick={handleSubmit((data) => handleDecision("correction_requested", data))}
                 disabled={Boolean(submittingAction)}
-                className="w-full sm:w-auto h-10 px-4 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300 font-semibold text-xs cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto h-9 px-4 rounded-xl bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300 font-semibold text-xs cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 <span>{submittingAction === "correction_requested" ? "Returning…" : "Return for Correction"}</span>
               </Button>
 
-              {/* Approve Button */}
+              {/* Approve */}
               <Button
                 type="button"
                 onClick={handleSubmit((data) => handleDecision("approved", data))}
                 disabled={Boolean(submittingAction) || isSelfCaptured}
-                className="w-full sm:w-auto h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs cursor-pointer shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
-                title={isSelfCaptured ? "You cannot approve a card you captured" : "Approve contact for CRM transfer"}
+                className="w-full sm:w-auto h-9 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs cursor-pointer shadow-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                title={isSelfCaptured ? "Self-approval is forbidden by protocol" : "Approve contact"}
               >
-                <CheckCircle2 className="w-4 h-4" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>{submittingAction === "approved" ? "Approving…" : "Approve Contact"}</span>
               </Button>
             </div>

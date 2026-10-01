@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-
+import { Send, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,7 @@ interface Props {
   isOpen: boolean;
   setIsOpen: (val: boolean) => void;
   record: ContactRecord | null;
-  onSuccess?: () => void;
+  onSuccess?: (updated?: ContactRecord) => void;
 }
 
 interface EditFormData {
@@ -88,11 +88,17 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
         },
       };
 
-      await updateContact(record.id, updatedVerifiedData, record.status);
+      // Resubmit back to "submitted" so it re-enters the reviewer's Pending Review queue
+      const nextStatus = record.status === "correction_requested" ? "submitted" : record.status;
+      const updated = await updateContact(record.id, updatedVerifiedData, nextStatus);
 
-      toast.success("Contact details updated successfully.");
+      toast.success(
+        record.status === "correction_requested"
+          ? "Contact corrected and resubmitted for review!"
+          : "Contact details updated successfully."
+      );
       setIsOpen(false);
-      if (onSuccess) onSuccess();
+      if (onSuccess) onSuccess(updated as unknown as ContactRecord);
     } catch (error: any) {
       toast.error(error.message || "Failed to update contact. Please try again.");
     } finally {
@@ -102,15 +108,28 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="max-w-lg w-[95vw] p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xl bg-background dark:border-slate-800">
+      <DialogContent className="max-w-lg w-[95vw] p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xl bg-background dark:border-slate-800 max-h-[92vh] overflow-y-auto">
         <DialogHeader className="text-left space-y-1 pb-2 border-b border-slate-200 dark:border-slate-800">
           <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
-            Correct Contact Details
+            {record.status === "correction_requested" ? "Correct & Resubmit Contact" : "Correct Contact Details"}
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-            Update the approved contact information for review.
+            {record.status === "correction_requested"
+              ? "Review the reviewer feedback below, update the required fields, and resubmit for review."
+              : "Update the approved contact information for review."}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Reviewer Feedback notice if returned for correction */}
+        {record.reviewerComment && (
+          <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+            <div>
+              <span className="font-semibold block">Reviewer Feedback:</span>
+              <p className="mt-0.5 text-amber-800 dark:text-amber-300">{record.reviewerComment}</p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5 pt-2">
           {/* Exhibition Name */}
@@ -230,9 +249,16 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
               type="submit"
               size="sm"
               disabled={isSaving}
-              className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+              className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center gap-1.5 cursor-pointer"
             >
-              {isSaving ? "Saving…" : "Save Changes"}
+              <Send className="w-3.5 h-3.5" />
+              <span>
+                {isSaving
+                  ? "Submitting…"
+                  : record.status === "correction_requested"
+                  ? "Resubmit for Review"
+                  : "Save Changes"}
+              </span>
             </Button>
           </div>
         </form>
