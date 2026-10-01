@@ -2,6 +2,7 @@ import { getDb, ensureDatabaseIndexes } from "../db.js";
 import { authenticate, verifyCsrf } from "../auth/service.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
 import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "../cards/service.js";
+import { duplicateReviewContext, resolveDuplicate } from "../cards/duplicateReview.js";
 
 function send(res, status, body) {
   return res.status(status).json(body);
@@ -29,6 +30,7 @@ export async function cardsHandler(req, res) {
   try {
     const { db, auth } = await context(req);
     const action = String(req.query?.action || "records");
+    if (req.method === "GET" && action === "duplicate_review") return send(res, 200, await duplicateReviewContext(db, auth.user, req.query?.id));
     if (req.method === "GET" && action === "records") {
       if (req.query?.id) return send(res, 200, { record: await getCard(db, auth.user, req.query.id) });
       return send(res, 200, { records: await listCards(db, auth.user) });
@@ -39,6 +41,7 @@ export async function cardsHandler(req, res) {
       return send(res, 200, { imageBase64: image.data.toString("base64"), mimeType: image.mimeType, expiresAt: image.expiresAt.toISOString() });
     }
     verifyCsrf(auth.session, req.headers["x-csrf-token"]);
+    if (req.method === "POST" && action === "resolve_duplicate") return send(res, 200, { record: await resolveDuplicate(db, auth.user, req.query?.id, req.body) });
     if (req.method === "POST" && action === "duplicate") return send(res, 200, { duplicate: await findDuplicate(db, auth.user, req.body?.verifiedData, req.body?.excludingId) });
     if (req.method === "POST" && action === "records") return send(res, 201, { record: await createCard(db, auth.user, req.body) });
     if (req.method === "PATCH" && action === "records") return send(res, 200, { record: await updateCard(db, auth.user, req.query?.id, req.body) });

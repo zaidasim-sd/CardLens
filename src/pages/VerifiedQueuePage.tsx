@@ -433,6 +433,7 @@ export default function VerifiedQueuePage() {
                   title={canReview ? "Click to review contact" : undefined}
                 >
                   {getStatusBadge(record.status)}
+                  {record.status === "approved" && <p className="mt-2 text-xs max-w-xs break-words">Constant Contact: {{ not_started: "Not transferred", pending: "Pending transfer", failed: "Transfer failed", reconciliation_required: "Transfer needs checking", transferred: "Transferred", existing_contact: "Existing contact preserved" }[record.transferStatus || "not_started"]}{record.transferError && <span className="block text-amber-700 dark:text-amber-400">{record.transferError}</span>}</p>}
                 </div>
               </div>
 
@@ -467,6 +468,12 @@ export default function VerifiedQueuePage() {
               )}
 
               {/* Footer row: Attribution & Actions */}
+              {record.sheetStatus === "failed" && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">Saved in CardSnap. Google Sheet synchronization failed and needs attention.</p>}
+              {record.duplicateReview?.state === "pending" && (
+                <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                  Possible duplicate — {record.duplicateReview.reason || "matching contact details"}. Reviewer comparison required.
+                </p>
+              )}
               <div className="mt-3 pt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 border-t border-slate-100/80 dark:border-slate-800/60">
                 <span className="flex items-center gap-1.5">
                   <span>

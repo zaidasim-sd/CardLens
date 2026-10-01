@@ -33,6 +33,10 @@ let db;
 let record;
 
 before(async () => {
+  process.env.CC_ENABLED = "false";
+  // Never send fictional integration fixtures to a configured external register.
+  process.env.GOOGLE_SHEET_ID = "";
+  process.env.GOOGLE_SHEET_TEST_ID = "";
   assert.ok(process.env.MONGODB_URI, "MONGODB_URI is required for integration tests");
   process.env.ENCRYPTION_KEY = randomBytes(32).toString("base64");
   client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 });

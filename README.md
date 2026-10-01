@@ -37,10 +37,10 @@ If you are developing a production application, we recommend enabling type-aware
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
 
-### OCR benchmark and Constant Contact export
+### Constant Contact approval integration
 
-`npm run test:ocr` recognizes the cards in `validation/ocr/manifest.json` and exports their extracted name, email, company, primary/alternate phone, and benchmark source to the configured Constant Contact list. It uses `.env`, the pilot's stored OAuth connection and destination configuration, `DATA_PATH`, and `DATA_KEY`. `CC_TENANT` defaults to `demo`. Connect and configure a confirmed test account in the pilot first.
+Captures go to the reviewer portal and Google Sheet. Constant Contact receives a contact only after an authenticated reviewer approves it. Administrators connect the account once from the Users page. Server credentials stay in `.env`; OAuth tokens are encrypted in MongoDB.
 
-Each card's export status and remote contact ID are saved in `validation/ocr/results.json`. Existing email addresses are skipped without overwriting contacts. Missing names or invalid emails are reported, and any invalid contact or failed export makes the command exit nonzero. OCR accuracy mismatches remain visible in the report; exported values come from OCR, not the expected fixture values. Interrupted or uncertain writes require reconciliation through the pilot before retrying.
+See [setup](docs/SETUP.md) and [integration details](docs/CONSTANT_CONTACT.md). Existing Constant Contact records are preserved. Transfer status reflects provider confirmation, and uncertain creates require reconciliation before another write.
 
-Use `npm run test:ocr -- --no-export` for a local benchmark without Constant Contact writes.
+Run `node --test server/integrations/constantContact.test.mjs` for mocked provider tests.

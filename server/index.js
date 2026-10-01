@@ -7,6 +7,10 @@ import supportHandler from "../api/support.js";
 import { retentionSettingsHandler, sweepHandler } from "./http/retentionHandlers.js";
 import ocrHandler from "./http/ocrHandler.js";
 import exportHandler from "./http/exportHandler.js";
+import constantContactHandler from "./http/constantContactHandler.js";
+import constantContactCron from "./http/constantContactCron.js";
+import { getDb } from "./db.js";
+import { processTransfers } from "./integrations/constantContact.js";
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +32,9 @@ app.all("/api/support", supportHandler);
 app.all("/api/retention", retentionSettingsHandler);
 app.all("/api/cron/sweep", sweepHandler);
 app.all("/api/export", exportHandler);
+app.all("/api/constant-contact", constantContactHandler);
+app.get("/auth/callback", constantContactHandler);
+app.all("/api/cron/constant-contact", constantContactCron);
 
 // Routes
 app.all("/api/ocr", ocrHandler);
@@ -35,8 +42,9 @@ app.all("/api/ocr", ocrHandler);
 app.get("/api/config/exhibitions", (req, res) => {
   res.json({
     exhibitions: [
-      { label: "Select exhibition", value: "" },
-    ],
+    { label: "Select exhibition / source", value: "" },
+    ...["Event A", "Event B", "Event C", "Event D"].map(value => ({ label: value, value })),
+  ],
   });
 });
 
@@ -51,3 +59,11 @@ const server = app.listen(port, "0.0.0.0", () => {
 server.on("error", (error) => {
   console.error("Backend server error:", error);
 });
+let processingTransfers = false;
+setInterval(async () => {
+  if (processingTransfers || !process.env.CC_CLIENT_ID) return;
+  processingTransfers = true;
+  try { await processTransfers(await getDb()); }
+  catch { console.error("Constant Contact pending transfers could not be processed."); }
+  finally { processingTransfers = false; }
+}, 60000).unref();

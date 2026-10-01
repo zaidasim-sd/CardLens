@@ -1,4 +1,5 @@
 import { MongoClient } from "mongodb";
+import { setServers } from "node:dns";
 
 let clientPromise;
 
@@ -6,6 +7,9 @@ export function getMongoClient() {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error("MONGODB_URI is required");
   if (!clientPromise) {
+    // Optional app-scoped override for networks that block MongoDB SRV lookups.
+    const dnsServers = process.env.MONGODB_DNS_SERVERS?.split(",").map((server) => server.trim()).filter(Boolean);
+    if (dnsServers?.length) setServers(dnsServers);
     const client = new MongoClient(uri, { maxPoolSize: 10, minPoolSize: 0 });
     clientPromise = client.connect().catch((error) => {
       clientPromise = undefined;

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
+import { ConstantContactSettings } from "@/components/ConstantContactSettings";
 import { cardApi } from "@/lib/cardApi";
 import { cn } from "@/lib/utils";
 import {
@@ -263,7 +264,7 @@ export default function UserAdminPage() {
             User Accounts & Security
           </h1>
           <p className="mt-1.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Manage named accounts, retention rules, and manual export queues for {user?.tenantId || "this organisation"}.
+            Manage named accounts, retention rules, and approved contact transfers for {user?.tenantId || "this organisation"}.
           </p>
         </div>
 
@@ -372,7 +373,7 @@ export default function UserAdminPage() {
                 <Input
                   id="newPassword"
                   type={showPassword ? "text" : "password"}
-                  minLength={12}
+                  minLength={11}
                   value={form.password}
                   onChange={(event) => setForm({ ...form, password: event.target.value })}
                   placeholder="••••••••••••"
@@ -696,6 +697,7 @@ export default function UserAdminPage() {
       </form>
 
       {/* ── Section 5: Approved Contacts CSV Export ── */}
+      <ConstantContactSettings />
       <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -705,7 +707,7 @@ export default function UserAdminPage() {
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">Approved contacts export</h2>
               <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 max-w-lg">
-                Downloads approved exhibition contacts from the Google Sheet for manual import into the agreed Constant Contact list.
+                Downloads approved exhibition contacts from the Google Sheet as a backup CSV export.
               </p>
             </div>
           </div>

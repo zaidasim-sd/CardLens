@@ -137,7 +137,7 @@ export default function SignInPage() {
                 <Label htmlFor="password" className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                   Password
                 </Label>
-                <span className="text-[11px] text-slate-400">Min. 12 characters</span>
+                <span className="text-[11px] text-slate-400">Min. 11 characters</span>
               </div>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
@@ -149,7 +149,7 @@ export default function SignInPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="••••••••••••"
-                  minLength={12}
+                  minLength={11}
                   required
                   autoComplete="current-password"
                   className="h-11 pl-9.5 pr-10 text-sm rounded-xl border-slate-200 bg-slate-50/50 transition-colors focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 dark:border-slate-700 dark:bg-slate-800/50 dark:focus:bg-slate-800"

@@ -117,7 +117,7 @@ export default function DuplicateWarningModal({
           {confirmSeparate ? (
             <div className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left dark:border-slate-800 dark:bg-slate-900" role="group" aria-label="Confirm separate contact">
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                Submit this as an independent record? The existing contact will remain unchanged.
+                Submit this possible duplicate for the Aventure reviewer to compare? The existing contact will remain unchanged. The reviewer decides whether to retain, update, keep both, or reject.
               </p>
               <div className="flex gap-2 pt-1">
                 <Button
@@ -125,7 +125,7 @@ export default function DuplicateWarningModal({
                   onClick={onSaveAnyway}
                   className="h-8 text-xs font-semibold rounded-lg bg-slate-900 text-white hover:bg-black dark:bg-white dark:text-slate-900"
                 >
-                  Confirm separate contact
+                  Submit for duplicate review
                 </Button>
                 <Button
                   variant="ghost"
@@ -143,7 +143,7 @@ export default function DuplicateWarningModal({
               onClick={() => setConfirmSeparate(true)}
               className="h-9 w-full rounded-xl text-xs font-normal text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
             >
-              Create a separate contact
+              Submit possible duplicate for review
             </Button>
           )}
         </div>

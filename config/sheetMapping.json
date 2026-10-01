@@ -1,20 +1,93 @@
 {
-  "proposal": true,
+  "version": 2,
   "columns": [
-    { "header": "Exhibition name", "field": "event" },
-    { "header": "Contact name", "field": "fullName" },
-    { "header": "Company name", "field": "companyName" },
-    { "header": "Job title", "field": "jobTitle" },
-    { "header": "Email address", "field": "email" },
-    { "header": "Phone number", "field": "phone" },
-    { "header": "Short notes", "field": "notes" },
-    { "header": "Date and time captured", "field": "capturedAt" },
-    { "header": "Captured by", "field": "capturedByName" },
-    { "header": "Record status", "field": "status" },
-    { "header": "Reviewed by", "field": "reviewedByName" },
-    { "header": "Review date", "field": "reviewedAt" },
-    { "header": "Constant Contact transfer status", "field": "transferStatus" },
-    { "header": "Reviewer comment", "field": "reviewerComment" },
-    { "header": "CardSnap record ID", "field": "recordId" }
+    {
+      "header": "Exhibition / Source",
+      "field": "event"
+    },
+    {
+      "header": "Where Met / Location",
+      "field": "whereMet"
+    },
+    {
+      "header": "Contact Name",
+      "field": "fullName"
+    },
+    {
+      "header": "Company Name",
+      "field": "companyName"
+    },
+    {
+      "header": "Job Title",
+      "field": "jobTitle"
+    },
+    {
+      "header": "Email Address",
+      "field": "email"
+    },
+    {
+      "header": "Phone Number",
+      "field": "phone"
+    },
+    {
+      "header": "Short Notes",
+      "field": "notes"
+    },
+    {
+      "header": "Date Captured",
+      "field": "capturedAt",
+      "automatic": true
+    },
+    {
+      "header": "Captured By",
+      "field": "capturedByName",
+      "automatic": true
+    },
+    {
+      "header": "Approximate Date Obtained",
+      "field": "obtainedAt",
+      "automatic": true
+    },
+    {
+      "header": "Last Confirmed / Updated",
+      "field": "lastConfirmedAt",
+      "automatic": true
+    },
+    {
+      "header": "Record Status",
+      "field": "status"
+    },
+    {
+      "header": "Reviewer Comment",
+      "field": "reviewerComment"
+    },
+    {
+      "header": "Possible Duplicate Flag",
+      "field": "duplicateFlag",
+      "automatic": true
+    },
+    {
+      "header": "Constant Contact Transfer Status",
+      "field": "transferStatus",
+      "automatic": true
+    },
+    {
+      "header": "CardSnap record ID",
+      "field": "recordId",
+      "automatic": true,
+      "hidden": true
+    },
+    {
+      "header": "Reviewed By",
+      "field": "reviewedByName",
+      "automatic": true,
+      "hidden": true
+    },
+    {
+      "header": "Review Date",
+      "field": "reviewedAt",
+      "automatic": true,
+      "hidden": true
+    }
   ]
 }

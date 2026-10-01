@@ -5,23 +5,19 @@ export interface ExhibitionOption {
   value: string;
 }
 
-/**
- * Returns available exhibition options.
- * Defaults to "Select exhibition" placeholder until Ali Bhai and Aventure provide
- * the confirmed exhibition names for the upcoming event.
- * If backend endpoint /api/config/exhibitions becomes available, it connects automatically.
- */
+/** Returns configured exhibitions, with Event A–D available by default. */
 export async function getExhibitions(): Promise<ExhibitionOption[]> {
   try {
     const data = await apiFetch<{ exhibitions: ExhibitionOption[] }>("/api/config/exhibitions");
-    if (Array.isArray(data?.exhibitions) && data.exhibitions.length > 0) {
+    if (Array.isArray(data?.exhibitions) && data.exhibitions.some(option => option.value)) {
       return data.exhibitions;
     }
   } catch {
-    // Backend endpoint not yet implemented by Haroon — fallback to clean default
+    // Keep the default events available if the endpoint is unavailable.
   }
 
   return [
-    { label: "Select exhibition", value: "" },
+    { label: "Select exhibition / source", value: "" },
+    ...["Event A", "Event B", "Event C", "Event D"].map(value => ({ label: value, value })),
   ];
 }

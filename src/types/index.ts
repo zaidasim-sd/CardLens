@@ -1,5 +1,6 @@
 export interface MeetingContext {
   metAtLocation?: string;
+  whereMet?: string;
   contactType?: "Prospect" | "Customer" | "Supplier" | "Partner" | "Other" | string;
   productInterest?: string;
   relationshipOwner?: string;
@@ -29,6 +30,18 @@ export interface ContactRecord {
   originalImage?: Blob;
   originalFileName: string;
   createdAt: string; // ISO date
+  updatedAt?: string;
+  obtainedAt?: string;
+  lastConfirmedAt?: string;
+  matchReason?: string;
+  duplicateReview?: {
+    state: "pending" | "resolved";
+    candidateIds: string[];
+    reason?: string;
+    decision?: "retain_existing" | "update_existing" | "keep_both" | "reject_new";
+    existingId?: string | null;
+    updatedFields?: string[];
+  } | null;
   verifiedAt?: string;
   
   rawOCRText: string;
@@ -48,7 +61,8 @@ export interface ContactRecord {
   reviewedByName?: string | null;
   reviewedAt?: string | null;
   reviewerComment?: string;
-  transferStatus?: "not_started";
+  transferStatus?: "not_started" | "pending" | "failed" | "reconciliation_required" | "transferred" | "existing_contact";
+  transferError?: string;
   sheetStatus?: string;
   restricted?: boolean;
 }

@@ -6,6 +6,9 @@
   "installCommand": "npm install",
   "devCommand": "npm run client",
   "functions": {
+    "api/cards.js": { "maxDuration": 120 },
+    "api/constant-contact.js": { "maxDuration": 300 },
+    "api/cron/constant-contact.js": { "maxDuration": 300 },
     "api/ocr.js": {
       "maxDuration": 30,
       "includeFiles": "node_modules/**"

@@ -6,7 +6,7 @@ function safe(value: unknown) {
 }
 
 export function exportToCsv(records: ContactRecord[], filename: string) {
-  const headings = ["Record ID", "Name", "Job Title", "Company", "Email", "Phone", "Event", "Notes", "Status", "Captured At", "Reviewed At", "Transfer Status"];
+  const headings = ["Record ID", "Name", "Job Title", "Company", "Email", "Phone", "Event", "Where met / Location", "Notes", "Status", "Captured At", "Reviewed At", "Transfer Status"];
   const rows = records.map((record) => [
     record.id,
     record.verifiedData.fullName,
@@ -15,6 +15,7 @@ export function exportToCsv(records: ContactRecord[], filename: string) {
     record.verifiedData.email,
     record.verifiedData.phone,
     record.verifiedData.meetingContext?.metAtLocation,
+    record.verifiedData.meetingContext?.whereMet,
     record.verifiedData.notes,
     record.status,
     record.createdAt,

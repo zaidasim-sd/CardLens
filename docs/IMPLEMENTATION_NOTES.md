@@ -4,7 +4,7 @@
 
 The work is on the `haroon` branch. `main` remains unchanged at `b15d41a`. The earlier `origin/haroon` history was merged and its Constant Contact behavior was reviewed. The duplicate SQLite pilot and historical image corpus were excluded from the current MongoDB application.
 
-The current Version 1 workflow is CardSnap capture, protected Google Sheet review, sender status display, Approved CSV export, then a manual import into the agreed Constant Contact list. There is no automatic Constant Contact route in Version 1.
+The current workflow is capture, Google Sheet and reviewer portal, authenticated reviewer approval, then automatic Constant Contact transfer. This supersedes the earlier manual-only plan. The CSV export remains a backup. See CONSTANT_CONTACT.md for authorization and retry behavior.
 
 The separate staging project is `cardsnap-vision71-staging`. It contains fake internal test data only. Named internal account records were created in the staging database. Their passwords are stored outside the repository in a local handoff file.
 
@@ -18,7 +18,7 @@ The separate staging project is `cardsnap-vision71-staging`. It contains fake in
 6. Hala reviews in the Sheet with Pending Review, Approved, Return for Correction or Rejected. The optional reviewer comment is read back by CardSnap.
 7. The sender dashboard shows the latest Sheet status.
 8. The CSV route exports Approved records only and protects every value against spreadsheet formula execution.
-9. Constant Contact import is manual for Version 1. Direct integration requires a later review and approval.
+9. Constant Contact transfer follows authenticated reviewer approval and requires the administrator's one-time OAuth account connection.
 10. Vision71 manages initial accounts and fixed form configuration. The internal administrator role does not represent an Aventure administrator.
 11. Demonstration mode remains enabled and real Aventure data is prohibited.
 
@@ -81,5 +81,21 @@ The detailed dated evidence is in `TEST_REPORT.md`. The verified restore counts 
 4. The existing Terms describe local duplicate checking. Duplicate checking now runs across the tenant on the server.
 5. The existing documents say no manager approval workflow exists. Version 1 now uses the protected Google Sheet as the review place.
 6. The existing documents describe no automatic retention. Image retention, an audited sweeper and a TTL safety net now exist.
-7. The existing documents say Constant Contact is not connected. That remains accurate for Version 1. Approved contacts are exported to CSV for manual import.
+7. Constant Contact integration is implemented with approval gating and encrypted OAuth storage. Live delivery requires the account owner to complete the administrator Connect Constant Contact flow.
 8. The existing agreement draft describes the earlier browser prototype and unauthenticated OCR routes. Those descriptions are no longer accurate.
+# Duplicate review workflow
+
+Possible duplicates are checked before capture and checked again by the backend when saving. Matching uses normalized email first, then phone, then name with company; rejected submissions are excluded from fresh searches. A capturer may submit a flagged contact for review, but cannot resolve the flag or change the existing record.
+
+The review queue flags possible duplicates, including older submissions that lack capture-time metadata. The reviewer workspace compares the new submission with every possible existing record, displays both saved images where available, highlights field differences, and allows corrections to the new submission before a decision.
+
+The reviewer explicitly confirms one of four decisions:
+
+- **Retain existing:** leave the existing record unchanged and reject the new submission, recording the retention decision.
+- **Update existing:** select individual fields to copy from the reviewed submission. Only those fields change; original images, capture details, and unselected fields remain. Approve the existing record and reject the new submission with the update decision recorded.
+- **Keep both:** approve the new submission as an independent record; existing records remain unchanged.
+- **Reject new:** reject the new submission and leave existing records unchanged.
+
+Record versions are checked before applying a decision. Database changes and the reference-only audit entry commit in one MongoDB transaction. Duplicate review respects tenant boundaries and self-approval rules. Ordinary approval and spreadsheet status refresh cannot bypass an unresolved duplicate review. Closed duplicate submissions cannot be reopened through an ordinary status update. Google Sheet synchronization follows the database commit and failures are marked for attention.
+
+Validation uses fictional contacts in the test database with Google Sheet writes disabled. Regression coverage includes all four outcomes, selected-field preservation, stale versions, tenant and role checks, concurrent decisions, transaction rollback, and spreadsheet approval safeguards. Browser checks use mocked API responses and verify both images, explicit update selection, and no horizontal overflow at desktop and 390px/320px mobile widths.

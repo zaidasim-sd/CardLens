@@ -5,8 +5,8 @@ const scrypt = promisify(scryptCallback);
 const KEY_LENGTH = 64;
 
 export function validatePassword(password) {
-  if (typeof password !== "string" || password.length < 12) {
-    throw Object.assign(new Error("Password must contain at least 12 characters."), { code: "PASSWORD_TOO_SHORT", status: 400 });
+  if (typeof password !== "string" || password.length < 11) {
+    throw Object.assign(new Error("Password must contain at least 11 characters."), { code: "PASSWORD_TOO_SHORT", status: 400 });
   }
 }
 

@@ -11,5 +11,5 @@ export async function checkDuplicateContact(
   newContact: OCRData
 ): Promise<DuplicateCheckResult> {
   const match = await cardApi.duplicate(newContact);
-  return match ? { isDuplicate: true, matchedRecord: match, matchReason: "Matching contact details were found." } : { isDuplicate: false };
+  return match ? { isDuplicate: true, matchedRecord: match, matchReason: match.matchReason || "Matching contact details were found." } : { isDuplicate: false };
 }

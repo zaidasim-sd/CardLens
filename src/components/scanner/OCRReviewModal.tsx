@@ -59,7 +59,8 @@ const schema = z.object({
     }
   }),
   phone: z.string().optional(),
-  metAtLocation: z.string().optional(),
+  metAtLocation: z.string().trim().min(1, "Please select an exhibition / source."),
+  whereMet: z.string().optional(),
   notes: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (!data.fullName?.trim() && !data.companyName?.trim()) {
@@ -133,6 +134,7 @@ export default function OCRReviewModal({
       email: ocrData?.email || "",
       phone: ocrData?.phone || "",
       metAtLocation: ocrData?.meetingContext?.metAtLocation || "",
+      whereMet: ocrData?.meetingContext?.whereMet || "",
       notes: ocrData?.notes || "",
     },
   });
@@ -155,6 +157,7 @@ export default function OCRReviewModal({
         email: ocrData.email || "",
         phone: ocrData.phone || "",
         metAtLocation: ocrData.meetingContext?.metAtLocation || "",
+        whereMet: ocrData.meetingContext?.whereMet || "",
         notes: ocrData.notes || "",
       });
       setSavedRecord(null);
@@ -178,8 +181,14 @@ export default function OCRReviewModal({
         allowDuplicate,
       });
       setSavedRecord(record);
-      toast.success("Contact submitted for review");
+      if (record.sheetStatus === "failed") toast.warning("Contact saved for review. Google Sheet synchronization needs attention.");
+      else toast.success("Contact submitted for review");
     } catch (error: any) {
+      if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
+        setDuplicateMatch({ record: error.duplicate, reason: error.duplicate.matchReason || "A possible matching record was found while saving.", pendingVerifiedData: verifiedData });
+        setIsDuplicateModalOpen(true);
+        return;
+      }
       toast.error(error.message || "Failed to submit contact for review. Please try again.");
     } finally {
       setIsSaving(false);
@@ -201,12 +210,19 @@ export default function OCRReviewModal({
       notes: data.notes?.trim() || "",
       meetingContext: {
         metAtLocation: data.metAtLocation?.trim() || "",
+        whereMet: data.whereMet?.trim() || "",
         notes: data.notes?.trim() || "",
       },
     };
 
     // Duplicate Check
-    const dupResult = await checkDuplicateContact(verifiedData);
+    let dupResult;
+    try {
+      dupResult = await checkDuplicateContact(verifiedData);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Duplicate checking failed. Please try again before submitting.");
+      return;
+    }
     if (dupResult.isDuplicate && dupResult.matchedRecord) {
       setDuplicateMatch({
         record: dupResult.matchedRecord,
@@ -259,15 +275,12 @@ export default function OCRReviewModal({
     const needsVerification = shouldFlagForVerification(name, currentValue);
 
     return (
-      <div key={name} className="space-y-1.5">
+      <div key={name} className="min-w-0 space-y-1.5">
         <div className="flex justify-between items-center flex-wrap gap-1">
           <Label htmlFor={name} className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
             {label}
-            {["fullName", "companyName"].includes(name) && (
-              <span className="text-slate-400 font-normal ml-1 text-[11px]">(Required if other blank)</span>
-            )}
-            {["email", "phone"].includes(name) && (
-              <span className="text-slate-400 font-normal ml-1 text-[11px]">(Required if other blank)</span>
+            {["fullName", "companyName", "email", "phone"].includes(name) && (
+              <span className="ml-1 text-red-600" aria-label="Required when the paired field is blank">*</span>
             )}
           </Label>
 
@@ -293,7 +306,7 @@ export default function OCRReviewModal({
           id={name}
           type={type}
           {...register(name)}
-          className={`h-10 text-sm rounded-xl ${
+          className={`h-11 min-w-0 text-base sm:text-sm rounded-xl ${
             errors[name]
               ? "border-red-500 focus-visible:ring-red-500"
               : isEdited
@@ -320,7 +333,7 @@ export default function OCRReviewModal({
           className={
             savedRecord
               ? "max-w-md w-[92vw] sm:max-w-[460px] p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-xl bg-background overflow-hidden dark:border-slate-800"
-              : "w-[95vw] max-w-[95vw] sm:max-w-[90vw] lg:max-w-5xl max-h-[92vh] sm:max-h-[90vh] p-0 overflow-hidden flex flex-col bg-background rounded-2xl border border-slate-200 shadow-xl dark:border-slate-800"
+              : "w-[95vw] max-w-[95vw] sm:max-w-[90vw] lg:max-w-5xl max-h-[92dvh] sm:max-h-[90dvh] p-0 overflow-hidden flex flex-col bg-background rounded-2xl border border-slate-200 shadow-xl dark:border-slate-800"
           }
         >
           {/* ── SUCCESS STATE VIEW ──────────────────────────────────── */}
@@ -461,29 +474,43 @@ export default function OCRReviewModal({
                 </div>
 
                 {/* Right: Approved Version 1 Form Fields Panel */}
-                <div className="shrink-0 bg-white p-4 sm:p-5 md:p-6 lg:w-7/12 lg:flex-1 lg:shrink lg:overflow-y-auto dark:bg-slate-950">
+                <div className="min-w-0 shrink-0 bg-white p-4 sm:p-5 md:p-6 lg:w-7/12 lg:flex-1 lg:shrink lg:overflow-y-auto dark:bg-slate-950">
                   <form
                     id="ocr-review-form"
                     onSubmit={handleSubmit(onSubmit)}
                     className="space-y-4"
+                    noValidate
                   >
+                    <p className="text-xs text-slate-500">Select an exhibition. Enter a contact name or company, and an email or phone. <span className="text-red-600">*</span> marks required fields.</p>
                     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                       {/* 1. Exhibition Name (Approved Field) */}
                       <div className="space-y-1.5 sm:col-span-2">
                         <Label htmlFor="metAtLocation" className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
-                          Exhibition name
+                          Exhibition / Source <span className="text-red-600" aria-hidden="true">*</span>
                         </Label>
                         <select
                           id="metAtLocation"
                           {...register("metAtLocation")}
-                          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                          aria-required="true"
+                          aria-invalid={Boolean(errors.metAtLocation)}
+                          aria-describedby={errors.metAtLocation ? "exhibition-error" : undefined}
+                          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                         >
                           {exhibitionOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
+                            <option key={opt.value} value={opt.value} disabled={!opt.value}>
                               {opt.label}
                             </option>
                           ))}
                         </select>
+                        {errors.metAtLocation && (
+                          <p id="exhibition-error" role="alert" className="text-xs text-red-600">
+                            {errors.metAtLocation.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        {renderField("Where met / Location", "whereMet", "text", "e.g. Hall 2, Booth 14 (optional)")}
                       </div>
 
                       {/* 2. Contact Name */}
@@ -513,7 +540,7 @@ export default function OCRReviewModal({
                           {...register("notes")}
                           rows={2}
                           placeholder="Optional notes or discussion points"
-                          className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+                          className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                         />
                       </div>
                     </div>

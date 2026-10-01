@@ -1,5 +1,17 @@
 # CardSnap staging setup
 
+## Exhibition Contact Review Register
+
+The backend reads the service account from `GOOGLE_SERVICE_ACCOUNT_KEY_FILE`, an absolute path to a private JSON file outside the repository. The local credential folder should be readable only by the Windows account running the backend and SYSTEM. Keep the path and Sheet identifiers in ignored `.env`; never use a `VITE_` prefix for credentials. For a hosted deployment, configure the existing server-only `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` environment variables instead, or mount a private credential file. Do not put the JSON in `public`, `src`, or a tracked project directory.
+
+Set `GOOGLE_SHEET_TAB` to the actual tab title and `GOOGLE_SHEET_TAB_ID` to its numeric ID. Share the register with the service account as an editor, then run `npm run configure:sheet`. Configuration refuses to overwrite a populated tab with a different layout. It creates the 16 requested visible columns, protects automatic columns, freezes the header, adds the review status dropdown, and hides three synchronization columns. The sheet owner retains the ability to manage protection. Avoid deleting the hidden record ID column.
+
+Dates, capturer identity, duplicate flags, review metadata, and initial Constant Contact transfer status are filled by the backend. Approximate Date Obtained defaults to the capture date for a newly scanned contact and is preserved when the contact is updated; it does not infer when an old physical card was originally acquired. `APP_TIME_ZONE` controls this calendar date. Timestamps use ISO 8601 UTC. Last Confirmed / Updated changes when business details or review decisions change. Constant Contact defaults to Not transferred; a Google Sheet export is not a Constant Contact transfer.
+
+New captures and review updates synchronize to the configured register. Existing rows are located by the hidden record ID, so sorting the register does not cause an update to use a stale saved row number. A missing transfer mapping can be recovered without creating a second row. Approved CSV exports use the same column mapping. Integration fixtures disable external Sheet access; live verification uses temporary fictional rows and removes them afterward.
+
+For local development, run `npm run dev` to start both the frontend and backend. If login returns "The request could not be completed." and MongoDB reports `querySrv ECONNREFUSED`, the network DNS resolver is refusing Atlas SRV lookups. Set `MONGODB_DNS_SERVERS=1.1.1.1,8.8.8.8` in the ignored `.env` and restart the backend. This optional override applies to Node DNS lookups in the app process; it does not change Windows network settings. `/api/health` confirms the HTTP server is running, but does not check database connectivity.
+
 1. Keep the separate Vision71 staging project and the `cardsnap_vision71_staging` database limited to fake or consenting Vision71 test data.
 2. Restrict the Google Vision key to Cloud Vision only and set `GOOGLE_VISION_API_KEY` in Vercel and the ignored local environment file.
 3. Create a Vision71 Google service account for internal testing. Set `GOOGLE_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` outside the repository.
@@ -10,5 +22,9 @@
 8. Keep `ENCRYPTION_KEY` and `BACKUP_KEY` as different random 32 byte values.
 9. Use <code>npm run seed:internal</code> with named email and password environment values to create or refresh internal accounts.
 10. Recreate the Vision71 Support account immediately before its test because it expires after 24 hours.
-11. Use the Approved CSV download for the agreed manual Constant Contact import. Do not configure an automatic Constant Contact route for Version 1.
+11. Set the server-only `CC_CLIENT_ID`, `CC_CLIENT_SECRET`, `CC_REDIRECT_URI`, `CC_LIST_NAME` and optional `CC_CUSTOM_FIELD_LABEL`. Sign in as an administrator, open Users, and choose Connect Constant Contact to authorize the account once. OAuth tokens are encrypted in MongoDB; no client secret or tokens are returned to the browser.
+
+Captures are saved to the review portal and Google Sheet only. An authenticated reviewer approval queues the approved snapshot and attempts transfer. Unresolved duplicates, self-approval, drafts and rejected submissions cannot transfer. Existing Constant Contact emails are flagged and preserved, including unsubscribed contacts. Phone-only contacts remain approved locally but require an email before transfer. The transfer column changes to Transferred only on confirmed provider success. Ambiguous responses require reconciliation; retries check the existing contact first and never blindly repeat a create.
+
+The local server retries queued transfers every minute. Serverless deployments should invoke `POST /api/cron/constant-contact` with the existing `x-cron-secret` header on a schedule; administrators can also select Process pending transfers. Register the deployed callback URL `/api/constant-contact?action=callback` in Constant Contact and set the matching `CC_REDIRECT_URI` plus `CC_APP_RETURN_URL` pointing to the deployed `/users` page. Local development uses `http://localhost:3000/auth/callback`. Historical Sheet-only approvals are not automatically exported; approve them in the authenticated reviewer portal. CSV remains available as a backup. `CC_FROM_EMAIL` and `CC_FROM_NAME` are reserved; this flow creates contacts and does not send campaigns.
 12. Confirm the login service, database, image storage, cloud region, retention period, backup method, expected monthly cost and access list with Ali before creating any production resource.

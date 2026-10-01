@@ -4,6 +4,7 @@ import { requireAction } from "../auth/permissions.js";
 import { writeAudit } from "../audit/service.js";
 import { getRetentionHours } from "../retention/service.js";
 import { addPendingSheetRecord, refreshStatusesFromSheet, updateSheetRecord } from "../integrations/sheetService.js";
+import { approvalTransfer, transferApproved } from "../integrations/constantContact.js";
 
 export const RECORD_STATES = ["draft", "submitted", "correction_requested", "approved", "rejected", "transferred"];
 const IMAGE_LIMIT_BYTES = 500 * 1024;
@@ -21,7 +22,7 @@ function phone(value) {
   return digits.length >= 7 ? digits : "";
 }
 
-function duplicateKeys(data) {
+export function duplicateKeys(data) {
   const email = normalized(data?.email);
   const phones = [phone(data?.phone), phone(data?.alternatePhone)].filter(Boolean);
   const name = normalized(data?.fullName);
@@ -33,18 +34,18 @@ function duplicateKeys(data) {
   };
 }
 
-function queryForDuplicates(tenantId, keys, excludingId) {
+export function queryForDuplicates(tenantId, keys, excludingId) {
   const alternatives = [];
   if (keys.email) alternatives.push({ "duplicateKeys.email": keys.email });
   if (keys.phones.length) alternatives.push({ "duplicateKeys.phones": { $in: keys.phones } });
   if (keys.nameCompany) alternatives.push({ "duplicateKeys.nameCompany": keys.nameCompany });
   if (!alternatives.length) return null;
-  const query = { tenantId, $or: alternatives };
+  const query = { tenantId, status: { $ne: "rejected" }, $or: alternatives };
   if (excludingId) query._id = { $ne: excludingId };
   return query;
 }
 
-function toPublic(card) {
+export function toPublic(card) {
   let payload = {};
   try {
     payload = decryptValue(card.payload);
@@ -63,12 +64,16 @@ function toPublic(card) {
     capturedByName: card.capturedByName || "",
     reviewedBy: card.reviewedBy ? String(card.reviewedBy) : null,
     reviewedAt: card.reviewedAt ? new Date(card.reviewedAt).toISOString() : null,
+    duplicateReview: card.duplicateReview || null,
     transferStatus: card.transferStatus || "not_started",
+    transferError: card.transferError || "",
     sheetStatus: card.sheetStatus || "not_started",
     reviewerComment: card.reviewerComment || "",
     reviewedByName: card.reviewedByName || "",
     status: card.status,
     createdAt: card.createdAt ? new Date(card.createdAt).toISOString() : new Date().toISOString(),
+    obtainedAt: new Date(card.obtainedAt || card.createdAt).toISOString(),
+    lastConfirmedAt: new Date(card.lastConfirmedAt || card.updatedAt || card.createdAt).toISOString(),
     updatedAt: card.updatedAt ? new Date(card.updatedAt).toISOString() : new Date().toISOString(),
     verifiedAt: card.verifiedAt ? new Date(card.verifiedAt).toISOString() : null,
     hasImage: Boolean(card.hasImage),
@@ -99,8 +104,21 @@ export async function findDuplicate(db, user, verifiedData, excludingId) {
   const keys = duplicateKeys(verifiedData);
   const query = queryForDuplicates(user.tenantId, keys, excludingId ? cardId(excludingId) : null);
   if (!query) return null;
-  const match = await db.collection("cards").findOne(query);
-  return match ? duplicateResult(user, match) : null;
+  const matches = await matchingCards(db, user.tenantId, verifiedData, excludingId ? cardId(excludingId) : null);
+  const match = matches[0];
+  return match ? { ...duplicateResult(user, match), matchReason: match.matchReason } : null;
+}
+
+export async function matchingCards(db, tenantId, data, excludingId, session) {
+  const keys = duplicateKeys(data);
+  const query = queryForDuplicates(tenantId, keys, excludingId);
+  if (!query) return [];
+  const cards = await db.collection("cards").find(query, session ? { session } : {}).sort({ createdAt: -1 }).toArray();
+  return cards.map(card => {
+    const emailMatch = Boolean(keys.email && card.duplicateKeys?.email === keys.email);
+    const phoneMatch = keys.phones.some(value => card.duplicateKeys?.phones?.includes(value));
+    return { ...card, matchReason: emailMatch ? "Matching email address" : phoneMatch ? "Matching phone number" : "Matching name and company", matchRank: emailMatch ? 0 : phoneMatch ? 1 : 2 };
+  }).sort((a, b) => a.matchRank - b.matchRank);
 }
 
 export async function createCard(db, user, input, now = new Date()) {
@@ -110,10 +128,10 @@ export async function createCard(db, user, input, now = new Date()) {
   if (status === "submitted") requireAction(user, "submit_own_draft", { tenantId: user.tenantId, capturedBy: user.id });
   const data = input.verifiedData || {};
   const keys = duplicateKeys(data);
+  const matches = await matchingCards(db, user.tenantId, data);
   if (!input.allowDuplicate) {
-    const query = queryForDuplicates(user.tenantId, keys);
-    const existing = query ? await db.collection("cards").findOne(query) : null;
-    if (existing) fail("DUPLICATE_FOUND", 409, "A possible matching record already exists.", { duplicate: duplicateResult(user, existing) });
+    const existing = matches[0];
+    if (existing) fail("DUPLICATE_FOUND", 409, "A possible matching record already exists.", { duplicate: { ...duplicateResult(user, existing), matchReason: existing.matchReason } });
   }
   let image = null;
   if (input.imageBase64) {
@@ -136,11 +154,14 @@ export async function createCard(db, user, input, now = new Date()) {
     createdAt: now,
     updatedAt: now,
     capturedAt: now,
+    obtainedAt: now,
+    lastConfirmedAt: now,
     verifiedAt: status === "submitted" ? now : null,
     transferStatus: "not_started",
     sheetStatus: status === "submitted" ? "pending" : "not_started",
     payload: encryptValue(payload),
     duplicateKeys: keys,
+    duplicateReview: matches.length ? { state: "pending", candidateIds: matches.map(card => String(card._id)), reason: matches[0].matchReason } : null,
     hasImage: false,
   };
   const inserted = await db.collection("cards").insertOne(card);
@@ -191,6 +212,15 @@ export async function listCards(db, user) {
   const capturerMap = new Map(capturers.map((u) => [u._id.toString(), u.name || u.email]));
   const records = rawCards.map((card) => {
     const pub = toPublic(card);
+    if (card.status === "submitted" && !card.duplicateReview && user.role !== "exhibition_assistant") {
+      const keys = card.duplicateKeys || {};
+      const candidates = rawCards.filter(other => !other._id.equals(card._id) && other.status !== "rejected" && (
+        (keys.email && keys.email === other.duplicateKeys?.email) ||
+        keys.phones?.some(value => other.duplicateKeys?.phones?.includes(value)) ||
+        (keys.nameCompany && keys.nameCompany === other.duplicateKeys?.nameCompany)
+      ));
+      if (candidates.length) pub.duplicateReview = { state: "pending", candidateIds: candidates.map(other => String(other._id)), reason: candidates.some(other => keys.email && keys.email === other.duplicateKeys?.email) ? "Matching email address" : "Matching contact details" };
+    }
     if (!pub.capturedByName && card.capturedBy) {
       pub.capturedByName = capturerMap.get(card.capturedBy.toString()) || "";
     }
@@ -202,6 +232,7 @@ export async function listCards(db, user) {
 export async function updateCard(db, user, id, input, now = new Date()) {
   const _id = cardId(id);
   const card = await db.collection("cards").findOne({ _id, tenantId: user.tenantId });
+  if (card?.ccLease > now) fail("TRANSFER_IN_PROGRESS", 409, "A transfer is being checked. Retry this change shortly.");
   if (!card) fail("CARD_NOT_FOUND", 404, "Record not found.");
   if (user.role === "exhibition_assistant") {
     requireAction(user, "correct_own_draft", card);
@@ -214,6 +245,7 @@ export async function updateCard(db, user, id, input, now = new Date()) {
   const existing = decryptValue(card.payload);
   const payload = { ...existing, verifiedData: input.verifiedData || existing.verifiedData };
   const nextState = input.status || card.status;
+  if (card.duplicateReview?.state === "resolved" && card.duplicateReview.decision !== "keep_both" && nextState !== "rejected") fail("REVIEW_ALREADY_COMPLETED", 409, "This duplicate submission was closed by the reviewer and cannot be reopened.");
   if (!RECORD_STATES.includes(nextState)) fail("STATE_INVALID", 400, "Record state is invalid.");
   if (user.role === "exhibition_assistant") {
     if (nextState !== card.status && nextState !== "submitted") fail("STATE_INVALID", 409, "This record cannot enter that state.");
@@ -229,13 +261,22 @@ export async function updateCard(db, user, id, input, now = new Date()) {
       if (nextState === "correction_requested") requireAction(user, "request_correction", card);
     }
   }
+  if (nextState === "approved" && card.duplicateReview?.state !== "resolved") {
+    const matches = await matchingCards(db, user.tenantId, payload.verifiedData, _id);
+    if (card.duplicateReview?.state === "pending" || matches.length) fail("DUPLICATE_REVIEW_REQUIRED", 409, "Compare the possible existing records and choose a duplicate decision before approving.");
+  }
   const metadata = {
     payload: encryptValue(payload),
     duplicateKeys: duplicateKeys(payload.verifiedData),
     status: nextState,
     updatedAt: now,
     verifiedAt: nextState === "submitted" ? now : card.verifiedAt,
+    lastConfirmedAt: now,
   };
+  if (nextState === "approved") {
+    requireAction(user, "approve_card", card);
+    Object.assign(metadata, approvalTransfer(card, user, now));
+  }
   if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") {
     if (nextState !== card.status) {
       metadata.reviewedBy = new ObjectId(user.id);
@@ -246,9 +287,11 @@ export async function updateCard(db, user, id, input, now = new Date()) {
       metadata.reviewerComment = String(input.reviewerComment || "");
     }
   }
-  await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: metadata });
+  const saved = await db.collection("cards").updateOne({ _id, tenantId: user.tenantId, $or: [{ ccLease: { $exists: false } }, { ccLease: { $lte: now } }] }, { $set: metadata });
+  if (!saved.matchedCount) fail("TRANSFER_IN_PROGRESS", 409, "A transfer started while saving. Reload shortly.");
   const action = nextState === "approved" ? "approval" : nextState === "rejected" ? "rejection" : "correction";
   await writeAudit(db, { tenantId: user.tenantId, actor: user, action, recordRef: _id, outcome: "success", now });
+  if (nextState === "approved") await transferApproved(db, _id, user.tenantId);
   let updated = toPublic(await db.collection("cards").findOne({ _id, tenantId: user.tenantId }));
   try {
     const result = await updateSheetRecord(db, updated);

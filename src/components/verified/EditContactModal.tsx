@@ -24,6 +24,7 @@ interface EditFormData {
   email: string;
   phone: string;
   metAtLocation: string;
+  whereMet: string;
   notes: string;
 }
 
@@ -41,6 +42,7 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
       email: "",
       phone: "",
       metAtLocation: "",
+      whereMet: "",
       notes: "",
     },
   });
@@ -60,6 +62,7 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
         email: record.verifiedData.email || "",
         phone: record.verifiedData.phone || "",
         metAtLocation: record.verifiedData.meetingContext?.metAtLocation || "",
+        whereMet: record.verifiedData.meetingContext?.whereMet || "",
         notes: record.verifiedData.notes || "",
       });
     }
@@ -83,7 +86,9 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
         country: record.verifiedData.country || "",
         notes: data.notes?.trim() || "",
         meetingContext: {
+          ...record.verifiedData.meetingContext,
           metAtLocation: data.metAtLocation?.trim() || "",
+          whereMet: data.whereMet?.trim() || "",
           notes: data.notes?.trim() || "",
         },
       };
@@ -135,12 +140,13 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
           {/* Exhibition Name */}
           <div className="space-y-1">
             <Label htmlFor="edit-metAtLocation" className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-              Exhibition name
+              Exhibition / Source <span className="text-red-600" aria-hidden="true">*</span>
             </Label>
             <select
               id="edit-metAtLocation"
               {...register("metAtLocation")}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+              required
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
             >
               {exhibitionOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -149,6 +155,10 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
               ))}
             </select>
           </div>
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="edit-whereMet">Where met / Location</Label>
+                <Input id="edit-whereMet" {...register("whereMet")} placeholder="e.g. Hall 2, Booth 14 (optional)" className="text-base sm:text-sm" />
+              </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Contact Name */}
@@ -228,7 +238,7 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
               id="edit-notes"
               {...register("notes")}
               rows={2}
-              className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
               placeholder="Discussion notes"
             />
           </div>

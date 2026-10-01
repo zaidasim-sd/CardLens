@@ -108,3 +108,21 @@ export async function getContactImage(id: string): Promise<Blob> {
 export async function deleteContact(id: string): Promise<void> {
   await apiFetch(`/api/cards?id=${encodeURIComponent(id)}`, { method: "DELETE" });
 }
+
+export interface DuplicateReviewContext {
+  record: ContactRecord;
+  matches: ContactRecord[];
+}
+
+export function getDuplicateReview(id: string): Promise<DuplicateReviewContext> {
+  return apiFetch(`/api/cards?action=duplicate_review&id=${encodeURIComponent(id)}`);
+}
+
+export async function resolveDuplicateReview(context: DuplicateReviewContext, decision: string, existingId?: string, fields?: string[]): Promise<ContactRecord> {
+  const response = await apiFetch<{ record: ContactRecord }>(`/api/cards?action=resolve_duplicate&id=${encodeURIComponent(context.record.id)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ decision, existingId, fields, expectedUpdatedAt: context.record.updatedAt, expectedMatches: Object.fromEntries(context.matches.map(match => [match.id, match.updatedAt])) }),
+  });
+  return response.record;
+}

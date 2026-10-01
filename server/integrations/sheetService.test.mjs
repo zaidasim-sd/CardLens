@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ObjectId } from "mongodb";
-import { addPendingSheetRecord, createSheetGateway, refreshStatusesFromSheet, safeSheetValue, sheetRow, updateSheetRecord } from "./sheetService.js";
+import { addPendingSheetRecord, columnLetter, createSheetGateway, refreshStatusesFromSheet, safeSheetValue, sheetRow, updateSheetRecord } from "./sheetService.js";
+import mapping from "../../config/sheetMapping.json" with { type: "json" };
+import { encryptValue } from "../security/encryption.js";
+import { randomBytes } from "node:crypto";
 
 function fakeDb() {
   const transfers = [];
@@ -48,7 +51,7 @@ test("review result updates the existing row with automatic fields", async () =>
   await addPendingSheetRecord(db, card, { gateway, people: { capturedByName: "Fake Capturer" } });
   await updateSheetRecord(db, { ...card, status: "approved", reviewedBy: "reviewer-1", reviewedAt: "2026-09-30T10:05:00.000Z" }, { gateway, people: { capturedByName: "Fake Capturer", reviewedByName: "Fake Reviewer" } });
   assert.equal(updated.rowNumber, 7);
-  assert.equal(updated.row.includes("approved"), true);
+  assert.equal(updated.row.includes("Approved"), true);
   assert.equal(updated.row.includes("Fake Reviewer"), true);
 });
 
@@ -84,4 +87,80 @@ test("Hala Sheet status updates the sender record and writes a reference only au
   assert.equal(stored.reviewedByName, "Hala");
   assert.equal(audits[0].action, "approval");
   assert.equal(JSON.stringify(audits[0]).includes("Reviewed with fake data"), false);
+});
+
+test("the required register fields and automatic metadata map to all nineteen columns", () => {
+  const enhanced = { ...card, capturedByName: "System Capturer", updatedAt: "2026-10-01T09:00:00Z", obtainedAt: "2026-09-29T10:00:00Z", lastConfirmedAt: "2026-10-01T09:00:00Z", verifiedData: { ...card.verifiedData, meetingContext: { metAtLocation: "Event B", whereMet: "Hall 2" } }, duplicateReview: { state: "pending", reason: "Matching email address" } };
+  const row = sheetRow(enhanced);
+  const read = field => row[mapping.columns.findIndex(column => column.field === field)];
+  assert.equal(row.length, 19);
+  assert.equal(mapping.columns.filter(column => !column.hidden).length, 16);
+  assert.equal(read("whereMet"), "Hall 2");
+  assert.equal(read("capturedByName"), "System Capturer");
+  assert.equal(read("capturedAt"), "2026-09-30T10:00:00.000Z");
+  assert.equal(read("obtainedAt"), "2026-09-29");
+  assert.equal(read("lastConfirmedAt"), "2026-10-01T09:00:00.000Z");
+  assert.match(read("duplicateFlag"), /Possible duplicate/);
+  assert.equal(read("transferStatus"), "Not transferred");
+  assert.equal(read("status"), "Pending Review");
+  assert.equal(columnLetter(mapping.columns.length), "S");
+  assert.equal(columnLetter(27), "AA");
+});
+
+test("updates locate the record ID after sorting instead of overwriting another contact", async () => {
+  const db = fakeDb();
+  let updatedRow;
+  const headers = mapping.columns.map(column => column.header);
+  const rows = [headers, sheetRow({ ...card, id: "another-record" }), sheetRow(card)];
+  const gateway = { append: async () => 7, update: async row => { updatedRow = row; } };
+  await addPendingSheetRecord(db, card, { gateway });
+  gateway.readAll = async () => rows;
+  await updateSheetRecord(db, card, { gateway });
+  assert.equal(updatedRow, 3);
+  assert.equal(db.transfers[0].rowNumber, 3);
+});
+
+test("an existing Sheet row is recovered without appending a second contact", async () => {
+  const db = fakeDb();
+  let appends = 0;
+  const gateway = { readAll: async () => [mapping.columns.map(column => column.header), sheetRow(card)], append: async () => { appends++; return 3; }, update: async () => {} };
+  const result = await addPendingSheetRecord(db, card, { gateway });
+  assert.equal(appends, 0);
+  assert.equal(result.rowNumber, 2);
+  assert.equal(db.transfers[0].rowNumber, 2);
+});
+
+test("invalid credential files report a safe error without exposing a path or key", () => {
+  assert.throws(() => createSheetGateway({ GOOGLE_SHEET_ID: "fake", GOOGLE_SHEET_TEST_ID: "fake", GOOGLE_SERVICE_ACCOUNT_KEY_FILE: "missing-private-credential-file.json" }), error => error.code === "SHEET_CREDENTIALS_INVALID" && !error.message.includes("missing-private"));
+});
+
+test("Sheet review fills confirmation timestamps and reviewer metadata automatically", async () => {
+  process.env.ENCRYPTION_KEY = randomBytes(32).toString("base64");
+  const stored = { _id: new ObjectId(), tenantId: card.tenantId, status: "submitted", createdAt: new Date(card.createdAt), updatedAt: new Date(card.createdAt), capturedBy: new ObjectId(), capturedByName: "System Capturer", payload: encryptValue({ verifiedData: card.verifiedData }) };
+  let automatic;
+  const db = { collection(name) {
+    if (name === "cards") return { findOne: async () => stored, updateOne: async (_query, update) => Object.assign(stored, update.$set) };
+    if (name === "users") return { find: () => ({ toArray: async () => [] }) };
+    if (name === "auditLogs") return { insertOne: async () => {} };
+    throw new Error("Unexpected collection");
+  } };
+  const gateway = { readAll: async () => [mapping.columns.map(column => column.header), sheetRow({ ...card, id: String(stored._id), status: "approved" })], updateAutomatic: async (rowNumber, record) => { automatic = { rowNumber, record }; } };
+  await refreshStatusesFromSheet(db, card.tenantId, { gateway, reviewerName: "Fictional Reviewer" });
+  assert.equal(automatic.rowNumber, 2);
+  assert.equal(automatic.record.status, "approved");
+  assert.equal(automatic.record.reviewedByName, "Fictional Reviewer");
+  assert.notEqual(automatic.record.lastConfirmedAt, card.createdAt);
+});
+
+test("Sheet approval cannot bypass pending duplicate review or reopen a closed duplicate", async () => {
+  for (const duplicateReview of [{ state: "pending" }, { state: "resolved", decision: "retain_existing" }]) {
+    const _id = new ObjectId();
+    const card = { _id, tenantId: "fake-duplicate-sheet", status: duplicateReview.state === "pending" ? "submitted" : "rejected", duplicateReview };
+    let writes = 0;
+    const db = { collection: () => ({ findOne: async () => card, updateOne: async () => { writes++; } }) };
+    const gateway = { readAll: async () => [["Record status", "CardSnap record ID"], ["Approved", String(_id)]] };
+    const result = await refreshStatusesFromSheet(db, card.tenantId, { gateway });
+    assert.equal(result.updated, 0);
+    assert.equal(writes, 0);
+  }
 });

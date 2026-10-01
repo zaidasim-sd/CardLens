@@ -36,6 +36,10 @@ let db;
 let assistant;
 
 before(async () => {
+  process.env.CC_ENABLED = "false";
+  // Never send fictional integration fixtures to a configured external register.
+  process.env.GOOGLE_SHEET_ID = "";
+  process.env.GOOGLE_SHEET_TEST_ID = "";
   assert.ok(process.env.MONGODB_URI, "MONGODB_URI is required for integration tests");
   process.env.ENCRYPTION_KEY = randomBytes(32).toString("base64");
   client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
@@ -69,7 +73,7 @@ async function assertOneFailure(action, operation, expectedCode) {
 
 function sheetGateway(id, status) {
   const headings = sheetMapping.columns.map((column) => column.header);
-  const row = headings.map((heading) => heading === "Record status" ? status : heading === "CardSnap record ID" ? id : "");
+  const row = sheetMapping.columns.map(column => column.field === "status" ? status : column.field === "recordId" ? id : "");
   return { readAll: async () => [headings, row] };
 }
 

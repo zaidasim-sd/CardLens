@@ -22,7 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { updateContact } from "@/lib/api/contacts";
+import { updateContact, getDuplicateReview, type DuplicateReviewContext } from "@/lib/api/contacts";
+import DuplicateReviewPanel from "./DuplicateReviewPanel";
 import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
 import { cardApi } from "@/lib/cardApi";
 import { useAuth } from "@/auth/AuthContext";
@@ -42,6 +43,7 @@ interface ReviewFormData {
   email: string;
   phone: string;
   metAtLocation: string;
+  whereMet: string;
   notes: string;
   reviewerComment: string;
 }
@@ -53,6 +55,21 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
     { label: "Select exhibition", value: "" },
   ]);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [duplicateContext, setDuplicateContext] = useState<DuplicateReviewContext | null>(null);
+  const [duplicateError, setDuplicateError] = useState("");
+  const [reviewRevision, setReviewRevision] = useState(0);
+  const [editingDuplicate, setEditingDuplicate] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setDuplicateContext(null);
+    setEditingDuplicate(false);
+    setDuplicateError("");
+    if (isOpen && record) void getDuplicateReview(record.id).then(context => {
+      if (active) setDuplicateContext(context);
+    }).catch(error => { if (active) setDuplicateError(error.message || "Could not check possible duplicates."); });
+    return () => { active = false; };
+  }, [isOpen, record, reviewRevision]);
 
   const { register, handleSubmit, reset } = useForm<ReviewFormData>({
     defaultValues: {
@@ -62,6 +79,7 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
       email: "",
       phone: "",
       metAtLocation: "",
+      whereMet: "",
       notes: "",
       reviewerComment: "",
     },
@@ -82,6 +100,7 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
         email: record.verifiedData.email || "",
         phone: record.verifiedData.phone || "",
         metAtLocation: record.verifiedData.meetingContext?.metAtLocation || "",
+        whereMet: record.verifiedData.meetingContext?.whereMet || "",
         notes: record.verifiedData.notes || "",
         reviewerComment: record.reviewerComment || "",
       });
@@ -117,6 +136,10 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
   const capturedDate = record.createdAt ? new Date(record.createdAt) : null;
 
   const handleDecision = async (nextStatus: RecordStatus, data: ReviewFormData) => {
+    if (nextStatus === "approved" && !data.metAtLocation?.trim()) {
+      toast.error("Please select an exhibition / source before approving.");
+      return;
+    }
     setSubmittingAction(nextStatus);
     try {
       const updatedVerifiedData: OCRData = {
@@ -132,7 +155,9 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
         country: record.verifiedData.country || "",
         notes: data.notes?.trim() || "",
         meetingContext: {
+          ...record.verifiedData.meetingContext,
           metAtLocation: data.metAtLocation?.trim() || "",
+          whereMet: data.whereMet?.trim() || "",
           notes: data.notes?.trim() || "",
         },
       };
@@ -150,7 +175,14 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
         rejected: "Contact marked as rejected.",
       };
 
+      if (editingDuplicate && nextStatus === "submitted") {
+        toast.success("New submission details saved. Compare the updated values before deciding.");
+        setEditingDuplicate(false);
+        setReviewRevision(value => value + 1);
+        return;
+      }
       toast.success(statusLabels[nextStatus] || "Status updated successfully.");
+      if (nextStatus === "approved" && updated.transferError) toast.warning(updated.transferError);
       setIsOpen(false);
       if (onSuccess) {
         onSuccess(updated as unknown as ContactRecord);
@@ -233,7 +265,23 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
         )}
 
         {/* Form Body - 2 Columns on Desktop */}
-        <form className="pt-4 space-y-6">
+        {duplicateError ? (
+          <div role="alert" className="space-y-3 py-5 text-sm text-red-700">
+            <p>{duplicateError} Review is paused until duplicate checking succeeds.</p>
+            <Button onClick={() => setReviewRevision(value => value + 1)}>Retry duplicate check</Button>
+          </div>
+        ) : !duplicateContext ? (
+          <p role="status" className="py-5 text-sm text-slate-500">Checking possible existing records…</p>
+        ) : !editingDuplicate && duplicateContext.record.duplicateReview?.state !== "resolved" && (duplicateContext.matches.length > 0 || duplicateContext.record.duplicateReview?.state === "pending") && duplicateContext.record.status === "submitted" ? (
+          <DuplicateReviewPanel key={`${record.id}-${reviewRevision}`} context={duplicateContext} reviewerId={user?.id}
+            onReload={() => setReviewRevision(value => value + 1)}
+            onEdit={() => {
+              const data = duplicateContext.record.verifiedData;
+              reset({ fullName: data.fullName || "", companyName: data.companyName || "", jobTitle: data.jobTitle || "", email: data.email || "", phone: data.phone || "", metAtLocation: data.meetingContext?.metAtLocation || "", whereMet: data.meetingContext?.whereMet || "", notes: data.notes || "", reviewerComment: duplicateContext.record.reviewerComment || "" });
+              setEditingDuplicate(true);
+            }}
+            onSuccess={updated => { setIsOpen(false); onSuccess?.(updated); }} />
+        ) : <form className="pt-4 space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column (5 of 12 cols): Card Reference & Capture Metadata */}
             <div className="lg:col-span-5 space-y-4">
@@ -350,11 +398,12 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
                 {/* Exhibition Event */}
                 <div className="space-y-1">
                   <Label htmlFor="rev-metAtLocation" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Exhibition Event
+                    Exhibition / Source <span className="text-red-600" aria-hidden="true">*</span>
                   </Label>
                   <select
                     id="rev-metAtLocation"
                     {...register("metAtLocation")}
+                    required
                     className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                   >
                     {exhibitionOptions.map((opt) => (
@@ -364,6 +413,10 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
                     ))}
                   </select>
                 </div>
+              <div className="min-w-0 space-y-1">
+                <Label htmlFor="rev-whereMet">Where met / Location</Label>
+                <Input id="rev-whereMet" {...register("whereMet")} placeholder="e.g. Hall 2, Booth 14 (optional)" className="text-base sm:text-sm" />
+              </div>
 
                 {/* Email Address */}
                 <div className="space-y-1">
@@ -436,6 +489,10 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
             </Button>
 
             <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full sm:w-auto">
+              {editingDuplicate ? <>
+                <Button type="button" variant="outline" onClick={() => setEditingDuplicate(false)} disabled={Boolean(submittingAction)}>Back to comparison</Button>
+                <Button type="button" onClick={handleSubmit(data => handleDecision("submitted", data))} disabled={Boolean(submittingAction)}>Save details & compare</Button>
+              </> : <>
               {/* Reject */}
               <Button
                 type="button"
@@ -469,9 +526,10 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>{submittingAction === "approved" ? "Approving…" : "Approve Contact"}</span>
               </Button>
+              </>}
             </div>
           </div>
-        </form>
+        </form>}
       </DialogContent>
     </Dialog>
   );
