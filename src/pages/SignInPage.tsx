@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   // Building2,
   Mail,
   Lock,
@@ -13,6 +19,7 @@ import {
   AlertCircle,
   Loader2,
   ShieldCheck,
+  CheckCircle2,
 } from "lucide-react";
 
 export default function SignInPage() {
@@ -24,6 +31,7 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [prototypeNoticeOpen, setPrototypeNoticeOpen] = useState(true);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -47,13 +55,48 @@ export default function SignInPage() {
       <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl dark:bg-blue-600/10" />
       <div className="pointer-events-none absolute top-1/2 -right-40 h-96 w-96 rounded-full bg-indigo-400/10 blur-3xl dark:bg-indigo-600/10" />
 
-      {/* Top Prototype Notice Banner */}
-      <div className="relative mx-auto w-full max-w-lg mb-6 sm:mb-8">
-        <div className="flex items-center justify-center gap-2 rounded-full border border-amber-300/80 bg-amber-50/90 px-4 py-2 text-center text-xs font-semibold text-amber-900 shadow-xs backdrop-blur-sm dark:bg-amber-950/40 dark:border-amber-800/80 dark:text-amber-200">
-          <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <span>Internal Testing Prototype · Do not enter real customer cards</span>
-        </div>
-      </div>
+      {/* Clean, Calm, Professional Testing Prototype Notice Dialog */}
+      <Dialog open={prototypeNoticeOpen} onOpenChange={setPrototypeNoticeOpen}>
+        <DialogContent className="max-w-md w-[92vw] p-6 sm:p-7 rounded-3xl border border-slate-200/90 shadow-2xl bg-white dark:border-slate-800 dark:bg-slate-900 text-left">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 ring-1 ring-blue-100 dark:ring-blue-900/50">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                Notice & Guidelines
+              </span>
+              <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                Internal Testing Prototype
+              </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 pt-0.5">
+                You are accessing the CardSnap demonstration environment.
+              </DialogDescription>
+            </div>
+          </div>
+
+          <div className="my-1 rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 dark:border-slate-800/80 dark:bg-slate-850 space-y-2">
+            <div className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
+              <span>Use sample or demo business cards for evaluating OCR parsing and review features.</span>
+            </div>
+            <div className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
+              <span>Do not enter real customer cards, confidential data, or sensitive contact info.</span>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <Button
+              type="button"
+              onClick={() => setPrototypeNoticeOpen(false)}
+              className="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-all dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-xs cursor-pointer"
+            >
+              I Understand & Proceed
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Centered Premium Login Card */}
       <div className="relative mx-auto w-full max-w-md my-auto">
