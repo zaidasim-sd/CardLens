@@ -102,7 +102,18 @@ export default function UserAdminPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
+  const [dropUp, setDropUp] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
+
+  const toggleRoleDropdown = () => {
+    if (!roleDropdownOpen && roleDropdownRef.current) {
+      const rect = roleDropdownRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setDropUp(spaceBelow < 260 && spaceAbove > 260);
+    }
+    setRoleDropdownOpen((prev) => !prev);
+  };
 
   const [retentionHours, setRetentionHours] = useState(24);
   const [recordId, setRecordId] = useState("");
@@ -303,7 +314,12 @@ export default function UserAdminPage() {
       )}
 
       {/* ── Section 1: Create Account Card ── */}
-      <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800">
+      <div
+        className={cn(
+          "rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800 relative transition-all",
+          roleDropdownOpen ? "z-40" : "z-10"
+        )}
+      >
         <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
             <UserPlus className="h-4 w-4" />
@@ -400,7 +416,7 @@ export default function UserAdminPage() {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setRoleDropdownOpen((prev) => !prev)}
+                  onClick={toggleRoleDropdown}
                   aria-expanded={roleDropdownOpen}
                   aria-haspopup="listbox"
                   className={cn(
@@ -426,7 +442,10 @@ export default function UserAdminPage() {
                 {roleDropdownOpen && (
                   <div
                     role="listbox"
-                    className="absolute left-0 right-0 top-full mt-1.5 z-50 rounded-2xl border border-slate-200/90 bg-white/98 p-1.5 shadow-xl shadow-slate-900/10 backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-100 dark:bg-slate-900/98 dark:border-slate-800"
+                    className={cn(
+                      "absolute left-0 right-0 z-50 rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5 backdrop-blur-xl animate-in fade-in-0 zoom-in-95 duration-100 dark:bg-slate-900 dark:border-slate-800 dark:ring-white/10 max-h-80 overflow-y-auto",
+                      dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                    )}
                   >
                     {roleOptions.map((option) => {
                       const Icon = option.icon;
@@ -501,7 +520,7 @@ export default function UserAdminPage() {
       </div>
 
       {/* ── Section 2: Active Accounts List ── */}
-      <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800">
+      <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800 relative z-0">
         <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
@@ -592,7 +611,7 @@ export default function UserAdminPage() {
       {/* ── Section 3: Retention Policy Card ── */}
       <form
         onSubmit={saveRetention}
-        className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800"
+        className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800 relative z-0"
       >
         <div className="flex items-center gap-2.5 mb-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
