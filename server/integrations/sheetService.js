@@ -1,6 +1,7 @@
 import { GoogleAuth } from "google-auth-library";
 import { ObjectId } from "mongodb";
 import { readFileSync } from "node:fs";
+import { createPrivateKey } from "node:crypto";
 import mapping from "../../config/sheetMapping.json" with { type: "json" };
 
 export function safeSheetValue(value) {
@@ -51,6 +52,34 @@ export function columnLetter(count) {
   return result;
 }
 
+export function normalizeGooglePrivateKey(value) {
+  let text = String(value || "").trim();
+  if (text.startsWith('"') && text.endsWith('"')) {
+    try { text = JSON.parse(text); }
+    catch { text = text.slice(1, -1); }
+  } else if (text.startsWith("'") && text.endsWith("'")) text = text.slice(1, -1);
+  return text.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\r\n/g, "\n").trim();
+}
+
+export function sheetFailure(error) {
+  const messages = {
+    SHEET_NOT_CONFIGURED: "Set GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY in Vercel Production, then redeploy.",
+    SHEET_CREDENTIALS_INVALID: "Remove the local GOOGLE_SERVICE_ACCOUNT_KEY_FILE path from Vercel and supply the service-account email and private key.",
+    SHEET_KEY_INVALID: "The private key format is invalid. Paste the full private_key value from the service-account JSON, including BEGIN and END lines.",
+    SHEET_TARGET_REFUSED: "Set SHEET_TARGET_APPROVED=true for the authorized production register, then redeploy.",
+    SHEET_AUTH_FAILED: "Google authentication failed. Check that the service-account email and private key come from the same active credential JSON.",
+    SHEET_API_DISABLED: "Enable the Google Sheets API in the service account's Google Cloud project.",
+    SHEET_ACCESS_DENIED: "Google denied access. Share this spreadsheet with the configured service account as Editor and check protected-range permissions.",
+    SHEET_NOT_FOUND: "Google could not access the spreadsheet. Check GOOGLE_SHEET_ID and service-account sharing.",
+    SHEET_RANGE_INVALID: "Check GOOGLE_SHEET_TAB. It must exactly match the tab name inside the spreadsheet, such as Sheet1.",
+    SHEET_COLUMNS_INVALID: "The register headers do not match CardSnap. Restore all 19 columns, including the hidden CardSnap record ID column.",
+    SHEET_RATE_LIMITED: "Google Sheets is temporarily rate limited. Retry synchronization later.",
+    SHEET_NETWORK_FAILED: "The server could not reach Google Sheets. Retry synchronization later.",
+  };
+  const code = messages[error?.code] ? error.code : "SHEET_SYNC_FAILED";
+  return { code, message: messages[code] || "Google Sheet synchronization failed. Run Check Google Sheet in the administrator Users page." };
+}
+
 function credentials(env) {
   if (env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE) {
     try {
@@ -60,7 +89,7 @@ function credentials(env) {
     } catch { throw Object.assign(new Error("Google service account credential file is missing or invalid."), { code: "SHEET_CREDENTIALS_INVALID", status: 503 }); }
   }
   if (!env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) return null;
-  return { client_email: env.GOOGLE_SERVICE_ACCOUNT_EMAIL, private_key: env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY.replace(/\\n/g, "\n") };
+  return { client_email: env.GOOGLE_SERVICE_ACCOUNT_EMAIL.trim(), private_key: normalizeGooglePrivateKey(env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) };
 }
 
 function config(env) {
@@ -76,6 +105,8 @@ let cachedAuth;
 let cachedCredentialIdentity;
 async function accessToken(env) {
   const selectedCredentials = credentials(env);
+  try { createPrivateKey(selectedCredentials.private_key); }
+  catch { throw Object.assign(new Error("Google service account private key is invalid."), { code: "SHEET_KEY_INVALID", status: 503 }); }
   const identity = `${selectedCredentials.client_email}\0${selectedCredentials.private_key}`;
   if (!cachedAuth || cachedCredentialIdentity !== identity) {
     cachedAuth = new GoogleAuth({ credentials: selectedCredentials, scopes: ["https://www.googleapis.com/auth/spreadsheets"] });
@@ -87,9 +118,37 @@ async function accessToken(env) {
 
 async function googleRequest(env, url, options = {}, fetcher = fetch) {
   const token = await accessToken(env);
-  const response = await fetcher(url, { ...options, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...options.headers } });
-  if (!response.ok) throw Object.assign(new Error(`Google Sheet request failed (HTTP ${response.status}).`), { code: "SHEET_REQUEST_FAILED", status: 502 });
+  let response;
+  try { response = await fetcher(url, { ...options, signal: AbortSignal.timeout(15000), headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...options.headers } }); }
+  catch { throw Object.assign(new Error("Google Sheet network request failed."), { code: "SHEET_NETWORK_FAILED", status: 502 }); }
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const reasons = [...(body.error?.errors || []).map(item => item.reason), ...(body.error?.details || []).map(item => item.reason)];
+    const code = reasons.some(reason => ["SERVICE_DISABLED", "accessNotConfigured"].includes(reason)) ? "SHEET_API_DISABLED" : ({ 400: "SHEET_RANGE_INVALID", 401: "SHEET_AUTH_FAILED", 403: "SHEET_ACCESS_DENIED", 404: "SHEET_NOT_FOUND", 429: "SHEET_RATE_LIMITED" }[response.status] || "SHEET_REQUEST_FAILED");
+    throw Object.assign(new Error(`Google Sheet request failed (HTTP ${response.status}).`), { code, status: 502 });
+  }
   return response.status === 204 ? {} : response.json();
+}
+
+export async function diagnoseSheet(env = process.env) {
+  const checks = {
+    sheetIdConfigured: Boolean(env.GOOGLE_SHEET_ID || env.GOOGLE_SHEET_TEST_ID),
+    emailConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_EMAIL),
+    privateKeyConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY),
+    localCredentialFileConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE),
+    productionTargetApproved: env.SHEET_TARGET_APPROVED === "true",
+    tab: env.GOOGLE_SHEET_TAB || "Contacts",
+  };
+  try {
+    const selected = config(env);
+    if (!selected) throw { code: "SHEET_NOT_CONFIGURED" };
+    await accessToken(env);
+    const metadata = await googleRequest(env, `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(selected.sheetId)}?fields=sheets(properties)`);
+    const tab = metadata.sheets?.find(item => item.properties?.title === selected.tab);
+    if (!tab) throw { code: "SHEET_RANGE_INVALID" };
+    await createSheetGateway(env).readAll();
+    return { ok: true, checks, message: "Google authentication, spreadsheet access, tab name and all 19 register headers passed. This check does not write any contacts.", tabIdMatches: tab.properties.sheetId === selected.tabId };
+  } catch (error) { return { ok: false, checks, ...sheetFailure(error) }; }
 }
 
 export function createSheetGateway(env = process.env, fetcher = fetch) {

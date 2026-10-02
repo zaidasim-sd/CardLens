@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut, ChevronDown, ShieldCheck, Mail, Building2 } from "lucide-react";
+import { LogOut, ChevronDown, Mail } from "lucide-react";
 import { useAuth, type Role } from "@/auth/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ const roleLabels: Record<Role, { title: string; badgeClass: string }> = {
   },
   vision71_administrator: {
     title: "System Administrator",
-    badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800",
+    badgeClass: "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
   },
   vision71_support: {
     title: "Technical Support",
@@ -84,10 +84,8 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
         )}
       >
         {/* Avatar Ring */}
-        <div className="relative flex h-9 w-9 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 ring-2 ring-white dark:ring-slate-900 transition-transform group-hover:scale-105">
+        <div className="relative flex h-9 w-9 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-[#e8f6f8] !text-[#147c92] text-white font-bold text-xs border border-[#cce9ee] ring-2 ring-white dark:ring-slate-900 transition-transform group-hover:scale-105">
           <span>{initials}</span>
-          {/* Active Status indicator */}
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
         </div>
 
         {/* Name and Chevron (Visible on desktop or when expanded) */}
@@ -123,7 +121,7 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
         >
           {/* User Info Header */}
           <div className="flex items-start gap-3 rounded-xl bg-slate-50/80 p-3.5 dark:bg-slate-800/50">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-500 text-white font-bold text-sm shadow-md ring-2 ring-white dark:ring-slate-800">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e8f6f8] !text-[#147c92] text-white font-bold text-sm shadow-md ring-2 ring-white dark:ring-slate-800">
               {initials}
             </div>
             <div className="min-w-0 flex-1">
@@ -131,7 +129,6 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
                 <p className="truncate text-sm font-bold text-slate-900 dark:text-white" title={user.name}>
                   {user.name}
                 </p>
-                <ShieldCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
               </div>
 
               {/* Role Badge */}
@@ -151,32 +148,11 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
                 <Mail className="h-3 w-3 shrink-0" />
                 <span className="truncate">{user.email}</span>
               </div>
-
-              {/* Tenant */}
-              {user.tenantId && (
-                <div className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500 truncate">
-                  <Building2 className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{user.tenantId}</span>
-                </div>
-              )}
             </div>
           </div>
 
           {/* Section Divider */}
           <div className="my-2 border-t border-slate-100 dark:border-slate-800" />
-
-          {/* Account Details / Actions */}
-          <div className="px-1 py-1">
-            <div className="flex items-center justify-between rounded-lg px-2.5 py-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-              <span>Account Status</span>
-              <span className="inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Active Session
-              </span>
-            </div>
-          </div>
-
-          <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
 
           {/* Logout Button */}
           <button

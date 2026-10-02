@@ -251,4 +251,35 @@
   background: linear-gradient(90deg, transparent 0%, rgba(15, 23, 42, 0.85) 50%, transparent 100%);
   box-shadow: 0 0 15px 3px rgba(15, 23, 42, 0.4);
   animation: scanline 2s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate;
+}/* Shared brand palette applies to every page and portalled dialog. */
+@theme {
+ --color-blue-50:#eff9fb;
+ --color-blue-100:#def2f6;
+ --color-blue-200:#bce5ed;
+ --color-blue-300:#81d3df;
+ --color-blue-400:#55bfd1;
+ --color-blue-500:#39b3c8;
+ --color-blue-600:#39b3c8;
+ --color-blue-700:#269bb2;
+ --color-blue-800:#147c92;
+ --color-blue-900:#165366;
+ --color-blue-950:#142b35;
+ --color-indigo-50:#eff9fb;
+ --color-indigo-100:#def2f6;
+ --color-indigo-200:#bce5ed;
+ --color-indigo-300:#81d3df;
+ --color-indigo-400:#55bfd1;
+ --color-indigo-500:#39b3c8;
+ --color-indigo-600:#269bb2;
+ --color-indigo-700:#147c92;
+ --color-indigo-800:#165366;
+ --color-indigo-900:#163c4c;
+ --color-indigo-950:#142b35;
+ --color-sky-500:#55bfd1;
 }
+:root{--primary:#39b3c8;--primary-foreground:#fff;--ring:#39b3c8;--sidebar-primary:#39b3c8;--sidebar-primary-foreground:#fff;--sidebar-ring:#39b3c8}
+.dark{--primary:#55bfd1;--primary-foreground:#143b50;--ring:#55bfd1;--sidebar-primary:#55bfd1;--sidebar-primary-foreground:#143b50;--sidebar-ring:#55bfd1}
+/* The authenticated workspace has one scroll owner: its main panel. */
+html:has(.app-shell),body:has(.app-shell){height:100%;overflow:hidden}
+body:has(.app-shell) #root{height:100%;overflow:hidden}
+.app-shell>main{overscroll-behavior:contain;scrollbar-gutter:stable}

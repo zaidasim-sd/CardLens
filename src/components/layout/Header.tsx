@@ -1,12 +1,12 @@
 import { NavLink } from "react-router-dom";
-import { Scan, ListChecks, Users } from "lucide-react";
+import { ScanLine, ClipboardList, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
 import UserProfileDropdown from "./UserProfileDropdown";
 
 const navItems = [
-  { name: "Scan Card", to: "/", icon: Scan, roles: ["exhibition_assistant"] },
-  { name: "Review Queue", to: "/submissions", icon: ListChecks, roles: ["exhibition_assistant", "aventure_reviewer"] },
+  { name: "Scan Card", to: "/", icon: ScanLine, roles: ["exhibition_assistant"] },
+  { name: "Review Queue", to: "/submissions", icon: ClipboardList, roles: ["exhibition_assistant", "aventure_reviewer"] },
   { name: "User accounts", to: "/users", icon: Users, roles: ["vision71_administrator"] },
 ];
 
@@ -44,12 +44,12 @@ export default function Header() {
                   cn(
                     "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
                     isActive
-                      ? "bg-white text-blue-700 shadow-xs font-semibold dark:bg-slate-900 dark:text-blue-300"
+                      ? "bg-white text-[#147c92] shadow-xs font-semibold dark:bg-slate-900 dark:text-blue-300"
                       : "text-slate-600 hover:text-slate-900 hover:bg-white/50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800/80"
                   )
                 }
               >
-                <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <Icon className="w-4 h-4 text-[#269bb2] dark:text-blue-400" />
                 <span>{item.name}</span>
               </NavLink>
             );

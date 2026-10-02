@@ -1,8 +1,27 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ObjectId } from "mongodb";
-import { addPendingSheetRecord, columnLetter, createSheetGateway, refreshStatusesFromSheet, safeSheetValue, sheetRow, updateSheetRecord } from "./sheetService.js";
+import { addPendingSheetRecord, columnLetter, createSheetGateway, refreshStatusesFromSheet, safeSheetValue, sheetRow, updateSheetRecord, normalizeGooglePrivateKey, diagnoseSheet, sheetFailure } from "./sheetService.js";
 import mapping from "../../config/sheetMapping.json" with { type: "json" };
+
+test("hosted private-key values normalize escaped newlines and surrounding JSON quotes", () => {
+  const value = "-----BEGIN PRIVATE KEY-----\nfixture\n-----END PRIVATE KEY-----\n";
+  assert.equal(normalizeGooglePrivateKey(value), value.trim());
+  assert.equal(normalizeGooglePrivateKey(value.replaceAll("\n", "\\n")), value.trim());
+  assert.equal(normalizeGooglePrivateKey(JSON.stringify(value)), value.trim());
+});
+test("production diagnostic identifies an unapproved target without contacting Google", async () => {
+  const result = await diagnoseSheet({ GOOGLE_SHEET_ID: "production", GOOGLE_SERVICE_ACCOUNT_EMAIL: "fixture@example.test", GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: "fake-private-key", GOOGLE_SHEET_TAB: "Sheet1", SHEET_TARGET_APPROVED: "false" });
+  assert.equal(result.ok, false);
+  assert.equal(result.code, "SHEET_TARGET_REFUSED");
+  assert.ok(!JSON.stringify(result).includes("fake-private-key"));
+});
+test("diagnostic identifies malformed keys and never exposes credential values", async () => {
+  const result = await diagnoseSheet({ GOOGLE_SHEET_ID: "production", GOOGLE_SERVICE_ACCOUNT_EMAIL: "fixture@example.test", GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: "private-secret-fixture", SHEET_TARGET_APPROVED: "true" });
+  assert.equal(result.code, "SHEET_KEY_INVALID");
+  assert.ok(!JSON.stringify(result).includes("private-secret-fixture"));
+  assert.ok(!JSON.stringify(sheetFailure(new Error("private-secret-fixture"))).includes("private-secret-fixture"));
+});
 import { encryptValue } from "../security/encryption.js";
 import { randomBytes } from "node:crypto";
 

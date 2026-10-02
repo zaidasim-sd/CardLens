@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import "./capture.css";
 import {
   Camera,
+  CirclePlay,
+  Cloud,
+  ArrowUpRight,
   UploadCloud,
   X,
   RefreshCw,
   Scan,
   CheckCircle2,
   CameraOff,
-  ArrowRight,
   AlertTriangle,
   FileEdit,
   Sparkles,
@@ -292,7 +294,7 @@ function CameraModal({
 
 // ─── Main ScanPage Component ──────────────────────────────────────────────────
 export default function ScanPage() {
-  const navigate = useNavigate();
+
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -449,7 +451,7 @@ export default function ScanPage() {
       notes: "",
     };
     setSelectedFile(null);
-    setPreviewUrl("/demo-card.svg");
+    setPreviewUrl(null);
     setOcrData(blankData);
     setRawText("");
     setIsDemoMode(false);
@@ -482,156 +484,38 @@ export default function ScanPage() {
         onChange={handleFileChange}
       />
 
-      <div className="max-w-4xl mx-auto px-2 sm:px-6 py-4 sm:py-8 pb-20 space-y-8">
+      <div className="max-w-6xl mx-auto px-2 sm:px-6 py-4 sm:py-8 pb-20 space-y-8">
         {!selectedFile ? (
-          /* ── 1. REDESIGNED LANDING PAGE ── */
-          <section
-            onDrop={handleDrop}
-            onDragOver={(event) => event.preventDefault()}
-            className="flex flex-col items-center justify-center text-center space-y-7 sm:space-y-9"
-          >
-            {/* Compact Header & Direct Actions */}
-            <div className="max-w-2xl mx-auto space-y-3 pt-2 sm:pt-4">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-slate-900 dark:text-white leading-[1.15]">
-                Capture exhibition contacts quickly.
-              </h1>
-              <p className="text-sm sm:text-base leading-relaxed text-slate-600 dark:text-slate-300 max-w-xl mx-auto">
-                Take a photo of a business card, review the details, and submit the contact for approval.
-              </p>
 
-              {/* Primary Call to Action Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md mx-auto">
-                <Button
-                  size="lg"
-                  onClick={() => setIsCameraOpen(true)}
-                  className="h-12 w-full sm:w-auto sm:flex-1 rounded-xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700 transition-all cursor-pointer"
-                >
-                  <Camera className="w-4 h-4 mr-2" /> Scan a card
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => navigate("/submissions")}
-                  className="h-12 w-full sm:w-auto sm:flex-1 rounded-xl border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 shadow-2xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 cursor-pointer"
-                >
-                  Review queue <ArrowRight className="w-4 h-4 ml-1.5" />
-                </Button>
+          <section onDrop={handleDrop} onDragOver={e => e.preventDefault()} className="capture-home">
+            <div className="capture-intro">
+              <h1>Capture exhibition contacts <span>quickly.</span></h1>
+              <p>Turn a business card into your next connection.<br />Scan, review, and send for approval in a few simple steps.</p>
+              <div className="capture-actions">
+                <Button onClick={() => setIsCameraOpen(true)} className="capture-primary"><Camera size={18} />Scan a card</Button>
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="capture-upload"><UploadCloud size={18} />Upload a card</Button>
+              </div>
+              <div className="capture-secondary-actions">
+                <button type="button" onClick={handleTriggerDemoCard}><CirclePlay size={15} strokeWidth={1.7} />Try demo</button>
+                <button type="button" onClick={handleManualEntry}><FileEdit size={14} />Enter manually</button>
               </div>
 
-              {/* Quick secondary upload & demo options */}
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 pt-1 text-xs text-slate-500 dark:text-slate-400">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 hover:text-blue-600 transition-colors cursor-pointer py-1"
-                >
-                  <UploadCloud className="w-3.5 h-3.5" /> Upload card image
-                </button>
-                <span>•</span>
-                <button
-                  type="button"
-                  onClick={handleTriggerDemoCard}
-                  className="inline-flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer py-1"
-                >
-                  Try demo flow
-                </button>
-                <span>•</span>
-                <button
-                  type="button"
-                  onClick={handleManualEntry}
-                  className="inline-flex items-center gap-1 hover:text-blue-600 transition-colors cursor-pointer py-1"
-                >
-                  Enter manually
-                </button>
-              </div>
             </div>
-
-            {/* ── 3-STEP PROCESS VISUAL (No fake cards, restrained product panels) ── */}
-            <div className="w-full max-w-3xl pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4 text-left">
-                {/* Step 1: Capture */}
-                <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900/60 flex flex-col justify-between">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                        Step 1
-                      </span>
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center dark:bg-blue-950 dark:text-blue-400">
-                        <Camera className="w-4 h-4" />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Capture
-                    </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Position the card inside the guided viewfinder with automatic cropping.
-                    </p>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 font-medium">
-                    1.75:1 Card Aspect Framing
-                  </div>
-                </div>
-
-                {/* Step 2: Review */}
-                <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900/60 flex flex-col justify-between">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                        Step 2
-                      </span>
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center dark:bg-blue-950 dark:text-blue-400">
-                        <CheckSquare className="w-4 h-4" />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Review
-                    </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Verify auto-extracted contact name, company, email, phone, and exhibition.
-                    </p>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 font-medium">
-                    Fully Editable Fields
-                  </div>
-                </div>
-
-                {/* Step 3: Ready */}
-                <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs dark:border-slate-800 dark:bg-slate-900/60 flex flex-col justify-between">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        Step 3
-                      </span>
-                      <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center dark:bg-emerald-950 dark:text-emerald-400">
-                        <ShieldCheck className="w-4 h-4" />
-                      </div>
-                    </div>
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                      Ready for approval
-                    </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Submits to the review register with automatic capture time and user audit.
-                    </p>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 text-[11px] text-slate-400 font-medium">
-                    Google Sheet Workflow
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Subtle Trust & Information Note */}
-            <div className="text-center text-xs text-slate-500 dark:text-slate-400 space-x-1.5 pt-1">
-              <span>Enhanced by Google Cloud Vision.</span>
-              <span>•</span>
-              <button
-                type="button"
-                onClick={() => setIsInfoModalOpen(true)}
-                className="underline underline-offset-2 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
-              >
-                How card reading works
-              </button>
-            </div>
+            <ol className="capture-flow" aria-label="From business card to approval">
+              <li className="capture-stage">
+                <div className="capture-stage-preview capture-scan" aria-hidden="true"><div className="capture-frame"><div className="capture-mini-card"><span className="capture-card-mark">C</span><div><b>Alex Morgan</b><span>Business Development</span><i /><i /></div></div><span className="capture-beam" /></div><span className="capture-preview-caption">A clear card. A fresh connection.</span></div>
+                <div className="capture-stage-heading"><span>01</span><h2>Capture</h2><Camera size={17} /></div><p>Scan or upload a card. <br />We’ll read the details for you.</p><span className="capture-connector" aria-hidden="true"><i /></span>
+              </li>
+              <li className="capture-stage">
+                <div className="capture-stage-preview capture-review" aria-hidden="true"><div className="capture-form-title"><CheckSquare size={14} />Contact details</div>{['Name', 'Company', 'Email'].map((label, index) => <div className="capture-field" key={label}><span>{label}</span><b className={"capture-field-skeleton capture-field-skeleton-" + index} /><CheckCircle2 size={12} /></div>)}<span className="capture-preview-caption">Your details, fully editable.</span></div>
+                <div className="capture-stage-heading"><span>02</span><h2>Review</h2><CheckSquare size={17} /></div><p>Check the extracted details. <br />Make any final edits.</p><span className="capture-connector" aria-hidden="true"><i /></span>
+              </li>
+              <li className="capture-stage">
+                <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>Contact prepared for review</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
+                <div className="capture-stage-heading"><span>03</span><h2>Send for approval</h2><ShieldCheck size={17} /></div><p>Submit your contact. <br />Your reviewer takes it from here.</p>
+              </li>
+            </ol>
+            <div className="capture-vision-footer"><div className="capture-vision-credit"><Cloud size={22} strokeWidth={1.7} /><span>Enhanced by <strong>Google Cloud Vision</strong></span></div><button type="button" onClick={() => setIsInfoModalOpen(true)}>How card reading works<ArrowUpRight size={14} /></button></div>
           </section>
         ) : (
           /* ── 2. CARD LOADED & OCR PROCESSING WORKFLOW ── */
@@ -786,7 +670,7 @@ export default function ScanPage() {
         ocrData={ocrData}
         rawText={rawText}
         originalImage={selectedFile}
-        imageUrl={previewUrl || "/demo-card.svg"}
+        imageUrl={previewUrl || ""}
         isDemo={isDemoMode}
         onSuccess={() => {
           setIsReviewModalOpen(false);
@@ -799,7 +683,7 @@ export default function ScanPage() {
         <DialogContent className="max-w-md w-[92vw] sm:max-w-[440px] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-background shadow-xl">
           <DialogHeader className="space-y-2 text-left">
             <div className="flex items-center gap-2">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-[#eff9fb] text-[#147c92] dark:bg-[#142b35] dark:text-[#81d3df]">
                 <Sparkles className="size-4" aria-hidden="true" />
               </div>
               <DialogTitle className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
@@ -816,7 +700,7 @@ export default function ScanPage() {
               variant="default"
               size="sm"
               onClick={() => setIsInfoModalOpen(false)}
-              className="rounded-xl bg-blue-600 px-5 text-xs font-semibold text-white hover:bg-blue-700 cursor-pointer"
+              className="rounded-xl bg-[#39b3c8] px-5 text-xs font-semibold text-white hover:bg-[#269bb2] cursor-pointer"
             >
               Close
             </Button>

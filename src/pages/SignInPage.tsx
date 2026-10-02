@@ -1,31 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
-  // Building2,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  AlertCircle,
-  Loader2,
-  ShieldCheck,
-  CheckCircle2,
-} from "lucide-react";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ArrowLeft, ArrowRight, Mail, LockKeyhole, Eye, EyeOff, AlertCircle, Loader2, ShieldCheck, Check } from "lucide-react";
+import "./signin.css";
 
 export default function SignInPage() {
   const { user, signIn } = useAuth();
-  // Organisation ID is not required for now - commented out per request
-  // const [tenantId, setTenantId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -39,218 +20,75 @@ export default function SignInPage() {
     event.preventDefault();
     setBusy(true);
     setError("");
-    try {
-      // Sign in directly with email and password (tenantId resolved automatically)
-      await signIn(email.trim(), password);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Sign in failed. Please check your credentials.");
-    } finally {
-      setBusy(false);
-    }
+    try { await signIn(email.trim(), password); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Sign in failed. Please check your credentials."); }
+    finally { setBusy(false); }
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-gradient-to-b from-slate-50 via-white to-slate-100/80 px-4 py-8 sm:py-12 overflow-hidden dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-      {/* Ambient background glow orbs */}
-      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl dark:bg-blue-600/10" />
-      <div className="pointer-events-none absolute top-1/2 -right-40 h-96 w-96 rounded-full bg-indigo-400/10 blur-3xl dark:bg-indigo-600/10" />
-
-      {/* Clean, Calm, Professional Testing Prototype Notice Dialog */}
+    <div className="cardsnap-signin">
       <Dialog open={prototypeNoticeOpen} onOpenChange={setPrototypeNoticeOpen}>
-        <DialogContent className="max-w-md w-[92vw] p-6 sm:p-7 rounded-3xl border border-slate-200/90 shadow-2xl bg-white dark:border-slate-800 dark:bg-slate-900 text-left">
-          <div className="flex items-start gap-3.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 ring-1 ring-blue-100 dark:ring-blue-900/50">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                Notice & Guidelines
-              </span>
-              <DialogTitle className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
-                Internal Testing Prototype
-              </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 pt-0.5">
-                You are accessing the CardSnap demonstration environment.
-              </DialogDescription>
-            </div>
-          </div>
-
-          <div className="my-1 rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 dark:border-slate-800/80 dark:bg-slate-850 space-y-2">
-            <div className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
-              <span>Use sample or demo business cards for evaluating OCR parsing and review features.</span>
-            </div>
-            <div className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-slate-400 mt-0.5" />
-              <span>Do not enter real customer cards, confidential data, or sensitive contact info.</span>
-            </div>
-          </div>
-
-          <div className="pt-2">
-            <Button
-              type="button"
-              onClick={() => setPrototypeNoticeOpen(false)}
-              className="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-all dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-xs cursor-pointer"
-            >
-              I Understand & Proceed
-            </Button>
-          </div>
+        <DialogContent className="max-w-md w-[92vw] rounded-2xl border-slate-200 bg-white p-7 text-slate-800">
+          <span className="signin-notice-icon"><ShieldCheck size={23} /></span>
+          <DialogTitle className="text-xl font-semibold">Internal Testing Prototype</DialogTitle>
+          <DialogDescription className="text-sm leading-relaxed text-slate-500">
+            You are accessing the CardSnap demonstration environment. Use sample cards to evaluate capture and review. Do not enter real customer cards or confidential contact information.
+          </DialogDescription>
+          <button className="signin-submit" onClick={() => setPrototypeNoticeOpen(false)}>I Understand &amp; Proceed <ArrowRight size={17} /></button>
         </DialogContent>
       </Dialog>
+      <header className="signin-header">
+          <Link to="/welcome" className="signin-brand" aria-label="CardSnap home"><img src="/CardSnapLogo_Black.png" alt="CardSnap by Vision71" width="168" height="64" /></Link>
 
-      {/* Centered Premium Login Card */}
-      <div className="relative mx-auto w-full max-w-md my-auto">
-        <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-7 sm:p-9 shadow-2xl shadow-blue-900/5 backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800 dark:shadow-black/40">
-          {/* Card Header & Brand */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center p-2.5 sm:p-3 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 mb-4 ring-1 ring-slate-200/80 dark:ring-slate-700/60 shadow-xs">
-              <img
-                src="/CardSnapLogo_Black.png"
-                alt="CardSnap by Vision71"
-                className="h-16 sm:h-16 md:h-16 w-auto object-contain select-none dark:invert transition-transform hover:scale-[1.01]"
-              />
+      </header>
+      <main className="signin-main">
+      <aside className="signin-story" aria-labelledby="signin-story-title">
+        <div className="signin-story-content">
+          <h2 id="signin-story-title">Good connections.<br /><span>Better follow-through.</span></h2>
+          <div className="signin-illustration" aria-hidden="true">
+            <div className="signin-demo-card">
+              <div className="signin-card-brand"><span /><i /></div>
+              <div className="signin-card-identity"><i /><i /></div>
+              <div className="signin-card-divider" />
+              <div className="signin-card-details"><i /><i /><i /></div>
+              <div className="signin-scan-line" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Sign in to your account
-            </h1>
-            <p className="mt-1.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Exhibition Contact Capture & Verification Platform
-            </p>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={submit} className="space-y-4 sm:space-y-5">
-            {/* Organisation ID - Not required for now, commented out per request */}
-            {/*
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="tenant" className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                  Organisation ID
-                </Label>
-                <button
-                  type="button"
-                  onClick={() => setTenantId("vision71-internal")}
-                  className="text-[11px] font-medium text-blue-600 hover:text-blue-700 hover:underline dark:text-blue-400"
-                >
-                  Use default
-                </button>
-              </div>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                  <Building2 className="h-4 w-4" />
-                </div>
-                <Input
-                  id="tenant"
-                  value={tenantId}
-                  onChange={(event) => setTenantId(event.target.value)}
-                  placeholder="e.g. vision71-internal"
-                  required
-                  autoComplete="organization"
-                  className="h-11 pl-9.5 text-sm rounded-xl border-slate-200 bg-slate-50/50 transition-colors focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 dark:border-slate-700 dark:bg-slate-800/50 dark:focus:bg-slate-800"
-                />
-              </div>
-            </div>
-            */}
-
-            {/* Email Address */}
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Email Address
-              </Label>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                  <Mail className="h-4 w-4" />
-                </div>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@company.com"
-                  required
-                  autoComplete="username"
-                  className="h-11 pl-9.5 text-sm rounded-xl border-slate-200 bg-slate-50/50 transition-colors focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 dark:border-slate-700 dark:bg-slate-800/50 dark:focus:bg-slate-800"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                  Password
-                </Label>
-                <span className="text-[11px] text-slate-400">Min. 11 characters</span>
-              </div>
-              <div className="relative">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                  <Lock className="h-4 w-4" />
-                </div>
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••••••"
-                  minLength={11}
-                  required
-                  autoComplete="current-password"
-                  className="h-11 pl-9.5 pr-10 text-sm rounded-xl border-slate-200 bg-slate-50/50 transition-colors focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 dark:border-slate-700 dark:bg-slate-800/50 dark:focus:bg-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  tabIndex={-1}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-                  title={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div
-                role="alert"
-                className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50/90 p-3 text-xs text-red-800 animate-in fade-in-50 duration-200 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-200"
-              >
-                <AlertCircle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400 mt-0.5" />
-                <span className="leading-relaxed font-medium">{error}</span>
-              </div>
-            )}
-
-            {/* Sign In CTA */}
-            <Button
-              type="submit"
-              disabled={busy}
-              className="w-full h-11 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold text-sm shadow-md shadow-blue-600/25 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {busy ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  <span>Verifying credentials...</span>
-                </>
-              ) : (
-                <span>Sign in</span>
-              )}
-            </Button>
-          </form>
-
-          {/* Security & Access Info Footer */}
-          <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-              <ShieldCheck className="h-3.5 w-3.5 text-blue-600/80 dark:text-blue-400" />
-              <span>Named account authentication · 256-bit AES session</span>
-            </div>
+            <span className="signin-card-connector"><ArrowRight size={16} /></span>
+            <div className="signin-detail-card"><span className="signin-detail-title"><Check size={16} /></span><div><i /><b /></div><div><i /><b /></div><div><i /><b /></div></div>
           </div>
         </div>
-      </div>
+      </aside>
+      <section className="signin-panel" aria-labelledby="signin-title">
+        <div className="signin-form-wrap">
+          <h1 id="signin-title">Welcome back.</h1>
+          <p className="signin-intro">Sign in to CardSnap.</p>
+          <form onSubmit={submit} className="signin-form" aria-busy={busy}>
+            <div className="signin-field">
+              <label htmlFor="email">Email address</label>
+              <div className="signin-input-wrap"><Mail size={17} aria-hidden="true" />
+                <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@company.com" required autoComplete="username" disabled={busy} />
+              </div>
+            </div>
+            <div className="signin-field">
+              <label htmlFor="password">Password</label>
+              <div className="signin-input-wrap"><LockKeyhole size={17} aria-hidden="true" />
+                <input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" minLength={11} required autoComplete="current-password" disabled={busy} />
+                <button type="button" className="signin-password-toggle" onClick={() => setShowPassword((previous) => !previous)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} title={showPassword ? "Hide password" : "Show password"}>
+                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                </button>
+              </div>
+            </div>
+            {error && <div className="signin-error" role="alert"><AlertCircle size={17} /><span>{error}</span></div>}
+            <button type="submit" className="signin-submit" disabled={busy}>
+              {busy ? <><Loader2 size={17} className="signin-spinner" />Signing in…</> : <>Sign in <ArrowRight size={17} /></>}
+            </button>
+          </form>
+          <div className="signin-return"><Link to="/welcome" className="signin-back"><ArrowLeft size={14} /><span>Back to website</span></Link></div>
+        </div>
+      </section>
 
-      {/* Bottom Footer */}
-      <footer className="relative mt-8 text-center text-xs text-slate-400 dark:text-slate-600">
-        <p>© {new Date().getFullYear()} Vision71 Technologies. Confidential exhibition testing environment.</p>
-      </footer>
+      </main>
+      <footer className="signin-footer">© {new Date().getFullYear()} Vision71 Technologies</footer>
     </div>
   );
 }

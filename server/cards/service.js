@@ -3,7 +3,7 @@ import { blindIndex, decryptValue, encryptValue } from "../security/encryption.j
 import { requireAction } from "../auth/permissions.js";
 import { writeAudit } from "../audit/service.js";
 import { getRetentionHours } from "../retention/service.js";
-import { addPendingSheetRecord, refreshStatusesFromSheet, updateSheetRecord } from "../integrations/sheetService.js";
+import { addPendingSheetRecord, refreshStatusesFromSheet, updateSheetRecord, sheetFailure } from "../integrations/sheetService.js";
 import { approvalTransfer, transferApproved } from "../integrations/constantContact.js";
 
 export const RECORD_STATES = ["draft", "submitted", "correction_requested", "approved", "rejected", "transferred"];
@@ -68,6 +68,7 @@ export function toPublic(card) {
     transferStatus: card.transferStatus || "not_started",
     transferError: card.transferError || "",
     sheetStatus: card.sheetStatus || "not_started",
+    sheetError: card.sheetError || null,
     reviewerComment: card.reviewerComment || "",
     reviewedByName: card.reviewedByName || "",
     status: card.status,
@@ -181,9 +182,12 @@ export async function createCard(db, user, input, now = new Date()) {
       const sheetStatus = result.skipped ? "not_configured" : "pending";
       await db.collection("cards").updateOne({ _id: inserted.insertedId, tenantId: user.tenantId }, { $set: { sheetStatus } });
       publicCard.sheetStatus = sheetStatus;
-    } catch {
-      await db.collection("cards").updateOne({ _id: inserted.insertedId, tenantId: user.tenantId }, { $set: { sheetStatus: "failed" } });
-      publicCard.sheetStatus = "failed";
+      } catch (error) {
+        const sheetError = sheetFailure(error);
+        console.warn("Google Sheet synchronization:", sheetError.code);
+        await db.collection("cards").updateOne({ _id: inserted.insertedId, tenantId: user.tenantId }, { $set: { sheetStatus: "failed", sheetError } });
+        publicCard.sheetStatus = "failed";
+        publicCard.sheetError = sheetError;
     }
   }
   return publicCard;
@@ -297,12 +301,16 @@ export async function updateCard(db, user, id, input, now = new Date()) {
     const result = await updateSheetRecord(db, updated);
     if (!result.skipped) {
       const displayStatus = nextState === "approved" ? "Approved" : nextState === "rejected" ? "Rejected" : nextState === "correction_requested" ? "Return for Correction" : updated.status;
-      await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: displayStatus } });
+      await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: displayStatus }, $unset: { sheetError: "" } });
       updated.sheetStatus = displayStatus;
+      updated.sheetError = null;
     }
-  } catch {
-    await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: "failed" } });
+  } catch (error) {
+    const sheetError = sheetFailure(error);
+    console.warn("Google Sheet synchronization:", sheetError.code);
+    await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: "failed", sheetError } });
     updated.sheetStatus = "failed";
+    updated.sheetError = sheetError;
   }
   return updated;
 }

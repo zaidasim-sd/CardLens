@@ -64,5 +64,6 @@ export interface ContactRecord {
   transferStatus?: "not_started" | "pending" | "failed" | "reconciliation_required" | "transferred" | "existing_contact";
   transferError?: string;
   sheetStatus?: string;
+  sheetError?: { code: string; message: string } | null;
   restricted?: boolean;
 }

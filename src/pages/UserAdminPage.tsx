@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
 import { ConstantContactSettings } from "@/components/ConstantContactSettings";
+import "./admin.css";
 import { cardApi } from "@/lib/cardApi";
 import { cn } from "@/lib/utils";
 import {
@@ -31,6 +32,9 @@ import {
   User as UserIcon,
   Check,
 } from "lucide-react";
+
+// Temporarily hidden admin tools. Set to true to restore all three sections.
+const SHOW_ADVANCED_ADMIN_TOOLS = false;
 
 interface RoleOption {
   value: Role;
@@ -61,10 +65,10 @@ const roleOptions: RoleOption[] = [
   {
     value: "vision71_administrator",
     label: "Administrator",
-    badgeLabel: "System Administrator",
+    badgeLabel: "System admin",
     description: "Full management of named accounts, retention, and export queues",
     icon: ShieldCheck,
-    badgeClass: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800",
+    badgeClass: "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
   },
   {
     value: "vision71_support",
@@ -87,7 +91,7 @@ export default function UserAdminPage() {
   const { user, csrfToken } = useAuth();
   const [users, setUsers] = useState<SignedInUser[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(true);
   const [creating, setCreating] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [savingRetention, setSavingRetention] = useState(false);
@@ -259,11 +263,13 @@ export default function UserAdminPage() {
     }
   }
 
+  const teamMembers = users.filter(account => account.role !== "vision71_administrator");
+
   const selectedRoleOption = roleOptions.find((r) => r.value === form.role) || roleOptions[0];
   const SelectedIcon = selectedRoleOption.icon;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 py-6 sm:py-8">
+    <div className="admin-page mx-auto max-w-4xl space-y-5 py-4 sm:py-6">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200/80 pb-6 dark:border-slate-800">
         <div>
@@ -272,10 +278,10 @@ export default function UserAdminPage() {
             <span>Administration Console</span>
           </div>
           <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            User Accounts & Security
+            Team & settings
           </h1>
           <p className="mt-1.5 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Manage named accounts, retention rules, and approved contact transfers for {user?.tenantId || "this organisation"}.
+            Manage your team, card storage, and approved contact transfers.
           </p>
         </div>
 
@@ -316,17 +322,17 @@ export default function UserAdminPage() {
       {/* ── Section 1: Create Account Card ── */}
       <div
         className={cn(
-          "rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800 relative transition-all",
+          "rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800 relative transition-all",
           roleDropdownOpen ? "z-40" : "z-10"
         )}
       >
         <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400">
             <UserPlus className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">Create named account</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Generate secure credentials for a team member</p>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Add team member</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Choose their access and set a temporary password.</p>
           </div>
         </div>
 
@@ -345,7 +351,7 @@ export default function UserAdminPage() {
                   id="name"
                   value={form.name}
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
-                  placeholder="e.g. Sarah Jenkins"
+                  placeholder="e.g. Alex Morgan"
                   required
                   className="h-10 pl-9.5 text-sm rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 dark:border-slate-700 dark:bg-slate-800/50"
                 />
@@ -411,7 +417,7 @@ export default function UserAdminPage() {
             {/* Premium Role Dropdown */}
             <div className="space-y-1.5" ref={roleDropdownRef}>
               <Label className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Assigned Role & Permissions
+                Access role
               </Label>
               <div className="relative">
                 <button
@@ -469,7 +475,7 @@ export default function UserAdminPage() {
                         >
                           <div
                             className={cn(
-                              "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border",
+                              "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border",
                               isSelected
                                 ? "bg-blue-600 text-white border-blue-600"
                                 : "bg-white text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400"
@@ -501,7 +507,7 @@ export default function UserAdminPage() {
             <Button
               type="submit"
               disabled={creating}
-              className="h-10 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold text-xs shadow-md shadow-blue-600/20 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-70"
+              className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm active:scale-[0.99] transition-all cursor-pointer disabled:opacity-70"
             >
               {creating ? (
                 <>
@@ -520,26 +526,28 @@ export default function UserAdminPage() {
       </div>
 
       {/* ── Section 2: Active Accounts List ── */}
-      <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800 relative z-0">
+      <div className="rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800 relative z-0">
         <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
               <Users className="h-4 w-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Active Team Accounts</h2>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Team members</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {users.length} named {users.length === 1 ? "account" : "accounts"} configured in {user?.tenantId}
+                {loadingUsers ? "Loading team members…" : `${teamMembers.length} ${teamMembers.length === 1 ? "member" : "members"} in your team`}
               </p>
             </div>
           </div>
         </div>
 
-        {users.length === 0 ? (
-          <p className="py-8 text-center text-xs text-slate-400">No accounts found.</p>
+        {loadingUsers ? (
+          <div role="status" className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500"><RefreshCw className="h-4 w-4 animate-spin text-blue-600" aria-hidden="true" /><span>Loading team members…</span></div>
+        ) : teamMembers.length === 0 ? (
+          <p className="py-8 text-center text-xs text-slate-400">No team members yet. Add your first member above.</p>
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {users.map((account) => {
+            {teamMembers.map((account) => {
               const initials = getInitials(account.name);
               const opt = roleOptions.find((r) => r.value === account.role) || roleOptions[0];
               const isCurrentUser = account.id === user.id || account.email.toLowerCase() === user.email.toLowerCase();
@@ -549,11 +557,11 @@ export default function UserAdminPage() {
               return (
                 <li
                   key={account.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3.5 first:pt-0 last:pb-0"
+                  className="admin-member flex items-start justify-between gap-2 py-3 first:pt-0 last:pb-0"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
                     {/* User Avatar */}
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-500 text-white font-bold text-xs shadow-xs ring-2 ring-white dark:ring-slate-800">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-800 font-bold text-xs shadow-xs ring-2 ring-white dark:ring-slate-800">
                       {initials}
                     </div>
 
@@ -578,16 +586,8 @@ export default function UserAdminPage() {
                   </div>
 
                   {/* Actions / Protection Badge */}
-                  <div className="flex items-center self-end sm:self-auto shrink-0 pl-13 sm:pl-0">
-                    {isProtected ? (
-                      <span
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800"
-                        title="You cannot delete this account"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                        <span>{isCurrentUser ? "Your Account (Protected)" : "System Owner (Protected)"}</span>
-                      </span>
-                    ) : (
+                  <div className="flex items-center shrink-0">
+                    {!isProtected && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -608,19 +608,20 @@ export default function UserAdminPage() {
         )}
       </div>
 
-      {/* ── Section 3: Retention Policy Card ── */}
+      {/* ── Section 3: Retention Policy Card (temporarily hidden) ── */}
+      {SHOW_ADVANCED_ADMIN_TOOLS && (
       <form
         onSubmit={saveRetention}
-        className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800 relative z-0"
+        className="rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800 relative z-0"
       >
         <div className="flex items-center gap-2.5 mb-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400">
             <Clock className="h-4 w-4" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">Card image retention policy</h2>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">Card image storage</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Automatic data minimization: 0 discards images immediately; maximum 168 hours (7 days).
+              Choose how long card images are kept. Use 0 to discard immediately; up to 7 days.
             </p>
           </div>
         </div>
@@ -656,11 +657,11 @@ export default function UserAdminPage() {
                 className={cn(
                   "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors border",
                   retentionHours === hours
-                    ? "bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-900"
+                    ? "bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300"
                     : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300"
                 )}
               >
-                {hours === 0 ? "0h (Immediate)" : `${hours}h`}
+                {hours === 0 ? "Discard now" : `${hours}h`}
               </button>
             ))}
           </div>
@@ -668,25 +669,66 @@ export default function UserAdminPage() {
           <Button
             type="submit"
             disabled={savingRetention}
-            className="sm:ml-auto h-10 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+            className="sm:ml-auto h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs"
           >
-            {savingRetention ? "Saving..." : "Save retention"}
+            {savingRetention ? "Saving..." : "Save settings"}
           </Button>
         </div>
       </form>
+      )}
 
-      {/* ── Section 4: Delete a Record Card ── */}
+      {/* ── Section 5: Approved Contacts CSV Export ── */}
+      {/* Temporarily hidden; restore with SHOW_ADVANCED_ADMIN_TOOLS. */}
+      {SHOW_ADVANCED_ADMIN_TOOLS && <ConstantContactSettings />}
+
+      <div className="rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+              <FileSpreadsheet className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Approved contacts export</h2>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 max-w-lg">
+                Downloads approved exhibition contacts from the Google Sheet as a backup CSV export.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            disabled={exporting}
+            onClick={() => void downloadApproved()}
+            className="h-10 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-sm active:scale-[0.99] transition-all cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            {exporting ? (
+              <>
+                <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
+                <span>Preparing CSV...</span>
+              </>
+            ) : (
+              <>
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                <span>Download Approved CSV</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Section 4: Delete a Record Card (temporarily hidden) ── */}
+      {SHOW_ADVANCED_ADMIN_TOOLS && (
       <form
         onSubmit={deleteRecord}
-        className="rounded-3xl border border-red-200 bg-red-50/30 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-red-950/10 dark:border-red-900/60"
+        className="rounded-2xl border border-red-200 bg-white p-4 sm:p-6 shadow-2xs dark:bg-red-950/10 dark:border-red-900/60"
       >
         <div className="flex items-center gap-2.5 mb-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-700 dark:bg-red-900/60 dark:text-red-300">
             <Trash2 className="h-4 w-4" />
           </div>
           <div>
             <h2 className="text-base font-bold text-red-950 dark:text-red-200">Delete a card record</h2>
-            <p className="text-xs text-red-700/80 dark:text-red-300/80">
+            <p className="text-xs text-slate-500 dark:text-red-300/80">
               Permanently purges a record and its associated card image using the CardSnap record ID.
             </p>
           </div>
@@ -714,48 +756,12 @@ export default function UserAdminPage() {
           </Button>
         </div>
       </form>
-
-      {/* ── Section 5: Approved Contacts CSV Export ── */}
-      <ConstantContactSettings />
-      <div className="rounded-3xl border border-slate-200/90 bg-white/95 p-6 sm:p-7 shadow-xs backdrop-blur-xl dark:bg-slate-900/95 dark:border-slate-800">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-              <FileSpreadsheet className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Approved contacts export</h2>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 max-w-lg">
-                Downloads approved exhibition contacts from the Google Sheet as a backup CSV export.
-              </p>
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            disabled={exporting}
-            onClick={() => void downloadApproved()}
-            className="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 active:scale-[0.99] transition-all cursor-pointer self-start sm:self-auto shrink-0"
-          >
-            {exporting ? (
-              <>
-                <RefreshCw className="mr-2 h-3.5 w-3.5 animate-spin" />
-                <span>Preparing CSV...</span>
-              </>
-            ) : (
-              <>
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                <span>Download Approved CSV</span>
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* ── Confirmation Modal for Account Removal ── */}
       {userToRemove && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-xs animate-in fade-in-0 duration-150">
-          <div className="relative w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl dark:bg-slate-900 dark:border-slate-800">
+          <div className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:bg-slate-900 dark:border-slate-800">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-950/60 dark:text-red-400">
               <Trash2 className="h-6 w-6" />
             </div>

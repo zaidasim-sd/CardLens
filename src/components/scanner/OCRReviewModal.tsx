@@ -181,7 +181,7 @@ export default function OCRReviewModal({
         allowDuplicate,
       });
       setSavedRecord(record);
-      if (record.sheetStatus === "failed") toast.warning("Contact saved for review. Google Sheet synchronization needs attention.");
+      if (record.sheetStatus === "failed") toast.warning(`Contact saved for review. ${record.sheetError?.message || "Google Sheet synchronization needs attention."}`);
       else toast.success("Contact submitted for review");
     } catch (error: any) {
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
@@ -448,7 +448,7 @@ export default function OCRReviewModal({
                     )}
                   </div>
                   <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-                    Verify the extracted details before submitting for approval. Every detail remains fully editable.
+                    {originalImage ? "Verify the extracted details before submitting for approval. Every detail remains fully editable." : "Enter your contact details below, then submit for approval."}
                   </DialogDescription>
                 </div>
               </DialogHeader>
@@ -456,6 +456,7 @@ export default function OCRReviewModal({
               {/* Modal Body: Split view on Desktop */}
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50/40 lg:flex-row lg:overflow-hidden">
                 {/* Left: Card Preview Panel */}
+                {originalImage && imageUrl && (
                 <div className="group relative h-[180px] min-h-[180px] shrink-0 overflow-hidden border-b border-slate-200 bg-slate-100/80 p-3 dark:bg-slate-900/40 dark:border-slate-800 sm:h-[220px] sm:min-h-[220px] sm:p-4 lg:h-auto lg:min-h-0 lg:w-5/12 lg:border-b-0 lg:border-r">
                   <div className="absolute inset-3 flex items-center justify-center sm:inset-4 lg:inset-6">
                     <img
@@ -473,8 +474,9 @@ export default function OCRReviewModal({
                   </button>
                 </div>
 
+                )}
                 {/* Right: Approved Version 1 Form Fields Panel */}
-                <div className="min-w-0 shrink-0 bg-white p-4 sm:p-5 md:p-6 lg:w-7/12 lg:flex-1 lg:shrink lg:overflow-y-auto dark:bg-slate-950">
+                <div className="min-w-0 shrink-0 bg-white p-4 sm:p-5 md:p-6 lg:flex-1 lg:shrink lg:overflow-y-auto dark:bg-slate-950">
                   <form
                     id="ocr-review-form"
                     onSubmit={handleSubmit(onSubmit)}
