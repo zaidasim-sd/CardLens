@@ -283,3 +283,5 @@
 html:has(.app-shell),body:has(.app-shell){height:100%;overflow:hidden}
 body:has(.app-shell) #root{height:100%;overflow:hidden}
 .app-shell>main{overscroll-behavior:contain;scrollbar-gutter:stable}
+/* Match the landing header's shared content bounds and logo geometry. */
+.portal-nav{position:relative;max-width:1280px;width:100%;margin:0 auto;padding:17px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px}.portal-logo{display:block;height:44px}@media(min-width:640px){.portal-nav{padding:22px 36px}.portal-logo{height:48px}}@media(min-width:1024px){.portal-logo{height:62px}}

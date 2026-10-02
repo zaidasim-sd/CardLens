@@ -6,6 +6,7 @@ import SignInPage from "./pages/SignInPage";
 import UserAdminPage from "./pages/UserAdminPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
+import LegalPage from "./pages/LegalPage";
 import { useAuth } from "./auth/AuthContext";
 
 function RootPage() {
@@ -18,6 +19,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/welcome" element={<LandingPage />} />
+        <Route path="/privacy-policy" element={<LegalPage kind="privacy" />} />
+        <Route path="/terms-of-use" element={<LegalPage kind="terms" />} />
         <Route path="/" element={<RootPage />}>
           <Route index element={<HomePage />} />
         </Route>

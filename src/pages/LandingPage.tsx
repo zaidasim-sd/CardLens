@@ -1,7 +1,9 @@
+import SiteFooter from "@/components/layout/SiteFooter";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { ArrowDown, ArrowRight, Check, CheckCheck, CircleCheck, FileSpreadsheet, PencilLine, ScanLine, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 import "./landing.css";
+import "./legal.css";
 
 const steps = [
   { title: "Scan a card", description: "Capture the connection." },
@@ -90,6 +92,6 @@ export default function LandingPage() {
         <section id="features" className="landing-features" aria-label="Why CardSnap"><div><span className="feature-icon"><ScanLine size={20} /></span><h2>Capture without the typing.</h2><p>OCR extracts the details. You add context and check what matters.</p></div><div><span className="feature-icon"><UsersRound size={20} /></span><h2>A second set of eyes.</h2><p>Compare possible duplicates and let your reviewer decide what stays.</p></div><div><span className="feature-icon"><ShieldCheck size={20} /></span><h2>Confidence in every handoff.</h2><p>Encrypted records, approval before transfer and a visible status at every step.</p></div></section>
         <section className="landing-final" aria-labelledby="final-title"><div><span className="final-eyebrow">FROM THE FIRST SCAN TO THE FINAL HANDOFF</span><h2 id="final-title">Keep the connection.<br className="mobile-break" /> Lose the busywork.</h2></div><Link to="/sign-in" className="landing-primary">Open CardSnap <ArrowRight size={16} /></Link></section>
       </div>
-    </main><footer className="landing-footer"><span>CardSnap <span className="footer-byline">by Vision71</span></span><p>Capture thoughtfully. Connect confidently.</p><Link to="/sign-in">Sign in <ArrowRight size={12} /></Link></footer>
+    </main><SiteFooter />
   </div>;
 }

@@ -503,7 +503,7 @@ export default function ScanPage() {
             </div>
             <ol className="capture-flow" aria-label="From business card to approval">
               <li className="capture-stage">
-                <div className="capture-stage-preview capture-scan" aria-hidden="true"><div className="capture-frame"><div className="capture-mini-card"><span className="capture-card-mark">C</span><div><b>Alex Morgan</b><span>Business Development</span><i /><i /></div></div><span className="capture-beam" /></div><span className="capture-preview-caption">A clear card. A fresh connection.</span></div>
+                <div className="capture-stage-preview capture-scan" aria-hidden="true"><div className="capture-frame"><div className="capture-mini-card"><span className="capture-card-mark capture-card-mark-skeleton" /><div className="capture-card-skeleton"><b /><span /><i /><i /></div></div><span className="capture-beam" /></div><span className="capture-preview-caption">A clear card. A fresh connection.</span></div>
                 <div className="capture-stage-heading"><span>01</span><h2>Capture</h2><Camera size={17} /></div><p>Scan or upload a card. <br />We’ll read the details for you.</p><span className="capture-connector" aria-hidden="true"><i /></span>
               </li>
               <li className="capture-stage">

@@ -14,18 +14,19 @@ export default function Header() {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 flex h-18 sm:h-20 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 sm:px-6 md:px-8 backdrop-blur-md dark:bg-slate-900/95 dark:border-slate-800">
+    <header className="sticky top-0 z-40 shrink-0 border-b border-slate-200/80 bg-white/95 backdrop-blur-md dark:bg-slate-900/95 dark:border-slate-800">
+      <div className="portal-nav">
       {/* Brand Logo - Left */}
       <div className="flex items-center justify-start shrink-0 min-w-0">
         <NavLink
           to="/"
-          className="flex items-center py-1 hover:opacity-90 transition-opacity"
+          className="flex items-center hover:opacity-90 transition-opacity"
           title="CardSnap by Vision71"
         >
           <img
             src="/CardSnapLogo_Black.png"
             alt="CardSnap by Vision71"
-            className="h-13 sm:h-13 md:h-13 w-auto object-contain select-none dark:invert transition-transform hover:scale-[1.01]"
+            className="portal-logo w-auto object-contain select-none dark:invert transition-transform hover:scale-[1.01]"
           />
         </NavLink>
       </div>
@@ -71,6 +72,7 @@ export default function Header() {
             </div>
           </>
         )}
+      </div>
       </div>
     </header>
   );

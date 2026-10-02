@@ -1,0 +1,212 @@
+{
+  "privacy": {
+    "title": "Privacy Notice",
+    "sections": [
+      {
+        "title": "About this notice",
+        "items": [
+          "This notice explains how CardSnap by Vision71, a product of Vision71 Technologies, handles information when it is used to scan and review business cards",
+          "This notice applies to CardSnap as a standard product and covers all Vision71 customers who use it",
+          "If your organisation has a separate written agreement with Vision71 that sets out different terms for your use of CardSnap, that agreement applies alongside this notice"
+        ]
+      },
+      {
+        "title": "What CardSnap does",
+        "items": [
+          "A signed in user photographs or uploads a business card",
+          "The card image is sent to Vision71's backend so the text on it can be read automatically",
+          "The extracted name, job title, company, email, phone number and other details are shown to the user to review and correct",
+          "A reviewer confirms the contact before it is kept or passed on"
+        ]
+      },
+      {
+        "title": "Information CardSnap processes",
+        "items": [
+          "The image of the business card",
+          "The text automatically read from that image",
+          "The contact details confirmed after review, such as name, job title, company, email, phone number and any notes",
+          "The name of the person who captured, reviewed or approved a record, and when this happened"
+        ]
+      },
+      {
+        "title": "Where information is processed and stored",
+        "items": [
+          "CardSnap is hosted on Vercel, a cloud hosting provider",
+          "Card records are kept in central storage on approved secure cloud infrastructure, not only in the browser being used",
+          "Each record is encrypted before it is stored, and records for one customer are kept separate from another customer's records",
+          "A card image is kept only for the length of time agreed with the customer, after which it is deleted automatically"
+        ]
+      },
+      {
+        "title": "Who else receives information",
+        "items": [
+          "Google Cloud Vision, used to read the text on the card",
+          "If Google Cloud Vision cannot read a card, no other reading service is used unless the customer has separately approved it. The user can capture the card again or enter the details manually",
+          "Vercel, which hosts CardSnap and handles the upload and the reply from the reading service",
+          "Where a customer approves it, an agreed contact system such as Constant Contact, used only to receive an approved contact",
+          "No card image or contact detail is sent to any other company"
+        ]
+      },
+      {
+        "title": "How information travels",
+        "items": [
+          "Information sent between the browser and CardSnap's backend, and between CardSnap and the services named above, travels over an encrypted connection"
+        ]
+      },
+      {
+        "title": "Access to information",
+        "items": [
+          "Each person who uses CardSnap signs in with their own named account, shared logins are not used",
+          "A person can only see and act on the information their role allows",
+          "Vision71 support access will be limited to authorised technical personnel, only where necessary to resolve an issue, for a limited period and with an activity record. It will not include routine access to Aventure contact records or business card images"
+        ]
+      },
+      {
+        "title": "How long information is kept",
+        "items": [
+          "A card image is kept only for the period agreed with the customer, then deleted automatically",
+          "Confirmed contact details are kept for as long as the customer needs them for the purpose they were collected for",
+          "A person can ask for a specific record to be deleted earlier"
+        ]
+      },
+      {
+        "title": "Your choices",
+        "items": [
+          "Ask for an individual saved record to be deleted",
+          "Ask for a copy of the information held about a specific contact",
+          "Choose not to proceed with saving a scanned card after reviewing it"
+        ]
+      },
+      {
+        "title": "Security",
+        "items": [
+          "Information is encrypted while it travels between the browser, Vision71's backend and the services named above",
+          "Stored records are also encrypted",
+          "Access is limited by named accounts and by role",
+          "Every review, approval, transfer and deletion is recorded in an internal record of activity"
+        ]
+      },
+      {
+        "title": "Changes to this notice",
+        "items": [
+          "Vision71 may update this notice as CardSnap changes. An updated version will be published with a new date"
+        ]
+      },
+      {
+        "title": "Contact us",
+        "items": [
+          "Questions about this notice can be sent to Vision71 Technologies, contact details to be confirmed on the published version"
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms of Use",
+    "sections": [
+      {
+        "title": "About these terms",
+        "items": [
+          "These terms apply to anyone using CardSnap by Vision71, a product of Vision71 Technologies",
+          "By using CardSnap a user agrees to these terms",
+          "A customer with a separate signed agreement with Vision71 is also bound by that agreement. Where the two conflict, the signed agreement applies"
+        ]
+      },
+      {
+        "title": "What CardSnap is",
+        "items": [
+          "CardSnap is a tool for scanning a business card, reading its text automatically, and letting an authorised user review and correct the details before they are kept",
+          "CardSnap is a working product that continues to be developed and improved"
+        ]
+      },
+      {
+        "title": "Individual user accounts",
+        "items": [
+          "CardSnap is used through a named account belonging to one person, shared logins are not permitted",
+          "A customer's administrator is responsible for creating accounts for their own team and removing access when someone leaves or no longer needs it",
+          "A person must keep their sign in details private and tell their administrator if they believe their account has been misused"
+        ]
+      },
+      {
+        "title": "Using CardSnap responsibly",
+        "items": [
+          "Only scan a business card that the user is authorised to collect and use",
+          "Check and correct the details CardSnap extracts before relying on them. Automatic reading can make mistakes",
+          "Do not use CardSnap to collect information there is no right to hold",
+          "Do not share an account or sign in details with anyone else",
+          "Do not attempt to disrupt, overload or gain unauthorised access to CardSnap or its backend"
+        ]
+      },
+      {
+        "title": "Accuracy of extracted information",
+        "items": [
+          "CardSnap uses automated text reading services to extract details from a card image",
+          "Extracted details may contain errors, especially on unclear, damaged or unusually designed cards",
+          "The user is responsible for reviewing and correcting extracted details before relying on them"
+        ]
+      },
+      {
+        "title": "Ownership",
+        "items": [
+          "CardSnap, including its design, source code, and branding, is the property of Vision71 Technologies",
+          "A customer's business card images and contact details remain that customer's own information at all times",
+          "Using CardSnap does not transfer ownership of CardSnap to a customer, and does not give Vision71 ownership of a customer's information"
+        ]
+      },
+      {
+        "title": "Availability",
+        "items": [
+          "Vision71 aims to keep CardSnap available but does not guarantee uninterrupted access",
+          "CardSnap may be updated, changed or temporarily unavailable without notice as it continues to be developed"
+        ]
+      },
+      {
+        "title": "No warranty",
+        "items": [
+          "CardSnap is provided as it is, without a guarantee that it will be free of errors or interruptions",
+          "Vision71 does not guarantee that extracted contact details will be complete or accurate"
+        ]
+      },
+      {
+        "title": "Support boundaries",
+        "items": [
+          "Vision71 support covers keeping CardSnap running and fixing faults in the product itself",
+          "Vision71 support does not include entering, correcting or reviewing a customer's contact details on their behalf, unless separately agreed",
+          "Vision71 support access will be limited to authorised technical personnel, only where necessary to resolve an issue, for a limited period and with an activity record. It will not include routine access to Aventure contact records or business card images"
+        ]
+      },
+      {
+        "title": "Limitation of liability",
+        "items": [
+          "To the extent allowed by law, Vision71 is not responsible for losses arising from use of CardSnap, including losses from inaccurate extracted details",
+          "Nothing in these terms limits liability where the law does not allow it to be limited"
+        ]
+      },
+      {
+        "title": "Changes to these terms",
+        "items": [
+          "Vision71 may update these terms as CardSnap develops",
+          "Continued use of CardSnap after an update means the updated terms apply"
+        ]
+      },
+      {
+        "title": "Ending use",
+        "items": [
+          "A customer's administrator may remove a user's access at any time",
+          "Vision71 may suspend or end a user's access to CardSnap for a breach of these terms"
+        ]
+      },
+      {
+        "title": "Governing law",
+        "items": [
+          "The law that governs these terms is to be confirmed and stated on the final published version, following review by Vision71's legal advisor"
+        ]
+      },
+      {
+        "title": "Contact us",
+        "items": [
+          "Questions about these terms can be sent to Vision71 Technologies, contact details to be confirmed on the published version"
+        ]
+      }
+    ]
+  }
+}

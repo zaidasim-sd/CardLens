@@ -309,7 +309,6 @@
 .cardsnap-landing .is-active .preview-save { background: #39b3c8; color: #123b50; }
 /* Small visual details, with the mobile layout leading the composition. */
 .landing-hero { position: relative; isolation: isolate; }
-.landing-hero::before { content: ''; position: absolute; z-index: -1; width: 54px; height: 34px; right: max(24px, calc((100vw - 1160px) / 2)); top: 28px; background: radial-gradient(circle, #39b3c82b 1px, transparent 1.5px) 0 0 / 9px 9px; mask-image: linear-gradient(135deg, #000, transparent); pointer-events: none; }
 .landing-hero h1 > span { position: relative; display: inline-block; }
 .landing-hero h1 > span::after { content: ''; position: absolute; left: 3%; right: 2%; bottom: -.08em; height: .065em; border-radius: 50%; background: #39b3c829; transform: rotate(-1.5deg); z-index: -1; }
 .landing-primary > svg { transition: transform .25s; }
@@ -368,3 +367,14 @@
 .landing-sign-in{min-height:38px;padding:8px 12px;font-size:11px}
 }
 
+/* Clearly interactive, comfortably sized desktop navigation. */
+@media(min-width:1024px){
+.landing-nav{padding-top:22px;padding-bottom:22px}
+.landing-logo img{height:62px}
+.landing-nav nav{gap:12px;font-size:14px}
+.landing-nav nav a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid #e1ebef;border-radius:10px;background:#fff;color:#476775;transition:background .2s,border-color .2s,color .2s,box-shadow .2s}
+.landing-nav nav a:hover{background:#eff9fb;border-color:#bce5ed;color:#147c92;box-shadow:0 3px 10px #143b5005}
+.landing-sign-in{min-height:44px;padding:0 18px;font-size:14px;gap:11px;border-color:#d6e6ec}
+.landing-sign-in:hover{background:#eff9fb;border-color:#bce5ed}
+.landing-sign-in svg{width:16px;height:16px}
+}
