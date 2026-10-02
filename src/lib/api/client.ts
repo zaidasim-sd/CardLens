@@ -1,5 +1,5 @@
 /**
- * Centralized API Client for CardSnap by Vision71
+ * Centralized API Client for Lead71 by Vision71
  * 
  * Supports configurable backend base URL via VITE_API_BASE_URL.
  * Handles automatic CSRF tokens, session cookies, and centralized user-friendly error formatting.

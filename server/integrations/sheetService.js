@@ -72,7 +72,7 @@ export function sheetFailure(error) {
     SHEET_ACCESS_DENIED: "Google denied access. Share this spreadsheet with the configured service account as Editor and check protected-range permissions.",
     SHEET_NOT_FOUND: "Google could not access the spreadsheet. Check GOOGLE_SHEET_ID and service-account sharing.",
     SHEET_RANGE_INVALID: "Check GOOGLE_SHEET_TAB. It must exactly match the tab name inside the spreadsheet, such as Sheet1.",
-    SHEET_COLUMNS_INVALID: "The register headers do not match CardSnap. Restore all 19 columns, including the hidden CardSnap record ID column.",
+    SHEET_COLUMNS_INVALID: "The register headers do not match Lead71. Restore all 19 columns, including the hidden record ID column.",
     SHEET_RATE_LIMITED: "Google Sheets is temporarily rate limited. Retry synchronization later.",
     SHEET_NETWORK_FAILED: "The server could not reach Google Sheets. Retry synchronization later.",
   };
@@ -284,7 +284,7 @@ export async function addPendingSheetRecord(db, card, options = {}) {
   if (gateway.readAll) {
     const rows = await gateway.readAll();
     const idColumn = rows[0]?.indexOf("CardSnap record ID");
-    if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing the CardSnap record ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+    if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing the Lead71 record ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
     const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === card.id);
     if (found > 0) {
       await gateway.update(found + 1, sheetRow(card, options.people || await names(db, card)));

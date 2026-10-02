@@ -92,7 +92,7 @@ export default function VerifiedQueuePage() {
   const handleExportCsv = async () => {
     setIsExporting(true);
     try {
-      await exportApprovedContacts("cardsnap-approved-contacts.csv");
+      await exportApprovedContacts("lead71-approved-contacts.csv");
       toast.success("Approved contacts exported to CSV.");
     } catch (err: any) {
       toast.error(err.message || "Failed to export approved contacts.");
@@ -469,7 +469,7 @@ export default function VerifiedQueuePage() {
               )}
 
               {/* Footer row: Attribution & Actions */}
-              {record.sheetStatus === "failed" && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">Saved in CardSnap. {record.sheetError?.message || "Google Sheet synchronization failed and needs attention."}</p>}
+              {record.sheetStatus === "failed" && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">Saved in Lead71. {record.sheetError?.message || "Google Sheet synchronization failed and needs attention."}</p>}
               <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 border-t border-slate-100/80 dark:border-slate-800/60">
                 <span className="flex items-center gap-1.5">
                   <span>

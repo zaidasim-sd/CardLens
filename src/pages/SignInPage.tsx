@@ -26,19 +26,19 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="cardsnap-signin">
+    <div className="lead71-signin">
       <Dialog open={prototypeNoticeOpen} onOpenChange={setPrototypeNoticeOpen}>
         <DialogContent className="max-w-md w-[92vw] rounded-2xl border-slate-200 bg-white p-7 text-slate-800">
           <span className="signin-notice-icon"><ShieldCheck size={23} /></span>
           <DialogTitle className="text-xl font-semibold">Internal Testing Prototype</DialogTitle>
           <DialogDescription className="text-sm leading-relaxed text-slate-500">
-            You are accessing the CardSnap demonstration environment. Use sample cards to evaluate capture and review. Do not enter real customer cards or confidential contact information.
+            You are accessing the Lead71 demonstration environment. Use sample cards to evaluate capture and review. Do not enter real customer cards or confidential contact information.
           </DialogDescription>
           <button className="signin-submit" onClick={() => setPrototypeNoticeOpen(false)}>I Understand &amp; Proceed <ArrowRight size={17} /></button>
         </DialogContent>
       </Dialog>
       <header className="signin-header">
-          <Link to="/welcome" className="signin-brand" aria-label="CardSnap home"><img src="/CardSnapLogo_Black.png" alt="CardSnap by Vision71" width="168" height="64" /></Link>
+          <Link to="/welcome" className="signin-brand" aria-label="Lead71 home"><img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="64" /></Link>
 
       </header>
       <main className="signin-main">
@@ -61,7 +61,7 @@ export default function SignInPage() {
       <section className="signin-panel" aria-labelledby="signin-title">
         <div className="signin-form-wrap">
           <h1 id="signin-title">Welcome back.</h1>
-          <p className="signin-intro">Sign in to CardSnap.</p>
+          <p className="signin-intro">Sign in to Lead71.</p>
           <form onSubmit={submit} className="signin-form" aria-busy={busy}>
             <div className="signin-field">
               <label htmlFor="email">Email address</label>

@@ -12,7 +12,7 @@ export default async function exportHandler(req, res) {
     const auth = await authenticate(db, token);
     const result = await exportApprovedCsv(db, auth.user);
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=cardsnap-approved-contacts.csv");
+    res.setHeader("Content-Disposition", "attachment; filename=lead71-approved-contacts.csv");
     return res.status(200).send(result.csv);
   } catch (error) {
     return res.status(error.status || 500).json({ code: error.code || "SERVER_ERROR", error: error.status ? error.message : "The request could not be completed." });

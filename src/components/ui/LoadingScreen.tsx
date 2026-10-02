@@ -10,9 +10,9 @@ export default function LoadingScreen() {
         {/* Logo Container */}
         <div className="mb-6 flex items-center justify-center p-3 rounded-2xl bg-white/80 dark:bg-slate-800/60 ring-1 ring-slate-200/80 dark:ring-slate-700/60 shadow-xs backdrop-blur-sm">
           <img
-            src="/CardSnapLogo_Black.png"
-            alt="CardSnap by Vision71"
-            className="h-12 w-auto object-contain select-none dark:invert"
+            src="/lead71-logo.svg"
+            alt="Lead71 by Vision71"
+            className="h-12 w-auto object-contain select-none "
           />
         </div>
 
@@ -25,7 +25,7 @@ export default function LoadingScreen() {
 
         {/* Text Details */}
         <h2 className="text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-200">
-          Loading CardSnap
+          Loading Lead71
         </h2>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Verifying session & workspace…

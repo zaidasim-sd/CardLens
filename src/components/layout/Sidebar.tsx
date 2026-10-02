@@ -13,9 +13,9 @@ export default function Sidebar() {
       <div className="p-6 pb-2">
         <NavLink to="/" className="flex items-center gap-2.5">
           <img
-            src="/CardSnapLogo_Black.png"
-            alt="CardSnap by V71"
-            className="h-16 w-auto object-contain dark:invert max-w-[220px]"
+            src="/lead71-logo.svg"
+            alt="Lead71 by V71"
+            className="h-16 w-auto object-contain  max-w-[220px]"
           />
         </NavLink>
       </div>

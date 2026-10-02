@@ -5,13 +5,13 @@
       {
         "title": "About this notice",
         "items": [
-          "This notice explains how CardSnap by Vision71, a product of Vision71 Technologies, handles information when it is used to scan and review business cards",
-          "This notice applies to CardSnap as a standard product and covers all Vision71 customers who use it",
-          "If your organisation has a separate written agreement with Vision71 that sets out different terms for your use of CardSnap, that agreement applies alongside this notice"
+          "This notice explains how Lead71 by Vision71, a product of Vision71 Technologies, handles information when it is used to scan and review business cards",
+          "This notice applies to Lead71 as a standard product and covers all Vision71 customers who use it",
+          "If your organisation has a separate written agreement with Vision71 that sets out different terms for your use of Lead71, that agreement applies alongside this notice"
         ]
       },
       {
-        "title": "What CardSnap does",
+        "title": "What Lead71 does",
         "items": [
           "A signed in user photographs or uploads a business card",
           "The card image is sent to Vision71's backend so the text on it can be read automatically",
@@ -20,7 +20,7 @@
         ]
       },
       {
-        "title": "Information CardSnap processes",
+        "title": "Information Lead71 processes",
         "items": [
           "The image of the business card",
           "The text automatically read from that image",
@@ -31,7 +31,7 @@
       {
         "title": "Where information is processed and stored",
         "items": [
-          "CardSnap is hosted on Vercel, a cloud hosting provider",
+          "Lead71 is hosted on Vercel, a cloud hosting provider",
           "Card records are kept in central storage on approved secure cloud infrastructure, not only in the browser being used",
           "Each record is encrypted before it is stored, and records for one customer are kept separate from another customer's records",
           "A card image is kept only for the length of time agreed with the customer, after which it is deleted automatically"
@@ -42,7 +42,7 @@
         "items": [
           "Google Cloud Vision, used to read the text on the card",
           "If Google Cloud Vision cannot read a card, no other reading service is used unless the customer has separately approved it. The user can capture the card again or enter the details manually",
-          "Vercel, which hosts CardSnap and handles the upload and the reply from the reading service",
+          "Vercel, which hosts Lead71 and handles the upload and the reply from the reading service",
           "Where a customer approves it, an agreed contact system such as Constant Contact, used only to receive an approved contact",
           "No card image or contact detail is sent to any other company"
         ]
@@ -50,13 +50,13 @@
       {
         "title": "How information travels",
         "items": [
-          "Information sent between the browser and CardSnap's backend, and between CardSnap and the services named above, travels over an encrypted connection"
+          "Information sent between the browser and Lead71's backend, and between Lead71 and the services named above, travels over an encrypted connection"
         ]
       },
       {
         "title": "Access to information",
         "items": [
-          "Each person who uses CardSnap signs in with their own named account, shared logins are not used",
+          "Each person who uses Lead71 signs in with their own named account, shared logins are not used",
           "A person can only see and act on the information their role allows",
           "Vision71 support access will be limited to authorised technical personnel, only where necessary to resolve an issue, for a limited period and with an activity record. It will not include routine access to Aventure contact records or business card images"
         ]
@@ -89,7 +89,7 @@
       {
         "title": "Changes to this notice",
         "items": [
-          "Vision71 may update this notice as CardSnap changes. An updated version will be published with a new date"
+          "Vision71 may update this notice as Lead71 changes. An updated version will be published with a new date"
         ]
       },
       {
@@ -106,40 +106,40 @@
       {
         "title": "About these terms",
         "items": [
-          "These terms apply to anyone using CardSnap by Vision71, a product of Vision71 Technologies",
-          "By using CardSnap a user agrees to these terms",
+          "These terms apply to anyone using Lead71 by Vision71, a product of Vision71 Technologies",
+          "By using Lead71 a user agrees to these terms",
           "A customer with a separate signed agreement with Vision71 is also bound by that agreement. Where the two conflict, the signed agreement applies"
         ]
       },
       {
-        "title": "What CardSnap is",
+        "title": "What Lead71 is",
         "items": [
-          "CardSnap is a tool for scanning a business card, reading its text automatically, and letting an authorised user review and correct the details before they are kept",
-          "CardSnap is a working product that continues to be developed and improved"
+          "Lead71 is a tool for scanning a business card, reading its text automatically, and letting an authorised user review and correct the details before they are kept",
+          "Lead71 is a working product that continues to be developed and improved"
         ]
       },
       {
         "title": "Individual user accounts",
         "items": [
-          "CardSnap is used through a named account belonging to one person, shared logins are not permitted",
+          "Lead71 is used through a named account belonging to one person, shared logins are not permitted",
           "A customer's administrator is responsible for creating accounts for their own team and removing access when someone leaves or no longer needs it",
           "A person must keep their sign in details private and tell their administrator if they believe their account has been misused"
         ]
       },
       {
-        "title": "Using CardSnap responsibly",
+        "title": "Using Lead71 responsibly",
         "items": [
           "Only scan a business card that the user is authorised to collect and use",
-          "Check and correct the details CardSnap extracts before relying on them. Automatic reading can make mistakes",
-          "Do not use CardSnap to collect information there is no right to hold",
+          "Check and correct the details Lead71 extracts before relying on them. Automatic reading can make mistakes",
+          "Do not use Lead71 to collect information there is no right to hold",
           "Do not share an account or sign in details with anyone else",
-          "Do not attempt to disrupt, overload or gain unauthorised access to CardSnap or its backend"
+          "Do not attempt to disrupt, overload or gain unauthorised access to Lead71 or its backend"
         ]
       },
       {
         "title": "Accuracy of extracted information",
         "items": [
-          "CardSnap uses automated text reading services to extract details from a card image",
+          "Lead71 uses automated text reading services to extract details from a card image",
           "Extracted details may contain errors, especially on unclear, damaged or unusually designed cards",
           "The user is responsible for reviewing and correcting extracted details before relying on them"
         ]
@@ -147,29 +147,29 @@
       {
         "title": "Ownership",
         "items": [
-          "CardSnap, including its design, source code, and branding, is the property of Vision71 Technologies",
+          "Lead71, including its design, source code, and branding, is the property of Vision71 Technologies",
           "A customer's business card images and contact details remain that customer's own information at all times",
-          "Using CardSnap does not transfer ownership of CardSnap to a customer, and does not give Vision71 ownership of a customer's information"
+          "Using Lead71 does not transfer ownership of Lead71 to a customer, and does not give Vision71 ownership of a customer's information"
         ]
       },
       {
         "title": "Availability",
         "items": [
-          "Vision71 aims to keep CardSnap available but does not guarantee uninterrupted access",
-          "CardSnap may be updated, changed or temporarily unavailable without notice as it continues to be developed"
+          "Vision71 aims to keep Lead71 available but does not guarantee uninterrupted access",
+          "Lead71 may be updated, changed or temporarily unavailable without notice as it continues to be developed"
         ]
       },
       {
         "title": "No warranty",
         "items": [
-          "CardSnap is provided as it is, without a guarantee that it will be free of errors or interruptions",
+          "Lead71 is provided as it is, without a guarantee that it will be free of errors or interruptions",
           "Vision71 does not guarantee that extracted contact details will be complete or accurate"
         ]
       },
       {
         "title": "Support boundaries",
         "items": [
-          "Vision71 support covers keeping CardSnap running and fixing faults in the product itself",
+          "Vision71 support covers keeping Lead71 running and fixing faults in the product itself",
           "Vision71 support does not include entering, correcting or reviewing a customer's contact details on their behalf, unless separately agreed",
           "Vision71 support access will be limited to authorised technical personnel, only where necessary to resolve an issue, for a limited period and with an activity record. It will not include routine access to Aventure contact records or business card images"
         ]
@@ -177,22 +177,22 @@
       {
         "title": "Limitation of liability",
         "items": [
-          "To the extent allowed by law, Vision71 is not responsible for losses arising from use of CardSnap, including losses from inaccurate extracted details",
+          "To the extent allowed by law, Vision71 is not responsible for losses arising from use of Lead71, including losses from inaccurate extracted details",
           "Nothing in these terms limits liability where the law does not allow it to be limited"
         ]
       },
       {
         "title": "Changes to these terms",
         "items": [
-          "Vision71 may update these terms as CardSnap develops",
-          "Continued use of CardSnap after an update means the updated terms apply"
+          "Vision71 may update these terms as Lead71 develops",
+          "Continued use of Lead71 after an update means the updated terms apply"
         ]
       },
       {
         "title": "Ending use",
         "items": [
           "A customer's administrator may remove a user's access at any time",
-          "Vision71 may suspend or end a user's access to CardSnap for a breach of these terms"
+          "Vision71 may suspend or end a user's access to Lead71 for a breach of these terms"
         ]
       },
       {

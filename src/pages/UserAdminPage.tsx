@@ -252,7 +252,7 @@ export default function UserAdminPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `cardsnap-approved-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `lead71-approved-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
       link.click();
       URL.revokeObjectURL(url);
       setMessage({ type: "success", text: "Approved contacts exported to CSV." });
@@ -729,7 +729,7 @@ export default function UserAdminPage() {
           <div>
             <h2 className="text-base font-bold text-red-950 dark:text-red-200">Delete a card record</h2>
             <p className="text-xs text-slate-500 dark:text-red-300/80">
-              Permanently purges a record and its associated card image using the CardSnap record ID.
+              Permanently purges a record and its associated card image using the Lead71 record ID.
             </p>
           </div>
         </div>

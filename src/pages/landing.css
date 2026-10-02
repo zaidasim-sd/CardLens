@@ -1,7 +1,7 @@
-.cardsnap-landing { --ink: #143b50; --muted: #69758b; --blue: #39b3c8; --border: #e5eaf2; --cycle: 2.4s; color: var(--ink); background: #fff; min-height: 100vh; font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
-.cardsnap-landing *, .cardsnap-landing *::before, .cardsnap-landing *::after { box-sizing: border-box; }
-.cardsnap-landing a { text-decoration: none; }
-.cardsnap-landing :is(a, button):focus-visible { outline: 3px solid #81d3df; outline-offset: 5px; }
+.lead71-landing { --ink: #143b50; --muted: #69758b; --blue: #39b3c8; --border: #e5eaf2; --cycle: 2.4s; color: var(--ink); background: #fff; min-height: 100vh; font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
+.lead71-landing *, .lead71-landing *::before, .lead71-landing *::after { box-sizing: border-box; }
+.lead71-landing a { text-decoration: none; }
+.lead71-landing :is(a, button):focus-visible { outline: 3px solid #81d3df; outline-offset: 5px; }
 .landing-skip { position: fixed; left: 16px; top: -80px; z-index: 100; padding: 12px 20px; background: var(--ink); color: white; border-radius: 10px; }
 .landing-skip:focus { top: 12px; }
 .landing-header { border-bottom: 1px solid #edf0f5; background: #ffffffed; }
@@ -225,8 +225,8 @@
   .landing-final h2 { font-size: 27px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cardsnap-landing *, .cardsnap-landing *::before, .cardsnap-landing *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-  .cardsnap-landing .landing-primary:hover { transform: none; }
+  .lead71-landing *, .lead71-landing *::before, .lead71-landing *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .lead71-landing .landing-primary:hover { transform: none; }
 }
 
 /* Each stage moves into the foreground, then makes room for the next. */
@@ -302,11 +302,11 @@
 }
 
 /* Shared cyan palette with the sign-in experience. */
-.cardsnap-landing { --blue: #16859b; --accent: #39b3c8; }
-.cardsnap-landing .landing-primary { background: var(--accent); color: #123b50; box-shadow: 0 4px 12px #39b3c821; }
-.cardsnap-landing .landing-primary:hover { background: #2fa8bd; box-shadow: 0 7px 16px #39b3c826; }
-.cardsnap-landing .workflow-node.is-active .step-number { background: var(--accent); border-color: var(--accent); color: #123b50; }
-.cardsnap-landing .is-active .preview-save { background: #39b3c8; color: #123b50; }
+.lead71-landing { --blue: #16859b; --accent: #39b3c8; }
+.lead71-landing .landing-primary { background: var(--accent); color: #123b50; box-shadow: 0 4px 12px #39b3c821; }
+.lead71-landing .landing-primary:hover { background: #2fa8bd; box-shadow: 0 7px 16px #39b3c826; }
+.lead71-landing .workflow-node.is-active .step-number { background: var(--accent); border-color: var(--accent); color: #123b50; }
+.lead71-landing .is-active .preview-save { background: #39b3c8; color: #123b50; }
 /* Small visual details, with the mobile layout leading the composition. */
 .landing-hero { position: relative; isolation: isolate; }
 .landing-hero h1 > span { position: relative; display: inline-block; }

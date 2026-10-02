@@ -40,7 +40,7 @@ export default function DemoCardModal({ isOpen, onClose, onSelectDemoCard }: Pro
                 Choose a demo card
               </DialogTitle>
               <DialogDescription className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                Select a sample business card to try the CardSnap workflow.
+                Select a sample business card to try the Lead71 workflow.
               </DialogDescription>
             </div>
           </div>

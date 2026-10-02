@@ -691,7 +691,7 @@ export default function ScanPage() {
               </DialogTitle>
             </div>
             <DialogDescription className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 pt-1">
-              CardSnap by Vision71 uses Google Cloud Vision to detect and normalize text from your business card capture. Every extracted detail should be verified and corrected before submission.
+              Lead71 by Vision71 uses Google Cloud Vision to detect and normalize text from your business card capture. Every extracted detail should be verified and corrected before submission.
             </DialogDescription>
           </DialogHeader>
           <div className="mt-5 flex justify-end">

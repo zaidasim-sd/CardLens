@@ -21,12 +21,12 @@ export default function Header() {
         <NavLink
           to="/"
           className="flex items-center hover:opacity-90 transition-opacity"
-          title="CardSnap by Vision71"
+          title="Lead71 by Vision71"
         >
           <img
-            src="/CardSnapLogo_Black.png"
-            alt="CardSnap by Vision71"
-            className="portal-logo w-auto object-contain select-none dark:invert transition-transform hover:scale-[1.01]"
+            src="/lead71-logo.svg"
+            alt="Lead71 by Vision71"
+            className="portal-logo w-auto object-contain select-none  transition-transform hover:scale-[1.01]"
           />
         </NavLink>
       </div>

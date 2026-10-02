@@ -1,5 +1,5 @@
-.cardsnap-signin { min-height: 100dvh; display: flex; flex-direction: column; background: #effafd; color: #143b50; font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
-.cardsnap-signin *, .cardsnap-signin *::before, .cardsnap-signin *::after { box-sizing: border-box; }
+.lead71-signin { min-height: 100dvh; display: flex; flex-direction: column; background: #effafd; color: #143b50; font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
+.lead71-signin *, .lead71-signin *::before, .lead71-signin *::after { box-sizing: border-box; }
 .signin-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 23px 24px; background: #fff; border-bottom: 1px solid #edf2f4; }
 .signin-brand img { display: block; width: auto; height: 48px; object-fit: contain; }
 .signin-back { display: flex; align-items: center; gap: 7px; color: #526f7d; font-size: 12px; text-decoration: none; }
@@ -22,7 +22,7 @@
 .signin-submit { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; min-height: 52px; padding: 12px 19px; border: 1px solid #39b3c8; border-radius: 10px; background: #39b3c8; color: #113b50; font: inherit; font-size: 12px; font-weight: 600; box-shadow: 0 5px 13px #39b3c818; cursor: pointer; transition: background .2s, transform .2s, box-shadow .2s; }
 .signin-submit:hover { background: #2fa8bd; transform: translateY(-1px); box-shadow: 0 7px 18px #39b3c828; }
 .signin-submit:disabled { opacity: .65; cursor: wait; transform: none; justify-content: center; }
-.cardsnap-signin a:focus-visible, .signin-password-toggle:focus-visible, .signin-submit:focus-visible { outline: 2px solid #16859b; outline-offset: 4px; }
+.lead71-signin a:focus-visible, .signin-password-toggle:focus-visible, .signin-submit:focus-visible { outline: 2px solid #16859b; outline-offset: 4px; }
 .signin-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 22px 24px; border-top: 1px solid #edf2f4; color: #738d98; font-size: 11px; }
 .signin-error { display: flex; align-items: flex-start; gap: 9px; padding: 12px; border: 1px solid #f3d6d6; background: #fff5f5; border-radius: 9px; color: #a13030; font-size: 12px; line-height: 1.6; }
 .signin-error svg { flex-shrink: 0; margin-top: 2px; }
@@ -105,7 +105,7 @@
 @keyframes signin-float { 50% { transform: translateY(-3px) rotate(-3deg); } }
 @keyframes signin-scan { 30% { opacity: 0; transform: translateY(0); } 40% { opacity: .65; } 75% { opacity: .65; transform: translateY(105px); } 80%, 100% { opacity: 0; transform: translateY(105px); } }
 @keyframes signin-extract { 0%, 30% { transform: scaleX(.5); opacity: .4; } 55%, 100% { transform: scaleX(1); opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .cardsnap-signin *, .signin-submit { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .lead71-signin *, .signin-submit { animation: none !important; transition: none !important; } }
 /* Compact form controls with a centered mobile composition. */
 .signin-submit{width:auto;min-width:148px;min-height:44px;justify-content:center;justify-self:center;padding:10px 22px;gap:12px;border-radius:9px}
 .signin-submit>svg{width:15px;height:15px;transition:transform .2s}

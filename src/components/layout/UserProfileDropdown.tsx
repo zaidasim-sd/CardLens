@@ -164,7 +164,7 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 active:bg-red-100/80 dark:text-red-400 dark:hover:bg-red-950/40"
           >
             <LogOut className="h-4 w-4" />
-            <span>Sign out of CardSnap</span>
+            <span>Sign out of Lead71</span>
           </button>
         </div>
       )}
