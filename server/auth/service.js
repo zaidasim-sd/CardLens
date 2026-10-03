@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { hashPassword, validatePassword, verifyPassword } from "./password.js";
 import { requireAction, ROLES } from "./permissions.js";
 import { writeAudit } from "../audit/service.js";
+import { requirePilotRole } from "../pilot.js";
 
 const SESSION_ABSOLUTE_MS = 8 * 60 * 60 * 1000;
 const SESSION_IDLE_MS = 30 * 60 * 1000;
@@ -102,6 +103,7 @@ export async function signIn(db, { tenantId, email, password, ip, sessionToken, 
     throw authError("INVALID_CREDENTIALS", 401, "Email or password is incorrect.");
   }
   const newSessionToken = token();
+  requirePilotRole(user.role); // PILOT: reviewer accounts preserved, sign-in paused.
   const newCsrfToken = token();
   await db.collection("sessions").updateOne({ _id: anonymous._id }, { $set: {
     tokenHash: digest(newSessionToken), csrfHash: digest(newCsrfToken), userId: user._id,
@@ -126,6 +128,7 @@ export async function authenticate(db, sessionToken, now = new Date(), touch = t
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
   if (touch) await db.collection("sessions").updateOne({ _id: session._id }, { $set: { lastSeenAt: now } });
+  requirePilotRole(user.role); // Also blocks reviewer sessions created before this deployment.
   return { session, user: publicUser(user) };
 }
 
@@ -149,6 +152,7 @@ export async function signOut(db, sessionToken, csrfToken) {
 export async function createUser(db, actor, input, now = new Date()) {
   requireAction(actor, "manage_users");
   if (!ROLES.includes(input.role)) throw authError("ROLE_INVALID", 400, "Choose a valid role.");
+  requirePilotRole(input.role);
   validatePassword(input.password);
   const email = String(input.email || "").trim();
   if (!email || !email.includes("@")) throw authError("EMAIL_INVALID", 400, "Enter a valid email address.");

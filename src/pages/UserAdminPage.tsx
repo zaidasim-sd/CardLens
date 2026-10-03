@@ -9,6 +9,7 @@ import { ConstantContactSettings } from "@/components/ConstantContactSettings";
 import "./admin.css";
 import { cardApi } from "@/lib/cardApi";
 import { cn } from "@/lib/utils";
+import pilot from "@/config/pilot";
 import {
   Users,
   UserPlus,
@@ -263,7 +264,8 @@ export default function UserAdminPage() {
     }
   }
 
-  const teamMembers = users.filter(account => account.role !== "vision71_administrator");
+  // PILOT: reviewer accounts are kept in MongoDB, hidden from this pilot UI.
+  const teamMembers = users.filter(account => account.role !== "vision71_administrator" && (pilot.internalReviewEnabled || account.role !== "aventure_reviewer"));
 
   const selectedRoleOption = roleOptions.find((r) => r.value === form.role) || roleOptions[0];
   const SelectedIcon = selectedRoleOption.icon;
@@ -453,7 +455,7 @@ export default function UserAdminPage() {
                       dropUp ? "bottom-full mb-1.5" : "top-full mt-1.5"
                     )}
                   >
-                    {roleOptions.map((option) => {
+                    {roleOptions.filter(option => pilot.internalReviewEnabled || option.value !== "aventure_reviewer").map((option) => {
                       const Icon = option.icon;
                       const isSelected = form.role === option.value;
                       return (
@@ -679,7 +681,8 @@ export default function UserAdminPage() {
 
       {/* ── Section 5: Approved Contacts CSV Export ── */}
       {/* Temporarily hidden; restore with SHOW_ADVANCED_ADMIN_TOOLS. */}
-      {SHOW_ADVANCED_ADMIN_TOOLS && <ConstantContactSettings />}
+      {/* PILOT: connection UI retained; re-enable in pilot config to restore. */}
+      {pilot.constantContactEnabled && SHOW_ADVANCED_ADMIN_TOOLS && <ConstantContactSettings />}
 
       <div className="rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

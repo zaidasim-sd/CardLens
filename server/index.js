@@ -11,6 +11,7 @@ import constantContactHandler from "./http/constantContactHandler.js";
 import constantContactCron from "./http/constantContactCron.js";
 import { getDb } from "./db.js";
 import { processTransfers } from "./integrations/constantContact.js";
+import { pilot } from "./pilot.js";
 
 // Load environment variables
 dotenv.config();
@@ -60,8 +61,9 @@ server.on("error", (error) => {
   console.error("Backend server error:", error);
 });
 let processingTransfers = false;
+// PILOT: old scheduled transfer loop retained, paused by the shared feature switch.
 setInterval(async () => {
-  if (processingTransfers || !process.env.CC_CLIENT_ID) return;
+  if (!pilot.constantContactEnabled || processingTransfers || !process.env.CC_CLIENT_ID) return;
   processingTransfers = true;
   try { await processTransfers(await getDb()); }
   catch { console.error("Constant Contact pending transfers could not be processed."); }

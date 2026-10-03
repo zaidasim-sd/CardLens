@@ -4,7 +4,8 @@ import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
 import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard, toPublic } from "../cards/service.js";
 import { duplicateReviewContext, resolveDuplicate } from "../cards/duplicateReview.js";
 import { requireAction } from "../auth/permissions.js";
-import { diagnoseSheet, updateSheetRecord, sheetFailure } from "../integrations/sheetService.js";
+import { diagnoseSheet, syncContactSheet, sheetFailure } from "../integrations/sheetService.js";
+import { pilot } from "../pilot.js";
 
 function send(res, status, body) {
   return res.status(status).json(body);
@@ -35,7 +36,10 @@ export async function cardsHandler(req, res) {
     if (req.method === "GET" && action === "duplicate_review") return send(res, 200, await duplicateReviewContext(db, auth.user, req.query?.id));
     if (req.method === "GET" && action === "records") {
       if (req.query?.id) return send(res, 200, { record: await getCard(db, auth.user, req.query.id) });
-      return send(res, 200, { records: await listCards(db, auth.user) });
+      res.setHeader("Cache-Control", "no-store");
+      const records = await listCards(db, auth.user);
+      const sync = await db.collection("settings").findOne({ tenantId: auth.user.tenantId, key: "pilot_sheet_sync" }, { projection: { lastSuccessAt: 1, error: 1 } });
+      return send(res, 200, { records, sheetSync: { lastSuccessAt: sync?.lastSuccessAt || null, error: sync?.error || null } });
     }
     if (req.method === "GET" && action === "image") {
       const image = await getCardImage(db, auth.user, req.query?.id);
@@ -64,11 +68,12 @@ export async function storageHealthHandler(req, res) {
     if (req.method === "POST" && req.query?.action === "sheet_retry") {
       requireAction(auth.user, "manage_users");
       verifyCsrf(auth.session, req.headers["x-csrf-token"]);
-      const records = await db.collection("cards").find({ tenantId: auth.user.tenantId, sheetStatus: "failed", status: { $in: ["submitted", "approved", "rejected", "correction_requested", "transferred"] } }).limit(5).toArray();
+      // SUBMISSION-ONLY PILOT: never retry old testing-Sheet jobs into the client Sheet.
+      const records = await db.collection("cards").find({ tenantId: auth.user.tenantId, sheetStatus: "failed", ...(pilot.submissionOnlyEnabled ? { sheetTarget: `${process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEET_TEST_ID || ""}:${process.env.GOOGLE_SHEET_TAB || "Contacts"}` } : {}), status: { $in: ["submitted", "approved", "rejected", "correction_requested", "transferred"] } }).limit(5).toArray();
       let synced = 0;
       for (const record of records) {
         try {
-          const result = await updateSheetRecord(db, toPublic(record));
+          const result = await syncContactSheet(db, toPublic(record));
           if (result.skipped) throw { code: "SHEET_NOT_CONFIGURED" };
           await db.collection("cards").updateOne({ _id: record._id, tenantId: auth.user.tenantId }, { $set: { sheetStatus: record.status }, $unset: { sheetError: "" } });
           synced++;

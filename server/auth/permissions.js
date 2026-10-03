@@ -1,3 +1,4 @@
+import { pilot } from "../pilot.js";
 export const ROLES = [
   "exhibition_assistant",
   "aventure_reviewer",
@@ -33,6 +34,8 @@ const permissions = {
 };
 
 export function can(role, action) {
+  // PILOT: preserve the old role matrix, but disable internal review authority.
+  if (!pilot.internalReviewEnabled && (role === "aventure_reviewer" || ["correct_submitted_card", "approve_card", "reject_card", "request_correction", "transfer_approved_card"].includes(action))) return false;
   return Boolean(permissions[role]?.has(action));
 }
 

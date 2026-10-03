@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import ScanPage from "./ScanPage";
+import pilot from "@/config/pilot";
 
 
 
@@ -9,6 +10,8 @@ export default function HomePage() {
   const { user } = useAuth();
 
   if (user?.role === "aventure_reviewer") {
+    // PILOT: old dashboard redirect retained for later restoration.
+    if (!pilot.internalReviewEnabled) return <Navigate to="/sign-in" replace />;
     return <Navigate to="/submissions" replace />;
   }
 

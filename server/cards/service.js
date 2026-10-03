@@ -3,8 +3,9 @@ import { blindIndex, decryptValue, encryptValue } from "../security/encryption.j
 import { requireAction } from "../auth/permissions.js";
 import { writeAudit } from "../audit/service.js";
 import { getRetentionHours } from "../retention/service.js";
-import { addPendingSheetRecord, refreshStatusesFromSheet, updateSheetRecord, sheetFailure } from "../integrations/sheetService.js";
+import { syncContactSheet, synchronizePilotSheet, refreshStatusesFromSheet, sheetFailure } from "../integrations/sheetService.js";
 import { approvalTransfer, transferApproved } from "../integrations/constantContact.js";
+import { pilot } from "../pilot.js";
 
 export const RECORD_STATES = ["draft", "submitted", "correction_requested", "approved", "rejected", "transferred"];
 const IMAGE_LIMIT_BYTES = 500 * 1024;
@@ -15,6 +16,13 @@ function fail(code, status, message, extra = {}) {
 
 function normalized(value) {
   return String(value || "").trim().toLocaleLowerCase("en");
+}
+
+export function validatePilotContact(data) {
+  if (!String(data.meetingContext?.metAtLocation || "").trim()) fail("CONTACT_INVALID", 400, "Select an exhibition / source.");
+  if (!String(data.fullName || "").trim() && !String(data.companyName || "").trim()) fail("CONTACT_INVALID", 400, "Enter a contact name or company name.");
+  if (!String(data.email || "").trim() && !String(data.phone || "").trim()) fail("CONTACT_INVALID", 400, "Enter an email address or phone number.");
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email).trim())) fail("CONTACT_INVALID", 400, "Enter a valid email address.");
 }
 
 function phone(value) {
@@ -65,9 +73,10 @@ export function toPublic(card) {
     reviewedBy: card.reviewedBy ? String(card.reviewedBy) : null,
     reviewedAt: card.reviewedAt ? new Date(card.reviewedAt).toISOString() : null,
     duplicateReview: card.duplicateReview || null,
-    transferStatus: card.transferStatus || "not_started",
-    transferError: card.transferError || "",
-    sheetStatus: card.sheetStatus || "not_started",
+    // PILOT: transfer status handling retained for restoration, omitted from responses.
+    ...(pilot.constantContactEnabled ? { transferStatus: card.transferStatus || "not_started", transferError: card.transferError || "" } : {}),
+    // Legacy successful insertions used "pending" as the sync marker, not an outbound job.
+    sheetStatus: !pilot.internalReviewEnabled && card.sheetStatus === "pending" && !card.sheetWritePending ? "submitted" : card.sheetStatus || "not_started",
     sheetError: card.sheetError || null,
     reviewerComment: card.reviewerComment || "",
     reviewedByName: card.reviewedByName || "",
@@ -122,12 +131,15 @@ export async function matchingCards(db, tenantId, data, excludingId, session) {
   }).sort((a, b) => a.matchRank - b.matchRank);
 }
 
-export async function createCard(db, user, input, now = new Date()) {
+export async function createCard(db, user, input, now = new Date(), options = {}) {
   requireAction(user, "capture_card");
-  const status = input.status || "draft";
+  const status = input.status || (pilot.internalReviewEnabled ? "draft" : "submitted");
+  // PILOT: preserve the old draft creation branch, but start new contacts in Pending Review.
+  if (!pilot.internalReviewEnabled && status !== "submitted") fail("STATE_INVALID", 400, "New pilot contacts must be submitted as Pending Review.");
   if (!RECORD_STATES.includes(status) || !["draft", "submitted"].includes(status)) fail("STATE_INVALID", 400, "Record state is invalid.");
   if (status === "submitted") requireAction(user, "submit_own_draft", { tenantId: user.tenantId, capturedBy: user.id });
   const data = input.verifiedData || {};
+  if (!pilot.internalReviewEnabled && status === "submitted") validatePilotContact(data);
   const keys = duplicateKeys(data);
   const matches = await matchingCards(db, user.tenantId, data);
   if (!input.allowDuplicate) {
@@ -158,8 +170,12 @@ export async function createCard(db, user, input, now = new Date()) {
     obtainedAt: now,
     lastConfirmedAt: now,
     verifiedAt: status === "submitted" ? now : null,
-    transferStatus: "not_started",
+    ...(pilot.constantContactEnabled ? { transferStatus: "not_started" } : {}),
     sheetStatus: status === "submitted" ? "pending" : "not_started",
+    // SUBMISSION-ONLY PILOT: bind new delivery jobs to this Sheet. Old testing jobs
+    // must not be migrated into the client's new register by an administrator retry.
+    ...(pilot.submissionOnlyEnabled ? { sheetTarget: `${(options.sheet?.env || process.env).GOOGLE_SHEET_ID || (options.sheet?.env || process.env).GOOGLE_SHEET_TEST_ID || ""}:${(options.sheet?.env || process.env).GOOGLE_SHEET_TAB || "Contacts"}` } : {}),
+    ...(!pilot.internalReviewEnabled && status === "submitted" ? { sheetWritePending: true } : {}),
     payload: encryptValue(payload),
     duplicateKeys: keys,
     duplicateReview: matches.length ? { state: "pending", candidateIds: matches.map(card => String(card._id)), reason: matches[0].matchReason } : null,
@@ -178,8 +194,8 @@ export async function createCard(db, user, input, now = new Date()) {
   let publicCard = toPublic({ ...card, _id: inserted.insertedId });
   if (status === "submitted") {
     try {
-      const result = await addPendingSheetRecord(db, publicCard);
-      const sheetStatus = result.skipped ? "not_configured" : "pending";
+      const result = await syncContactSheet(db, publicCard, options.sheet);
+      const sheetStatus = result.skipped ? "not_configured" : "submitted";
       await db.collection("cards").updateOne({ _id: inserted.insertedId, tenantId: user.tenantId }, { $set: { sheetStatus } });
       publicCard.sheetStatus = sheetStatus;
       } catch (error) {
@@ -203,11 +219,13 @@ export async function listCards(db, user) {
   let query;
   if (user.role === "exhibition_assistant") {
     requireAction(user, "view_own_draft");
-    try { await refreshStatusesFromSheet(db, user.tenantId); } catch {}
+    if (!pilot.internalReviewEnabled) await synchronizePilotSheet(db, user.tenantId);
+    else { try { await refreshStatusesFromSheet(db, user.tenantId); } catch {} }
     query = { tenantId: user.tenantId, capturedBy: new ObjectId(user.id) };
   } else if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") {
     requireAction(user, "view_review_queue");
-    try { await refreshStatusesFromSheet(db, user.tenantId); } catch {}
+    if (!pilot.internalReviewEnabled) await synchronizePilotSheet(db, user.tenantId);
+    else { try { await refreshStatusesFromSheet(db, user.tenantId); } catch {} }
     query = { tenantId: user.tenantId };
   } else fail("FORBIDDEN", 403, "Access denied.");
   const rawCards = await db.collection("cards").find(query).sort({ createdAt: -1 }).toArray();
@@ -233,10 +251,13 @@ export async function listCards(db, user) {
   return records;
 }
 
-export async function updateCard(db, user, id, input, now = new Date()) {
+export async function updateCard(db, user, id, input, now = new Date(), options = {}) {
+  // PILOT: Administrator manages the system; only capturers edit/resubmit contacts.
+  if (!pilot.internalReviewEnabled && user.role !== "exhibition_assistant") fail("FORBIDDEN", 403, "Contact review takes place in Google Sheets.");
   const _id = cardId(id);
   const card = await db.collection("cards").findOne({ _id, tenantId: user.tenantId });
-  if (card?.ccLease > now) fail("TRANSFER_IN_PROGRESS", 409, "A transfer is being checked. Retry this change shortly.");
+  if (pilot.constantContactEnabled && card?.ccLease > now) fail("TRANSFER_IN_PROGRESS", 409, "A transfer is being checked. Retry this change shortly.");
+  if (card?.sheetSyncLease > now) fail("SHEET_SYNC_BUSY", 409, "This contact is syncing. Please retry shortly.");
   if (!card) fail("CARD_NOT_FOUND", 404, "Record not found.");
   if (user.role === "exhibition_assistant") {
     requireAction(user, "correct_own_draft", card);
@@ -249,7 +270,8 @@ export async function updateCard(db, user, id, input, now = new Date()) {
   const existing = decryptValue(card.payload);
   const payload = { ...existing, verifiedData: input.verifiedData || existing.verifiedData };
   const nextState = input.status || card.status;
-  if (card.duplicateReview?.state === "resolved" && card.duplicateReview.decision !== "keep_both" && nextState !== "rejected") fail("REVIEW_ALREADY_COMPLETED", 409, "This duplicate submission was closed by the reviewer and cannot be reopened.");
+  if (!pilot.internalReviewEnabled && nextState === "submitted") validatePilotContact(payload.verifiedData);
+  if (pilot.internalReviewEnabled && card.duplicateReview?.state === "resolved" && card.duplicateReview.decision !== "keep_both" && nextState !== "rejected") fail("REVIEW_ALREADY_COMPLETED", 409, "This duplicate submission was closed by the reviewer and cannot be reopened.");
   if (!RECORD_STATES.includes(nextState)) fail("STATE_INVALID", 400, "Record state is invalid.");
   if (user.role === "exhibition_assistant") {
     if (nextState !== card.status && nextState !== "submitted") fail("STATE_INVALID", 409, "This record cannot enter that state.");
@@ -276,10 +298,12 @@ export async function updateCard(db, user, id, input, now = new Date()) {
     updatedAt: now,
     verifiedAt: nextState === "submitted" ? now : card.verifiedAt,
     lastConfirmedAt: now,
+    // PILOT: marks a durable outbound change; status readers must not undo it.
+    ...(nextState === "submitted" ? { sheetStatus: "pending", ...(!pilot.internalReviewEnabled ? { sheetWritePending: true } : {}) } : {}),
   };
   if (nextState === "approved") {
     requireAction(user, "approve_card", card);
-    Object.assign(metadata, approvalTransfer(card, user, now));
+    if (pilot.constantContactEnabled) Object.assign(metadata, approvalTransfer(card, user, now));
   }
   if (user.role === "aventure_reviewer" || user.role === "vision71_administrator") {
     if (nextState !== card.status) {
@@ -291,19 +315,27 @@ export async function updateCard(db, user, id, input, now = new Date()) {
       metadata.reviewerComment = String(input.reviewerComment || "");
     }
   }
-  const saved = await db.collection("cards").updateOne({ _id, tenantId: user.tenantId, $or: [{ ccLease: { $exists: false } }, { ccLease: { $lte: now } }] }, { $set: metadata });
+  const saved = await db.collection("cards").updateOne({ _id, tenantId: user.tenantId, updatedAt: card.updatedAt, $and: [
+    { $or: [{ sheetSyncLease: { $exists: false } }, { sheetSyncLease: { $lte: now } }] },
+    ...(pilot.constantContactEnabled ? [{ $or: [{ ccLease: { $exists: false } }, { ccLease: { $lte: now } }] }] : []),
+  ] }, { $set: metadata });
   if (!saved.matchedCount) fail("TRANSFER_IN_PROGRESS", 409, "A transfer started while saving. Reload shortly.");
   const action = nextState === "approved" ? "approval" : nextState === "rejected" ? "rejection" : "correction";
   await writeAudit(db, { tenantId: user.tenantId, actor: user, action, recordRef: _id, outcome: "success", now });
-  if (nextState === "approved") await transferApproved(db, _id, user.tenantId);
+  // PILOT: automatic Constant Contact transfer retained but suspended.
+  if (pilot.constantContactEnabled && nextState === "approved") await transferApproved(db, _id, user.tenantId);
   let updated = toPublic(await db.collection("cards").findOne({ _id, tenantId: user.tenantId }));
   try {
-    const result = await updateSheetRecord(db, updated);
+    const result = nextState === "draft" ? { skipped: true } : await syncContactSheet(db, updated, options.sheet);
     if (!result.skipped) {
-      const displayStatus = nextState === "approved" ? "Approved" : nextState === "rejected" ? "Rejected" : nextState === "correction_requested" ? "Return for Correction" : updated.status;
+      const displayStatus = nextState === "approved" ? "Approved" : nextState === "rejected" ? "Rejected" : nextState === "correction_requested" ? "Needs Correction" : updated.status;
       await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: displayStatus }, $unset: { sheetError: "" } });
       updated.sheetStatus = displayStatus;
       updated.sheetError = null;
+    }
+    else if (nextState !== "draft") {
+      await db.collection("cards").updateOne({ _id, tenantId: user.tenantId }, { $set: { sheetStatus: "not_configured" } });
+      updated.sheetStatus = "not_configured";
     }
   } catch (error) {
     const sheetError = sheetFailure(error);

@@ -58,6 +58,10 @@ export async function getReviewQueue(): Promise<ContactRecord[]> {
   return response.records as ContactRecord[];
 }
 
+export async function getReviewQueueSnapshot(): Promise<{ records: ContactRecord[]; sheetSync?: { lastSuccessAt: string | null; error: { message: string } | null } }> {
+  return apiFetch("/api/cards");
+}
+
 /**
  * Updates verified contact fields (used when correcting details).
  */

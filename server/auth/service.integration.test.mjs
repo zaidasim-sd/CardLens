@@ -1,3 +1,7 @@
+import { pilot } from "../pilot.js";
+// Legacy regression coverage: exercise preserved functionality in this isolated test process.
+pilot.internalReviewEnabled = true;
+pilot.constantContactEnabled = true;
 import "dotenv/config";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";

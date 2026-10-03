@@ -3,6 +3,20 @@ import { ObjectId } from "mongodb";
 import { readFileSync } from "node:fs";
 import { createPrivateKey } from "node:crypto";
 import mapping from "../../config/sheetMapping.json" with { type: "json" };
+import { pilot } from "../pilot.js";
+
+// PILOT: broader fields remain in sheetMapping.json and the legacy gateway below.
+// Existing sheet data is kept; excluded columns are hidden during configuration.
+const historicFields = new Set(["whereMet", "obtainedAt", "lastConfirmedAt", "transferStatus", "reviewedByName", "reviewedAt"]);
+export const pilotColumns = mapping.columns.filter(column => !historicFields.has(column.field));
+const normalizeHeader = value => String(value || "").trim().toLowerCase();
+export function sheetField(header) {
+  if (["contact id", "record id", "lead71 record id", "cardsnap record id"].includes(normalizeHeader(header))) return "recordId";
+  return mapping.columns.find(column => normalizeHeader(column.header) === normalizeHeader(header))?.field;
+}
+export function pilotHeaders() {
+  return pilotColumns.map(column => column.field === "recordId" ? "Contact ID" : column.header);
+}
 
 export function safeSheetValue(value) {
   const text = String(value ?? "");
@@ -24,7 +38,7 @@ export function sheetRow(card, people = {}) {
     obtainedAt: calendarDate(card.obtainedAt || card.createdAt),
     lastConfirmedAt: timestamp(card.lastConfirmedAt || card.updatedAt || card.reviewedAt || card.createdAt),
     capturedByName: people.capturedByName || card.capturedByName || "",
-    status: { draft: "Draft", submitted: "Pending Review", approved: "Approved", rejected: "Rejected", correction_requested: "Return for Correction", transferred: "Transferred" }[card.status] || card.status,
+    status: { draft: "Draft", submitted: "Pending Review", approved: "Approved", rejected: "Rejected", correction_requested: pilot.internalReviewEnabled ? "Return for Correction" : "Needs Correction", transferred: "Transferred" }[card.status] || card.status,
     reviewedByName: people.reviewedByName || card.reviewedByName || "",
     reviewedAt: timestamp(card.reviewedAt),
     duplicateFlag: card.duplicateReview?.state === "pending" ? `Possible duplicate — ${card.duplicateReview.reason || "review required"}` : card.duplicateReview?.state === "resolved" ? `Resolved — ${card.duplicateReview.decision}` : "No likely match found",
@@ -64,7 +78,7 @@ export function normalizeGooglePrivateKey(value) {
 export function sheetFailure(error) {
   const messages = {
     SHEET_NOT_CONFIGURED: "Set GOOGLE_SHEET_ID, GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY in Vercel Production, then redeploy.",
-    SHEET_CREDENTIALS_INVALID: "Remove the local GOOGLE_SERVICE_ACCOUNT_KEY_FILE path from Vercel and supply the service-account email and private key.",
+    SHEET_CREDENTIALS_INVALID: "Google service-account credentials could not be loaded. Locally, check that GOOGLE_SERVICE_ACCOUNT_KEY_FILE points to a valid, readable service-account JSON file. On Vercel, supply GOOGLE_SERVICE_ACCOUNT_EMAIL and GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY instead. Restart or redeploy after changing credentials.",
     SHEET_KEY_INVALID: "The private key format is invalid. Paste the full private_key value from the service-account JSON, including BEGIN and END lines.",
     SHEET_TARGET_REFUSED: "Set SHEET_TARGET_APPROVED=true for the authorized production register, then redeploy.",
     SHEET_AUTH_FAILED: "Google authentication failed. Check that the service-account email and private key come from the same active credential JSON.",
@@ -72,7 +86,7 @@ export function sheetFailure(error) {
     SHEET_ACCESS_DENIED: "Google denied access. Share this spreadsheet with the configured service account as Editor and check protected-range permissions.",
     SHEET_NOT_FOUND: "Google could not access the spreadsheet. Check GOOGLE_SHEET_ID and service-account sharing.",
     SHEET_RANGE_INVALID: "Check GOOGLE_SHEET_TAB. It must exactly match the tab name inside the spreadsheet, such as Sheet1.",
-    SHEET_COLUMNS_INVALID: "The register headers do not match Lead71. Restore all 19 columns, including the hidden record ID column.",
+    SHEET_COLUMNS_INVALID: pilot.submissionOnlyEnabled ? "The existing Sheet headers are missing or duplicated, or Contact IDs are duplicated. Check GOOGLE_SHEET_HEADER_ROW and the existing column names; do not run configure:sheet in submission-only mode." : "The register is missing required headers or has duplicate headers/IDs. Run npm run configure:sheet with the current backend configuration.",
     SHEET_RATE_LIMITED: "Google Sheets is temporarily rate limited. Retry synchronization later.",
     SHEET_NETWORK_FAILED: "The server could not reach Google Sheets. Retry synchronization later.",
   };
@@ -81,6 +95,15 @@ export function sheetFailure(error) {
 }
 
 function credentials(env) {
+  // Hosted deployments must not depend on a workstation path or optional bundled file.
+  // Prefer a complete explicit pair even when a stale KEY_FILE variable remains set.
+  const email = String(env.GOOGLE_SERVICE_ACCOUNT_EMAIL || "").trim();
+  const privateKey = normalizeGooglePrivateKey(env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY);
+  if (email && privateKey) return { client_email: email, private_key: privateKey };
+  if (env.VERCEL === "1") {
+    if (env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE) throw Object.assign(new Error("Hosted Google service-account email/private key are incomplete; local credential files are unsupported."), { code: "SHEET_CREDENTIALS_INVALID", status: 503 });
+    return null;
+  }
   if (env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE) {
     try {
       const value = JSON.parse(readFileSync(env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE, "utf8"));
@@ -88,8 +111,7 @@ function credentials(env) {
       return { client_email: value.client_email, private_key: value.private_key };
     } catch { throw Object.assign(new Error("Google service account credential file is missing or invalid."), { code: "SHEET_CREDENTIALS_INVALID", status: 503 }); }
   }
-  if (!env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) return null;
-  return { client_email: env.GOOGLE_SERVICE_ACCOUNT_EMAIL.trim(), private_key: normalizeGooglePrivateKey(env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) };
+  return null;
 }
 
 function config(env) {
@@ -136,6 +158,8 @@ export async function diagnoseSheet(env = process.env) {
     emailConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_EMAIL),
     privateKeyConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY),
     localCredentialFileConfigured: Boolean(env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE),
+    hostedOnVercel: env.VERCEL === "1",
+    credentialSource: env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim() && normalizeGooglePrivateKey(env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) ? "environment" : env.VERCEL !== "1" && env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE ? "local_file" : "missing",
     productionTargetApproved: env.SHEET_TARGET_APPROVED === "true",
     tab: env.GOOGLE_SHEET_TAB || "Contacts",
   };
@@ -147,11 +171,177 @@ export async function diagnoseSheet(env = process.env) {
     const tab = metadata.sheets?.find(item => item.properties?.title === selected.tab);
     if (!tab) throw { code: "SHEET_RANGE_INVALID" };
     await createSheetGateway(env).readAll();
-    return { ok: true, checks, message: "Google authentication, spreadsheet access, tab name and all 19 register headers passed. This check does not write any contacts.", tabIdMatches: tab.properties.sheetId === selected.tabId };
+    return { ok: true, checks, message: "Google authentication, spreadsheet access, tab name and required register headers passed. This check does not write any contacts.", tabIdMatches: !pilot.internalReviewEnabled || tab.properties.sheetId === selected.tabId };
   } catch (error) { return { ok: false, checks, ...sheetFailure(error) }; }
 }
 
 export function createSheetGateway(env = process.env, fetcher = fetch) {
+  // SUBMISSION-ONLY PILOT: existing review gateways remain below for restoration.
+  if (pilot.submissionOnlyEnabled && !pilot.internalReviewEnabled) return createSubmissionSheetGateway(env, fetcher);
+  return pilot.internalReviewEnabled ? createLegacySheetGateway(env, fetcher) : createPilotSheetGateway(env, fetcher);
+}
+
+// Uses the client's existing layout without configuring headers, formatting or status fields.
+export function createSubmissionSheetGateway(env = process.env, fetcher = fetch) {
+  const selected = config(env);
+  if (!selected) return null;
+  const headerRow = Number(env.GOOGLE_SHEET_HEADER_ROW || 1);
+  const timeZone = env.GOOGLE_SHEET_CAPTURE_TIME_ZONE || "Etc/GMT+4"; // Fixed GMT-4.
+  if (!Number.isInteger(headerRow) || headerRow < 1) throw Object.assign(new Error("Invalid header row."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+  new Intl.DateTimeFormat("en", { timeZone });
+  const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(selected.sheetId)}`;
+  const tab = `'${selected.tab.replaceAll("'", "''")}'`;
+  const request = (path, options) => googleRequest(env, `${base}${path}`, options, fetcher);
+  const field = header => {
+    const text = normalizeHeader(String(header).replace(/\s+/g, " "));
+    if (["place/exhibition", "place / exhibition"].includes(text)) return "event";
+    if (/^time\s*\(gmt\s*-\s*4\)$/.test(text)) return "capturedTime";
+    return sheetField(text);
+  };
+  const required = ["recordId", "event", "fullName", "companyName", "jobTitle", "email", "phone", "notes", "capturedAt", "capturedTime", "capturedByName"];
+  let headers;
+  const readAll = async () => {
+    const rows = (await request(`/values/${encodeURIComponent(`${tab}!A${headerRow}:ZZ`)}`)).values || [];
+    headers = rows[0] || [];
+    const fields = headers.map(field).filter(Boolean);
+    if (!required.every(value => fields.includes(value)) || new Set(fields).size !== fields.length) throw Object.assign(new Error("Existing submission headers are missing or duplicated."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+    const index = headers.findIndex(header => field(header) === "recordId");
+    const ids = rows.slice(1).map(row => String(row[index] || "").trim()).filter(Boolean);
+    if (new Set(ids).size !== ids.length) throw Object.assign(new Error("Duplicate Contact IDs."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+    return rows;
+  };
+  const aligned = row => headers.map(header => {
+    const key = field(header);
+    const dateValue = row[mapping.columns.findIndex(column => column.field === "capturedAt")];
+    if (key === "capturedAt" || key === "capturedTime") {
+      const date = new Date(dateValue);
+      return key === "capturedAt"
+        ? new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date)
+        : new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(date);
+    }
+    const index = mapping.columns.findIndex(column => column.field === key);
+    return index < 0 ? "" : row[index];
+  });
+  return {
+    headerRow, readAll,
+    async configure() {
+      // Explicitly refuse the previous schema-writing setup command in this pilot.
+      throw Object.assign(new Error("Submission-only mode uses existing headers. Do not run configure:sheet."), { code: "SHEET_CONFIGURATION_DISABLED", status: 409 });
+    },
+    async append(row) {
+      if (!headers) await readAll();
+      const range = `${tab}!A${headerRow}:${columnLetter(headers.length)}`;
+      const result = await request(`/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { method: "POST", body: JSON.stringify({ values: [aligned(row)] }) });
+      const rowNumber = Number(result.updates?.updatedRange?.match(/![A-Z]+(\d+):/)?.[1]);
+      if (!rowNumber) throw Object.assign(new Error("Sheet insertion could not be confirmed."), { code: "SHEET_RESULT_INVALID", status: 502 });
+      return rowNumber;
+    },
+    async update(rowNumber, row) {
+      if (!headers) await readAll();
+      const values = aligned(row);
+      const data = headers.flatMap((header, index) => required.includes(field(header)) ? [{ range: `${tab}!${columnLetter(index + 1)}${rowNumber}`, values: [[values[index]]] }] : []);
+      await request("/values:batchUpdate", { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+    },
+    async remove(rowNumber) {
+      const metadata = await request("?fields=sheets(properties)");
+      const sheet = metadata.sheets?.find(item => item.properties.title === selected.tab);
+      if (!sheet) throw Object.assign(new Error("Sheet tab was not found."), { code: "SHEET_RANGE_INVALID", status: 502 });
+      await request(":batchUpdate", { method: "POST", body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId: sheet.properties.sheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber } } }] }) });
+    },
+  };
+}
+
+export function validatePilotHeaders(headers) {
+  const fields = headers.map(sheetField).filter(Boolean);
+  if (new Set(fields).size !== fields.length || !pilotColumns.every(column => fields.includes(column.field))) {
+    throw Object.assign(new Error("Required pilot headers are missing or duplicated."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+  }
+}
+
+export function createPilotSheetGateway(env = process.env, fetcher = fetch) {
+  const selected = config(env);
+  if (!selected) return null;
+  const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(selected.sheetId)}`;
+  const tab = `'${selected.tab.replaceAll("'", "''")}'`;
+  let headers;
+  let tabId;
+  const request = (path, options) => googleRequest(env, `${base}${path}`, options, fetcher);
+  const rawRows = async () => (await request(`/values/${encodeURIComponent(tab)}`)).values || [];
+  const resolveTab = async () => {
+    const metadata = await request("?fields=sheets(properties,protectedRanges)");
+    const sheet = metadata.sheets?.find(item => item.properties.title === selected.tab);
+    if (!sheet) throw Object.assign(new Error("Configured sheet tab was not found."), { code: "SHEET_RANGE_INVALID", status: 502 });
+    tabId = sheet.properties.sheetId; // Resolve from name; no fragile hardcoded tab ID.
+    return sheet;
+  };
+  const readAll = async () => {
+    const rows = await rawRows();
+    validatePilotHeaders(rows[0] || []);
+    headers = rows[0];
+    const idIndex = headers.findIndex(header => sheetField(header) === "recordId");
+    const ids = rows.slice(1).map(row => String(row[idIndex] || "").trim()).filter(Boolean);
+    if (new Set(ids).size !== ids.length) throw Object.assign(new Error("Duplicate Contact IDs in the Sheet must be corrected before synchronization."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+    return rows;
+  };
+  const aligned = row => headers.map(header => {
+    if (historicFields.has(sheetField(header))) return ""; // PILOT: no new historic/transfer values.
+    const index = mapping.columns.findIndex(column => column.field === sheetField(header));
+    return index < 0 ? "" : row[index];
+  });
+  return {
+    readAll,
+    async configure() {
+      const selectedTab = await resolveTab();
+      const rows = await rawRows();
+      headers = rows[0]?.some(Boolean) ? [...rows[0]] : pilotHeaders();
+      const known = headers.map(sheetField).filter(Boolean);
+      if (new Set(known).size !== known.length) throw Object.assign(new Error("Duplicate register headings require manual correction."), { code: "SHEET_COLUMNS_INVALID", status: 409 });
+      // Repair/add headings at the end without moving, clearing or deleting old data.
+      for (const column of pilotColumns) if (!known.includes(column.field)) headers.push(column.field === "recordId" ? "Contact ID" : column.header);
+      validatePilotHeaders(headers);
+      const last = columnLetter(headers.length);
+      await request(`/values/${encodeURIComponent(`${tab}!A1:${last}1`)}?valueInputOption=RAW`, { method: "PUT", body: JSON.stringify({ values: [headers] }) });
+      const statusIndex = headers.findIndex(header => sheetField(header) === "status");
+      const requests = (selectedTab.protectedRanges || []).filter(item => /^(CardSnap|Lead71) system:/.test(item.description || "")).map(item => ({ deleteProtectedRange: { protectedRangeId: item.protectedRangeId } }));
+      requests.push(
+        { updateSheetProperties: { properties: { sheetId: tabId, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } },
+        { setDataValidation: { range: { sheetId: tabId, startRowIndex: 1, startColumnIndex: statusIndex, endColumnIndex: statusIndex + 1 }, rule: { condition: { type: "ONE_OF_LIST", values: ["Pending Review", "Approved", "Needs Correction", "Rejected"].map(userEnteredValue => ({ userEnteredValue })) }, strict: true, showCustomUi: true } } },
+        { setBasicFilter: { filter: { range: { sheetId: tabId, startRowIndex: 0, startColumnIndex: 0, endColumnIndex: headers.length } } } },
+        { repeatCell: { range: { sheetId: tabId, startRowIndex: 0, endRowIndex: 1, endColumnIndex: headers.length }, cell: { userEnteredFormat: { backgroundColor: { red: 0.08, green: 0.23, blue: 0.31 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }, wrapStrategy: "WRAP" } }, fields: "userEnteredFormat" } },
+        { addProtectedRange: { protectedRange: { description: "Lead71 system: column headings", range: { sheetId: tabId, startRowIndex: 0, endRowIndex: 1 }, warningOnly: false, editors: { users: [credentials(env).client_email] } } } },
+      );
+      headers.forEach((header, index) => {
+        const field = sheetField(header);
+        const hidden = historicFields.has(field) || field === "recordId";
+        if (field) requests.push({ updateDimensionProperties: { range: { sheetId: tabId, dimension: "COLUMNS", startIndex: index, endIndex: index + 1 }, properties: { hiddenByUser: hidden, pixelSize: 180 }, fields: "hiddenByUser,pixelSize" } });
+        if (["recordId", "capturedAt", "capturedByName", "duplicateFlag"].includes(field)) requests.push({ addProtectedRange: { protectedRange: { description: `Lead71 system: ${field}`, range: { sheetId: tabId, startRowIndex: 1, startColumnIndex: index, endColumnIndex: index + 1 }, warningOnly: false, editors: { users: [credentials(env).client_email] } } } });
+      });
+      await request(":batchUpdate", { method: "POST", body: JSON.stringify({ requests }) });
+      return { columns: headers.length, visibleColumns: headers.filter(header => { const field = sheetField(header); return !historicFields.has(field) && field !== "recordId"; }).length };
+    },
+    async append(row) {
+      if (!headers) await readAll();
+      const result = await request(`/values/${encodeURIComponent(`${tab}!A:${columnLetter(headers.length)}`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { method: "POST", body: JSON.stringify({ values: [aligned(row)] }) });
+      const rowNumber = Number(result.updates?.updatedRange?.match(/![A-Z]+(\d+):/)?.[1]);
+      if (!rowNumber) throw Object.assign(new Error("Sheet insertion could not be confirmed."), { code: "SHEET_RESULT_INVALID", status: 502 });
+      return rowNumber;
+    },
+    async update(rowNumber, row) {
+      if (!headers) await readAll();
+      // Write active fields only. Legacy/unknown column values stay untouched.
+      const values = aligned(row);
+      const data = headers.flatMap((header, index) => pilotColumns.some(column => column.field === sheetField(header)) ? [{ range: `${tab}!${columnLetter(index + 1)}${rowNumber}`, values: [[values[index]]] }] : []);
+      await request("/values:batchUpdate", { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+    },
+    async remove(rowNumber) {
+      if (tabId === undefined) await resolveTab();
+      await request(":batchUpdate", { method: "POST", body: JSON.stringify({ requests: [{ deleteDimension: { range: { sheetId: tabId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber } } }] }) });
+    },
+  };
+}
+
+// PILOT: previous nineteen-column register implementation is preserved here.
+export function createLegacySheetGateway(env = process.env, fetcher = fetch) {
   const selected = config(env);
   if (!selected) return null;
   const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(selected.sheetId)}`;
@@ -220,10 +410,13 @@ const SHEET_TO_RECORD_STATUS = new Map([
   ["Pending Review", "submitted"],
   ["Approved", "approved"],
   ["Return for Correction", "correction_requested"],
+  ["Needs Correction", "correction_requested"],
   ["Rejected", "rejected"],
 ]);
 
 export async function refreshStatusesFromSheet(db, tenantId, options = {}) {
+  // SUBMISSION-ONLY PILOT: retain review synchronization without requiring status columns.
+  if (pilot.submissionOnlyEnabled && !pilot.internalReviewEnabled) return { skipped: true, updated: 0 };
   const gateway = options.gateway === undefined ? createSheetGateway(options.env) : options.gateway;
   if (!gateway) return { skipped: true, updated: 0 };
   const rows = await gateway.readAll();
@@ -232,7 +425,7 @@ export async function refreshStatusesFromSheet(db, tenantId, options = {}) {
   const headerIndex = label => headers.findIndex(header => String(header).trim().toLowerCase() === label.toLowerCase());
   const statusIndex = headerIndex("Record Status");
   const commentIndex = headerIndex("Reviewer Comment");
-  const idIndex = headerIndex("CardSnap record ID");
+  const idIndex = headers.findIndex(header => sheetField(header) === "recordId");
   if (statusIndex < 0 || idIndex < 0) throw Object.assign(new Error("Sheet columns are invalid"), { code: "SHEET_COLUMNS_INVALID", status: 502 });
   let updated = 0;
   for (const row of rows.slice(1)) {
@@ -242,7 +435,10 @@ export async function refreshStatusesFromSheet(db, tenantId, options = {}) {
     if (!ObjectId.isValid(id)) continue;
     const _id = new ObjectId(id);
     const card = await db.collection("cards").findOne({ _id, tenantId });
-    if (!card || card.status === nextStatus) continue;
+    const reviewerComment = commentIndex >= 0 ? String(row[commentIndex] || "") : "";
+    if (!card || card.status === "draft" || (card.status === nextStatus && (card.reviewerComment || "") === reviewerComment)) continue;
+    // PILOT: outbound changes and in-flight writes must finish before Sheet review is read.
+    if (!pilot.internalReviewEnabled && (card.sheetWritePending || ["failed", "not_configured"].includes(card.sheetStatus) || card.sheetSyncLease > new Date())) continue;
     const restoreAutomatic = async (storedCard = card) => {
       if (!gateway.updateAutomatic || !storedCard.payload) return;
       const { toPublic } = await import("../cards/service.js");
@@ -250,19 +446,24 @@ export async function refreshStatusesFromSheet(db, tenantId, options = {}) {
       await gateway.updateAutomatic(rows.indexOf(row) + 1, publicCard, await names(db, publicCard));
     };
     // A spreadsheet status change cannot bypass an explicit duplicate decision.
-    if (card.ccLease > new Date() || card.duplicateReview?.state === "pending") { await restoreAutomatic(); continue; }
-    if (card.duplicateReview?.state === "resolved" && card.duplicateReview.decision !== "keep_both" && nextStatus !== "rejected") { await restoreAutomatic(); continue; }
-    if (nextStatus === "approved" && card.duplicateKeys && card.duplicateReview?.state !== "resolved") {
+    // PILOT: old internal duplicate approval gates retained, disabled. Sheets owns review.
+    if (pilot.internalReviewEnabled && (card.ccLease > new Date() || card.duplicateReview?.state === "pending")) { await restoreAutomatic(); continue; }
+    if (pilot.internalReviewEnabled && card.duplicateReview?.state === "resolved" && card.duplicateReview.decision !== "keep_both" && nextStatus !== "rejected") { await restoreAutomatic(); continue; }
+    if (pilot.internalReviewEnabled && nextStatus === "approved" && card.duplicateKeys && card.duplicateReview?.state !== "resolved") {
       const { matchingCards } = await import("../cards/service.js");
       const { decryptValue } = await import("../security/encryption.js");
       if ((await matchingCards(db, tenantId, decryptValue(card.payload).verifiedData, _id)).length) { await restoreAutomatic(); continue; }
     }
     const now = new Date();
-    const update = { status: nextStatus, updatedAt: now, reviewerComment: commentIndex >= 0 ? String(row[commentIndex] || "") : "" };
+    const update = { status: nextStatus, sheetStatus: nextStatus, updatedAt: now, reviewerComment };
     update.lastConfirmedAt = now;
     if (nextStatus !== "submitted") { update.reviewedAt = now; update.reviewedByName = options.reviewerName || process.env.SHEET_REVIEWER_NAME || "Hala"; }
-    await db.collection("cards").updateOne({ _id, tenantId }, { $set: update });
-    await restoreAutomatic({ ...card, ...update });
+    const saved = await db.collection("cards").updateOne({ _id, tenantId, status: card.status, updatedAt: card.updatedAt,
+      ...(!pilot.internalReviewEnabled ? { sheetStatus: card.sheetStatus, $or: [{ sheetSyncLease: { $exists: false } }, { sheetSyncLease: { $lte: now } }] } : {}),
+    }, { $set: update });
+    if (saved?.matchedCount === 0) continue;
+    // PILOT: never write a stale Sheet snapshot back over the human's latest review.
+    if (pilot.internalReviewEnabled) await restoreAutomatic({ ...card, ...update });
     const action = nextStatus === "approved" ? "approval" : nextStatus === "rejected" ? "rejection" : nextStatus === "correction_requested" ? "correction" : "review";
     if (nextStatus !== "submitted") await (await import("../audit/service.js")).writeAudit(db, { tenantId, actor: { id: "sheet_reviewer", role: "aventure_reviewer" }, action, recordRef: _id, outcome: "success", now });
     updated += 1;
@@ -283,12 +484,20 @@ export async function addPendingSheetRecord(db, card, options = {}) {
   const existing = await db.collection("transfers").findOne({ tenantId: card.tenantId, cardId: card.id, provider: "google_sheets" });
   if (gateway.readAll) {
     const rows = await gateway.readAll();
-    const idColumn = rows[0]?.indexOf("CardSnap record ID");
+    const idColumn = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing the Lead71 record ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
     const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === card.id);
+    if (rows.filter((row, index) => index > 0 && String(row[idColumn] || "") === card.id).length > 1) throw Object.assign(new Error("Multiple Sheet records have the same Contact ID."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
     if (found > 0) {
-      await gateway.update(found + 1, sheetRow(card, options.people || await names(db, card)));
-      const recovered = { tenantId: card.tenantId, cardId: card.id, provider: "google_sheets", rowNumber: found + 1, status: card.status, updatedAt: new Date() };
+      const values = sheetRow(card, options.people || await names(db, card));
+      // PILOT: reviewer feedback is owned by Sheets, including edits since the last poll.
+      if (!pilot.internalReviewEnabled) {
+        const commentIndex = rows[0].findIndex(header => sheetField(header) === "reviewerComment");
+        if (commentIndex >= 0) values[mapping.columns.findIndex(column => column.field === "reviewerComment")] = String(rows[found][commentIndex] || "");
+      }
+      const rowNumber = found + (gateway.headerRow || 1);
+      await gateway.update(rowNumber, values);
+      const recovered = { tenantId: card.tenantId, cardId: card.id, provider: "google_sheets", rowNumber, status: card.status, updatedAt: new Date() };
       await db.collection("transfers").updateOne({ tenantId: card.tenantId, cardId: card.id, provider: "google_sheets" }, { $set: recovered }, { upsert: true });
       return recovered;
     }
@@ -299,7 +508,66 @@ export async function addPendingSheetRecord(db, card, options = {}) {
   return transfer;
 }
 
+// Distributed contact lease prevents simultaneous submissions/retries appending twice.
+// A retry always reads IDs first, including after an uncertain Google response.
+export async function syncContactSheet(db, card, options = {}) {
+  const gateway = options.gateway === undefined ? createSheetGateway(options.env) : options.gateway;
+  if (!gateway) return { skipped: true };
+  const _id = new ObjectId(card.id);
+  const lease = new Date(Date.now() + 120000);
+  const claimed = await db.collection("cards").findOneAndUpdate({ _id, tenantId: card.tenantId,
+    updatedAt: new Date(card.updatedAt),
+    $or: [{ sheetSyncLease: { $exists: false } }, { sheetSyncLease: { $lte: new Date() } }],
+  }, { $set: { sheetSyncLease: lease } }, { returnDocument: "after" });
+  if (!claimed) throw Object.assign(new Error("This contact is already syncing or has changed. Retry shortly."), { code: "SHEET_SYNC_BUSY", status: 409 });
+  try {
+    const result = await updateSheetRecord(db, card, { ...options, gateway });
+    await db.collection("cards").updateOne({ _id, tenantId: card.tenantId, sheetSyncLease: lease }, { $set: { sheetStatus: card.status }, $unset: { sheetError: "", sheetWritePending: "" } });
+    return result;
+  } finally {
+    await db.collection("cards").updateOne({ _id, tenantId: card.tenantId, sheetSyncLease: lease }, { $unset: { sheetSyncLease: "" } });
+  }
+}
+
+export async function synchronizePilotSheet(db, tenantId, options = {}) {
+  // SUBMISSION-ONLY PILOT: no status polling or migration of old queued test contacts.
+  // Restore by setting submissionOnlyEnabled=false; the complete workflow is retained.
+  if (pilot.submissionOnlyEnabled) return { skipped: true };
+  const now = options.now || new Date();
+  const key = "pilot_sheet_sync";
+  const env = options.env || process.env;
+  const target = `${env.GOOGLE_SHEET_ID || env.GOOGLE_SHEET_TEST_ID || ""}:${env.GOOGLE_SHEET_TAB || "Contacts"}`;
+  await db.collection("settings").updateOne({ tenantId, key }, { $setOnInsert: { tenantId, key, checkedAt: new Date(0) } }, { upsert: true });
+  const lease = new Date(now.getTime() + 120000);
+  const claimed = await db.collection("settings").findOneAndUpdate({ tenantId, key, $and: [
+    { $or: [{ checkedAt: { $lte: new Date(now.getTime() - pilot.sheetPollIntervalMs) } }, { target: { $ne: target } }] },
+    { $or: [{ lease: { $exists: false } }, { lease: { $lte: now } }] },
+  ] }, { $set: { lease, target } }, { returnDocument: "after" });
+  if (!claimed) return { skipped: true };
+  try {
+    const gateway = options.gateway === undefined ? createSheetGateway(env) : options.gateway;
+    if (!gateway) throw Object.assign(new Error("Google Sheet is not configured."), { code: "SHEET_NOT_CONFIGURED" });
+    const { toPublic } = await import("../cards/service.js");
+    // Retry durable failed/outstanding submissions. Never resend an already reviewed row.
+    const pending = await db.collection("cards").find({ tenantId, status: { $ne: "draft" }, $or: [{ sheetWritePending: true }, { sheetStatus: { $in: ["failed", "not_configured"] } }] }).limit(2).toArray();
+    for (const stored of pending) {
+      try { await syncContactSheet(db, toPublic(stored), { ...options, gateway }); }
+      catch (error) {
+        if (error.code !== "SHEET_SYNC_BUSY") await db.collection("cards").updateOne({ _id: stored._id, tenantId, updatedAt: stored.updatedAt }, { $set: { sheetStatus: "failed", sheetError: sheetFailure(error) } });
+      }
+    }
+    const result = await refreshStatusesFromSheet(db, tenantId, { ...options, gateway });
+    await db.collection("settings").updateOne({ tenantId, key, lease }, { $set: { checkedAt: now, lastSuccessAt: new Date(), error: null }, $unset: { lease: "" } });
+    return result;
+  } catch (error) {
+    await db.collection("settings").updateOne({ tenantId, key, lease }, { $set: { checkedAt: now, error: sheetFailure(error) }, $unset: { lease: "" } });
+    return { error: sheetFailure(error) };
+  }
+}
+
 export async function updateSheetRecord(db, card, options = {}) {
+  // PILOT: always locate by stable ID; the old row-number-based implementation below is retained.
+  if (!pilot.internalReviewEnabled) return addPendingSheetRecord(db, card, options);
   const gateway = options.gateway === undefined ? createSheetGateway(options.env) : options.gateway;
   if (!gateway) return { skipped: true };
   const transfer = await db.collection("transfers").findOne({ tenantId: card.tenantId, cardId: card.id, provider: "google_sheets" });
@@ -307,11 +575,11 @@ export async function updateSheetRecord(db, card, options = {}) {
   let rowNumber = transfer.rowNumber;
   if (gateway.readAll) {
     const rows = await gateway.readAll();
-    const idColumn = rows[0]?.indexOf("CardSnap record ID");
+    const idColumn = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing its synchronization ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
     const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === card.id);
     if (found < 1) return addPendingSheetRecord(db, card, { ...options, gateway });
-    rowNumber = found + 1;
+    rowNumber = found + (gateway.headerRow || 1);
   }
   await gateway.update(rowNumber, sheetRow(card, options.people || await names(db, card)));
   await db.collection("transfers").updateOne({ _id: transfer._id }, { $set: { rowNumber, status: card.status, updatedAt: new Date() } });
@@ -326,11 +594,11 @@ export async function removeSheetRecord(db, card, options = {}) {
   let rowNumber = transfer.rowNumber;
   if (gateway.readAll) {
     const rows = await gateway.readAll();
-    const idColumn = rows[0]?.indexOf("CardSnap record ID");
+    const idColumn = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing its synchronization ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
     const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === card.id);
     if (found < 1) return { skipped: true };
-    rowNumber = found + 1;
+    rowNumber = found + (gateway.headerRow || 1);
   }
   await gateway.remove(rowNumber);
   await db.collection("transfers").updateOne({ _id: transfer._id }, { $set: { status: "removed", removedAt: new Date() } });

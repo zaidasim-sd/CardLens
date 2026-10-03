@@ -378,3 +378,31 @@
 .landing-sign-in:hover{background:#eff9fb;border-color:#bce5ed}
 .landing-sign-in svg{width:16px;height:16px}
 }
+
+/* Submission-only pilot: a single, calm Google Sheets destination. */
+.sheet-only-preview{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;background:#f5fafc;text-align:center}
+.sheet-only-icon{display:grid;place-items:center;width:52px;height:52px;border-radius:14px;background:#e2f3f7;color:#269bb2}
+.sheet-only-preview>strong{font-size:13px;font-weight:600;color:#143b50}
+.sheet-only-preview>span:not(.sheet-only-icon){font-size:10px;color:#697f8c}
+.sheet-only-preview .sheet-only-status{display:flex;align-items:center;gap:5px;margin-top:3px;padding:5px 10px;border-radius:20px;background:#e8f5f8;color:#248da3;font-size:9px}
+
+/* Four-step desktop journey: every card stays visible while focus moves along. */
+@media(min-width:768px){
+ .workflow-linear .workflow-grid,.workflow-linear.motion-reduced .workflow-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;height:auto;margin:28px 0 24px;overflow:visible;mask-image:none;perspective:none}
+ .workflow-linear .workflow-node,.workflow-linear.motion-reduced .workflow-node{position:relative;inset:auto;width:100%;min-width:0;opacity:1;transform:none;padding:16px;gap:16px;border-radius:15px;box-shadow:0 3px 12px #143b5004;transition:transform .5s ease,border-color .5s ease,box-shadow .5s ease}
+ .workflow-linear .workflow-node.is-active{transform:translateY(-4px);border-color:#8bd3df;box-shadow:0 8px 24px #39b3c815,0 0 0 2px #39b3c808}
+ .workflow-linear .workflow-node:last-child.is-active .node-preview{border-color:transparent;box-shadow:none}
+ .workflow-linear .node-preview{height:170px;background:#f5fafc}
+ .workflow-linear .node-heading{align-items:flex-start}
+ .workflow-linear .node-heading h3{font-size:12px}
+ .workflow-linear .node-heading p{font-size:10px;line-height:1.6}
+ .workflow-linear .workflow-bottom{padding-top:16px}
+ .workflow-linear.motion-reduced .workflow-node{transition:none;transform:none}
+}
+@media(min-width:1024px){
+ .workflow-linear .workflow-grid,.workflow-linear.motion-reduced .workflow-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:24px}
+ .workflow-linear .workflow-node:not(:last-child)::after{content:"";position:absolute;left:calc(100% + 5px);top:100px;width:16px;height:2px;background:repeating-linear-gradient(to right,#bedfe7 0 2px,transparent 2px 5px)}
+ .workflow-linear .workflow-node.is-active:not(:last-child)::before{content:"";position:absolute;left:calc(100% + 5px);top:98px;width:5px;height:5px;border-radius:50%;background:#39b3c8;animation:workflow-link-travel 1.8s ease-in-out infinite}
+}
+@keyframes workflow-link-travel{0%{transform:translateX(0);opacity:0}20%,75%{opacity:1}100%{transform:translateX(12px);opacity:0}}
+@media(prefers-reduced-motion:reduce){.workflow-linear .workflow-node::before{display:none}}

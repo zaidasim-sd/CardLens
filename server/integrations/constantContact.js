@@ -2,6 +2,7 @@ import { randomBytes, createHash } from "node:crypto";
 import { encryptValue, decryptValue } from "../security/encryption.js";
 import { writeAudit } from "../audit/service.js";
 import { updateSheetRecord } from "./sheetService.js";
+import { pilot } from "../pilot.js";
 
 const key = "constant_contact";
 const base = "https://api.cc.email/v3";
@@ -9,6 +10,8 @@ const tokenUrl = "https://authz.constantcontact.com/oauth2/default/v1/token";
 export const hash = value => createHash("sha256").update(String(value)).digest("hex");
 const problem = (message, uncertain = false) => Object.assign(new Error(message), { uncertain });
 export function approvalTransfer(card, user, now = new Date()) {
+  // PILOT: automatic transfer metadata is disabled; implementation below is retained.
+  if (!pilot.constantContactEnabled) return {};
   if (process.env.CC_ENABLED === "false" || !process.env.CC_CLIENT_ID) return {};
   if (String(card.capturedBy) === user.id) throw problem("A different reviewer must approve this contact.");
   if (["transferred", "existing_contact"].includes(card.transferStatus)) return {};
@@ -63,6 +66,8 @@ export function contactPayload(data, listId, fieldId, recordId) {
   return { email_address: { address: email, permission_to_send: "implicit" }, create_source: "Account", first_name: first.slice(0, 50), last_name: rest.join(" ").slice(0, 50), company_name: String(data.companyName || "").slice(0, 50), job_title: String(data.jobTitle || "").slice(0, 50), list_memberships: [listId], ...(data.phone ? { phone_numbers: [{ phone_number: data.phone.slice(0, 25), kind: "work" }] } : {}), ...(fieldId ? { custom_fields: [{ custom_field_id: fieldId, value: `CardSnap:${recordId}|${data.meetingContext?.metAtLocation || ""}|${data.meetingContext?.whereMet || ""}`.slice(0, 255) }] } : {}) };
 }
 export async function transferApproved(db, cardId, tenantId, fetcher = fetch) {
+  // PILOT: no external transfer, including direct calls from legacy duplicate review.
+  if (!pilot.constantContactEnabled) return;
   if (process.env.CC_ENABLED === "false") return;
   const card = await db.collection("cards").findOne({ _id: cardId, tenantId });
   if (!card || card.status !== "approved" || !card.ccApproval || card.ccApproval.reviewerId === String(card.capturedBy) || card.duplicateReview?.state === "pending" || ["transferred", "existing_contact"].includes(card.transferStatus)) return;
@@ -115,6 +120,8 @@ export async function transferApproved(db, cardId, tenantId, fetcher = fetch) {
   return status;
 }
 export async function processTransfers(db, tenantId, limit = 5) {
+  // PILOT: suspend scheduled/manual transfer processing without deleting it.
+  if (!pilot.constantContactEnabled) return 0;
   const connected = tenantId ? [tenantId] : (await db.collection("settings").find({ key, tokens: { $exists: true } }, { projection: { tenantId: 1 } }).toArray()).map(item => item.tenantId);
   if (!connected.length) return 0;
   const records = await db.collection("cards").find({ tenantId: { $in: connected }, status: "approved", ccApproval: { $exists: true }, transferStatus: { $in: ["pending", "failed", "reconciliation_required"] } }).sort({ ccLastAttemptAt: 1 }).limit(limit).toArray();

@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import { ScanLine, ClipboardList, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
+import pilot from "@/config/pilot";
 
 const navItems = [
   { name: "Scan Card", to: "/", icon: ScanLine, roles: ["exhibition_assistant"] },
@@ -15,7 +16,8 @@ export default function MobileNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(3.75rem+env(safe-area-inset-bottom,0px))] shrink-0 items-center justify-around border-t border-slate-200/90 bg-white/95 px-3 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-md md:hidden dark:bg-slate-900/95 dark:border-slate-800">
       {navItems
-        .filter((item) => user && item.roles.includes(user.role))
+        // SUBMISSION-ONLY PILOT: queue navigation is paused, not deleted.
+        .filter((item) => user && item.roles.includes(user.role) && (!pilot.submissionOnlyEnabled || item.to !== "/submissions") && (pilot.internalReviewEnabled || user.role !== "aventure_reviewer"))
         .map((item) => {
           const Icon = item.icon;
           return (

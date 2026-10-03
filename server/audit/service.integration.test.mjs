@@ -1,4 +1,7 @@
 import "dotenv/config";
+import { pilot } from "../pilot.js";
+// Legacy audit workflow regression coverage; pilot flow is tested separately.
+pilot.internalReviewEnabled = true;
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";

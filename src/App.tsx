@@ -8,6 +8,14 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LegalPage from "./pages/LegalPage";
 import { useAuth } from "./auth/AuthContext";
+import pilot from "./config/pilot";
+
+function SubmissionQueueRoute() {
+  const { user } = useAuth();
+  // SUBMISSION-ONLY PILOT: keep the route and full queue implementation restorable.
+  if (pilot.submissionOnlyEnabled) return <Navigate to={user?.role === "vision71_administrator" ? "/users" : "/"} replace />;
+  return <VerifiedQueuePage />;
+}
 
 function RootPage() {
   const { user } = useAuth();
@@ -27,7 +35,7 @@ export default function App() {
         <Route path="/sign-in" element={<SignInPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/submissions" element={<VerifiedQueuePage />} />
+            <Route path="/submissions" element={<SubmissionQueueRoute />} />
             <Route path="/users" element={<UserAdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

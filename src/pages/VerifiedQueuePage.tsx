@@ -12,7 +12,7 @@ import {
   RotateCcw,
   User,
 } from "lucide-react";
-import { cardApi } from "@/lib/cardApi";
+// PILOT: internal reviewer API actions remain in ReviewContactModal.
 import { exportApprovedContacts } from "@/lib/api/export";
 import { useAuth } from "@/auth/AuthContext";
 import type { ContactRecord } from "@/types";
@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import EditContactModal from "@/components/verified/EditContactModal";
 import ReviewContactModal from "@/components/verified/ReviewContactModal";
 import { toast } from "sonner";
+import pilot from "@/config/pilot";
+import { getReviewQueueSnapshot } from "@/lib/api/contacts";
 
 type TabType = "all" | "pending" | "correction" | "approved" | "rejected";
 
@@ -33,7 +35,9 @@ export default function VerifiedQueuePage() {
   const [reviewRecord, setReviewRecord] = useState<ContactRecord | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>("all");
 
-  const canReview = user?.role === "aventure_reviewer" || user?.role === "vision71_administrator";
+  // PILOT: internal reviewer modal/actions retained, disabled for all roles.
+  const canReview = pilot.internalReviewEnabled && (user?.role === "aventure_reviewer" || user?.role === "vision71_administrator");
+  const [syncWarning, setSyncWarning] = useState("");
 
   // In-memory tracking of viewed correction IDs during session (zero local persistent storage)
   const [viewedCorrections, setViewedCorrections] = useState<string[]>([]);
@@ -42,8 +46,9 @@ export default function VerifiedQueuePage() {
     if (!isBackground) setIsLoading(true);
     setError("");
     try {
-      const data = await cardApi.list();
-      setRecords(data);
+      const data = await getReviewQueueSnapshot();
+      setRecords(data.records);
+      setSyncWarning(data.sheetSync?.error?.message || "");
     } catch (caught: any) {
       if (!isBackground) {
         setError(caught?.message || "The review queue could not be loaded.");
@@ -53,21 +58,29 @@ export default function VerifiedQueuePage() {
     }
   }, []);
 
-  // Real-time synchronization: Auto-poll every 3.5 seconds + refresh on visibility focus
+  // PILOT: sequential 30s polling while visible; resume immediately on tab focus.
   useEffect(() => {
-    void load();
-
-    const interval = setInterval(() => {
-      void load(true);
-    }, 3500);
-
+    let stopped = false;
+    let running = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async (background = true) => {
+      if (stopped || running || document.visibilityState !== "visible") return;
+      running = true;
+      clearTimeout(timer);
+      await load(background);
+      running = false;
+      if (!stopped) timer = setTimeout(() => void poll(), pilot.sheetPollIntervalMs);
+    };
+    void poll(false);
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") void load(true);
+      if (document.visibilityState === "visible") void poll();
+      else clearTimeout(timer);
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-      clearInterval(interval);
+      stopped = true;
+      clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [load]);
@@ -115,7 +128,7 @@ export default function VerifiedQueuePage() {
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800 border border-amber-200/80 dark:bg-amber-950/40 dark:border-amber-800/80 dark:text-amber-300">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            Return for Correction
+            Needs Correction
           </span>
         );
       case "rejected":
@@ -183,7 +196,7 @@ export default function VerifiedQueuePage() {
             Review Queue
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Submitted contacts awaiting or completed through the review workflow.
+            Track your contacts as they are reviewed in Google Sheets.
           </p>
         </div>
 
@@ -200,7 +213,7 @@ export default function VerifiedQueuePage() {
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
           </Button>
 
-          <Button
+          {user?.role === "vision71_administrator" && <Button
             type="button"
             onClick={handleExportCsv}
             disabled={isExporting || approvedCount === 0}
@@ -209,7 +222,7 @@ export default function VerifiedQueuePage() {
           >
             <Download className="w-3.5 h-3.5" />
             <span>Export Approved ({approvedCount})</span>
-          </Button>
+          </Button>}
         </div>
       </header>
 
@@ -336,6 +349,7 @@ export default function VerifiedQueuePage() {
       </nav>
 
       {/* Error Banner */}
+      {syncWarning && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">Sheet updates are delayed. Showing the last saved status. {syncWarning}</p>}
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs sm:text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
           {error}
@@ -434,7 +448,8 @@ export default function VerifiedQueuePage() {
                   title={canReview ? "Click to review contact" : undefined}
                 >
                   {getStatusBadge(record.status)}
-                  {record.status === "approved" && <p className="mt-2 text-xs max-w-xs break-words">Constant Contact: {{ not_started: "Not transferred", pending: "Pending transfer", failed: "Transfer failed", reconciliation_required: "Transfer needs checking", transferred: "Transferred", existing_contact: "Existing contact preserved" }[record.transferStatus || "not_started"]}{record.transferError && <span className="block text-amber-700 dark:text-amber-400">{record.transferError}</span>}</p>}
+                  {/* PILOT: legacy transfer-status display retained, disabled. */}
+                  {pilot.constantContactEnabled && record.status === "approved" && <p className="mt-2 text-xs max-w-xs break-words">Constant Contact: {{ not_started: "Not transferred", pending: "Pending transfer", failed: "Transfer failed", reconciliation_required: "Transfer needs checking", transferred: "Transferred", existing_contact: "Existing contact preserved" }[record.transferStatus || "not_started"]}{record.transferError && <span className="block text-amber-700 dark:text-amber-400">{record.transferError}</span>}</p>}
                 </div>
               </div>
 
@@ -469,7 +484,7 @@ export default function VerifiedQueuePage() {
               )}
 
               {/* Footer row: Attribution & Actions */}
-              {record.sheetStatus === "failed" && <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">Saved in Lead71. {record.sheetError?.message || "Google Sheet synchronization failed and needs attention."}</p>}
+              {["failed", "pending", "not_configured"].includes(record.sheetStatus || "") && <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">Saved in Lead71; awaiting Google Sheet synchronization. {record.sheetError?.message || "We will retry while this queue is open."}</p>}
               <div className="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 border-t border-slate-100/80 dark:border-slate-800/60">
                 <span className="flex items-center gap-1.5">
                   <span>
@@ -499,7 +514,7 @@ export default function VerifiedQueuePage() {
                   )}
 
                   {/* Capturer Action when correction requested - never shown to reviewer */}
-                  {!canReview && isCorrection && (
+                  {user?.role === "exhibition_assistant" && isCorrection && (
                     <Button
                       type="button"
                       size="sm"
@@ -521,7 +536,8 @@ export default function VerifiedQueuePage() {
       </ul>
 
       {/* Review modal for Reviewers to inspect and change status */}
-      <ReviewContactModal
+      {/* PILOT: preserve the old modal, but do not mount it in this flow. */}
+      {pilot.internalReviewEnabled && <ReviewContactModal
         isOpen={Boolean(reviewRecord)}
         setIsOpen={(open) => {
           if (!open) setReviewRecord(null);
@@ -536,7 +552,7 @@ export default function VerifiedQueuePage() {
           setReviewRecord(null);
           void load(true);
         }}
-      />
+      />}
 
       {/* Edit modal when capturer corrects details and resubmits */}
       <EditContactModal

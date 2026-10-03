@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { updateContact } from "@/lib/api/contacts";
 import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
 import type { ContactRecord, OCRData } from "@/types";
+import pilot from "@/config/pilot";
 
 interface Props {
   isOpen: boolean;
@@ -88,7 +89,7 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
         meetingContext: {
           ...record.verifiedData.meetingContext,
           metAtLocation: data.metAtLocation?.trim() || "",
-          whereMet: data.whereMet?.trim() || "",
+          whereMet: pilot.historicFieldsEnabled ? data.whereMet?.trim() || "" : record.verifiedData.meetingContext?.whereMet || "",
           notes: data.notes?.trim() || "",
         },
       };
@@ -97,7 +98,8 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
       const nextStatus = record.status === "correction_requested" ? "submitted" : record.status;
       const updated = await updateContact(record.id, updatedVerifiedData, nextStatus);
 
-      toast.success(
+      if (["failed", "pending", "not_configured"].includes(updated.sheetStatus || "")) toast.warning("Changes saved in Lead71. Google Sheet synchronization is pending; the queue will retry.");
+      else toast.success(
         record.status === "correction_requested"
           ? "Contact corrected and resubmitted for review!"
           : "Contact details updated successfully."
@@ -155,10 +157,11 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
               ))}
             </select>
           </div>
-              <div className="min-w-0 space-y-1">
+              {/* PILOT: historic location input retained for later restoration. */}
+              {pilot.historicFieldsEnabled && <div className="min-w-0 space-y-1">
                 <Label htmlFor="edit-whereMet">Where met / Location</Label>
                 <Input id="edit-whereMet" {...register("whereMet")} placeholder="e.g. Hall 2, Booth 14 (optional)" className="text-base sm:text-sm" />
-              </div>
+              </div>}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Contact Name */}

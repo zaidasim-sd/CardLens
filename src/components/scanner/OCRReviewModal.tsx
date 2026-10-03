@@ -26,6 +26,7 @@ import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
 import DuplicateWarningModal from "./DuplicateWarningModal";
 import ViewCardModal from "@/components/verified/ViewCardModal";
 import type { OCRData, ContactRecord } from "@/types";
+import pilot from "@/config/pilot";
 
 /**
  * Approved Version 1 Fields Schema:
@@ -181,8 +182,8 @@ export default function OCRReviewModal({
         allowDuplicate,
       });
       setSavedRecord(record);
-      if (record.sheetStatus === "failed") toast.warning(`Contact saved for review. ${record.sheetError?.message || "Google Sheet synchronization needs attention."}`);
-      else toast.success("Contact submitted for review");
+      if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) toast.warning(`Contact saved in Lead71. ${record.sheetError?.message || (pilot.submissionOnlyEnabled ? "Google Sheet delivery is pending. Please contact your administrator; do not submit another copy." : "Google Sheet synchronization is pending; open the queue to retry.")}`);
+      else toast.success(pilot.submissionOnlyEnabled ? "Contact added to Google Sheets" : "Contact submitted for review");
     } catch (error: any) {
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
         setDuplicateMatch({ record: error.duplicate, reason: error.duplicate.matchReason || "A possible matching record was found while saving.", pendingVerifiedData: verifiedData });
@@ -210,7 +211,7 @@ export default function OCRReviewModal({
       notes: data.notes?.trim() || "",
       meetingContext: {
         metAtLocation: data.metAtLocation?.trim() || "",
-        whereMet: data.whereMet?.trim() || "",
+          whereMet: pilot.historicFieldsEnabled ? data.whereMet?.trim() || "" : ocrData?.meetingContext?.whereMet || "",
         notes: data.notes?.trim() || "",
       },
     };
@@ -345,14 +346,14 @@ export default function OCRReviewModal({
 
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
-                  Contact submitted for review
+                  {pilot.submissionOnlyEnabled ? (savedRecord.sheetStatus === "submitted" ? "Contact added to Google Sheets" : "Contact saved · delivery pending") : "Contact submitted for review"}
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  The contact is ready for the approved review workflow. Captured date, time, and user account have been recorded automatically.
+                  {pilot.submissionOnlyEnabled ? (savedRecord.sheetStatus === "submitted" ? "Your contact has been added to the connected Google Sheet, including the capture date, time, and your name." : "Your contact is safely saved in Lead71, but delivery to Google Sheets needs attention. Please contact your administrator rather than submitting another copy.") : "The contact is ready for the approved review workflow. Captured date, time, and user account have been recorded automatically."}
                 </p>
                 {isDemo && (
                   <p className="pt-1 text-[11px] text-slate-500 leading-relaxed">
-                    Demonstration card. Saved to local demonstration register.
+                    {pilot.submissionOnlyEnabled ? "Demonstration contact submitted to the connected Sheet." : "Demonstration card. Saved to local demonstration register."}
                   </p>
                 )}
               </div>
@@ -417,7 +418,8 @@ export default function OCRReviewModal({
                   Scan Another Card
                 </Button>
 
-                <Button
+                {/* SUBMISSION-ONLY PILOT: preserve the queue action for restoration. */}
+                {!pilot.submissionOnlyEnabled && <Button
                   variant="outline"
                   size="default"
                   className="w-full font-semibold text-xs h-10 rounded-xl gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer"
@@ -428,7 +430,7 @@ export default function OCRReviewModal({
                   }}
                 >
                   View Review Queue <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
+                </Button>}
               </div>
             </div>
           ) : (
@@ -448,7 +450,7 @@ export default function OCRReviewModal({
                     )}
                   </div>
                   <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-                    {originalImage ? "Verify the extracted details before submitting for approval. Every detail remains fully editable." : "Enter your contact details below, then submit for approval."}
+                    {pilot.submissionOnlyEnabled ? "Check your contact details, then submit directly to Google Sheets." : originalImage ? "Verify the extracted details before submitting for approval. Every detail remains fully editable." : "Enter your contact details below, then submit for approval."}
                   </DialogDescription>
                 </div>
               </DialogHeader>
@@ -511,9 +513,10 @@ export default function OCRReviewModal({
                         )}
                       </div>
 
-                      <div className="sm:col-span-2">
+                      {/* PILOT: historic location input retained for later restoration. */}
+                      {pilot.historicFieldsEnabled && <div className="sm:col-span-2">
                         {renderField("Where met / Location", "whereMet", "text", "e.g. Hall 2, Booth 14 (optional)")}
-                      </div>
+                      </div>}
 
                       {/* 2. Contact Name */}
                       {renderField("Contact name", "fullName", "text", "e.g. John Doe")}
@@ -574,7 +577,7 @@ export default function OCRReviewModal({
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4 mr-1.5" /> Submit for review
+                      <Send className="w-4 h-4 mr-1.5" /> {pilot.submissionOnlyEnabled ? "Submit contact" : "Submit for review"}
                     </>
                   )}
                 </Button>
@@ -610,7 +613,7 @@ export default function OCRReviewModal({
           if (!open) setIsDuplicateModalOpen(true);
         }}
         record={duplicateMatch?.record || null}
-        onViewQueue={() => {
+        onViewQueue={pilot.submissionOnlyEnabled ? undefined : () => {
           setIsExistingContactOpen(false);
           setIsOpen(false);
           onSuccess();

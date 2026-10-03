@@ -1,3 +1,7 @@
+import { pilot } from "../pilot.js";
+// Legacy regression coverage: exercise preserved functionality in this isolated test process.
+pilot.internalReviewEnabled = true;
+pilot.constantContactEnabled = true;
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ObjectId } from "mongodb";
@@ -151,6 +155,14 @@ test("an existing Sheet row is recovered without appending a second contact", as
 
 test("invalid credential files report a safe error without exposing a path or key", () => {
   assert.throws(() => createSheetGateway({ GOOGLE_SHEET_ID: "fake", GOOGLE_SHEET_TEST_ID: "fake", GOOGLE_SERVICE_ACCOUNT_KEY_FILE: "missing-private-credential-file.json" }), error => error.code === "SHEET_CREDENTIALS_INVALID" && !error.message.includes("missing-private"));
+});
+
+test("complete environment credentials take precedence over a stale local credential path", () => {
+  assert.ok(createSheetGateway({ GOOGLE_SHEET_ID: "fake", GOOGLE_SHEET_TEST_ID: "fake", VERCEL: "1", GOOGLE_SERVICE_ACCOUNT_EMAIL: "fixture@example.test", GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: "fake", GOOGLE_SERVICE_ACCOUNT_KEY_FILE: "missing-private-file.json" }));
+});
+
+test("Vercel cannot fall back to a workstation credential file when hosted credentials are incomplete", () => {
+  assert.throws(() => createSheetGateway({ GOOGLE_SHEET_ID: "fake", GOOGLE_SHEET_TEST_ID: "fake", VERCEL: "1", GOOGLE_SERVICE_ACCOUNT_EMAIL: "fixture@example.test", GOOGLE_SERVICE_ACCOUNT_KEY_FILE: "missing-private-file.json" }), { code: "SHEET_CREDENTIALS_INVALID" });
 });
 
 test("Sheet review fills confirmation timestamps and reviewer metadata automatically", async () => {

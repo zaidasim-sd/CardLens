@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import pilot from "@/config/pilot";
 import { createPortal } from "react-dom";
 import "./capture.css";
 import {
@@ -484,13 +485,13 @@ export default function ScanPage() {
         onChange={handleFileChange}
       />
 
-      <div className="max-w-6xl mx-auto px-2 sm:px-6 py-4 sm:py-8 pb-20 space-y-8">
+      <div className="max-w-6xl mx-auto px-2 sm:px-6 pt-4 sm:pt-8 pb-2 space-y-8">
         {!selectedFile ? (
 
           <section onDrop={handleDrop} onDragOver={e => e.preventDefault()} className="capture-home">
             <div className="capture-intro">
               <h1>Capture exhibition contacts <span>quickly.</span></h1>
-              <p>Turn a business card into your next connection.<br />Scan, review, and send for approval in a few simple steps.</p>
+              <p>Turn a business card into your next connection.<br />{pilot.submissionOnlyEnabled ? "Scan, check the details, and save directly to Google Sheets." : "Scan, review, and send for approval in a few simple steps."}</p>
               <div className="capture-actions">
                 <Button onClick={() => setIsCameraOpen(true)} className="capture-primary"><Camera size={18} />Scan a card</Button>
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="capture-upload"><UploadCloud size={18} />Upload a card</Button>
@@ -501,7 +502,7 @@ export default function ScanPage() {
               </div>
 
             </div>
-            <ol className="capture-flow" aria-label="From business card to approval">
+            <ol className="capture-flow" aria-label={pilot.submissionOnlyEnabled ? "From business card to Google Sheets" : "From business card to approval"}>
               <li className="capture-stage">
                 <div className="capture-stage-preview capture-scan" aria-hidden="true"><div className="capture-frame"><div className="capture-mini-card"><span className="capture-card-mark capture-card-mark-skeleton" /><div className="capture-card-skeleton"><b /><span /><i /><i /></div></div><span className="capture-beam" /></div><span className="capture-preview-caption">A clear card. A fresh connection.</span></div>
                 <div className="capture-stage-heading"><span>01</span><h2>Capture</h2><Camera size={17} /></div><p>Scan or upload a card. <br />We’ll read the details for you.</p><span className="capture-connector" aria-hidden="true"><i /></span>
@@ -511,8 +512,8 @@ export default function ScanPage() {
                 <div className="capture-stage-heading"><span>02</span><h2>Review</h2><CheckSquare size={17} /></div><p>Check the extracted details. <br />Make any final edits.</p><span className="capture-connector" aria-hidden="true"><i /></span>
               </li>
               <li className="capture-stage">
-                <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>Contact prepared for review</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
-                <div className="capture-stage-heading"><span>03</span><h2>Send for approval</h2><ShieldCheck size={17} /></div><p>Submit your contact. <br />Your reviewer takes it from here.</p>
+                <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>{pilot.submissionOnlyEnabled ? "Save directly to Google Sheets" : "Contact prepared for review"}</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
+                <div className="capture-stage-heading"><span>03</span><h2>{pilot.submissionOnlyEnabled ? "Save to Google Sheets" : "Send for approval"}</h2><ShieldCheck size={17} /></div><p>{pilot.submissionOnlyEnabled ? <>Submit your contact.<br />It goes straight to your connected Sheet.</> : <>Submit your contact.<br />Your reviewer takes it from here.</>}</p>
               </li>
             </ol>
             <div className="capture-vision-footer"><div className="capture-vision-credit"><Cloud size={22} strokeWidth={1.7} /><span>Enhanced by <strong>Google Cloud Vision</strong></span></div><button type="button" onClick={() => setIsInfoModalOpen(true)}>How card reading works<ArrowUpRight size={14} /></button></div>

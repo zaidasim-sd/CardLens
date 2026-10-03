@@ -90,3 +90,6 @@
 }
 @media(max-width:767px){.capture-flow{width:calc(100% - 24px);max-width:380px;margin-left:auto;margin-right:auto}}
 .capture-card-mark-skeleton{width:29px;background:#def2f6}.capture-card-skeleton{flex:1;padding-top:3px}.capture-mini-card .capture-card-skeleton b{height:5px;width:78%;background:#a8cfda;border-radius:4px}.capture-mini-card .capture-card-skeleton>span{height:3px;width:57%;margin-top:5px;background:#d0e4ea;border-radius:3px}.capture-mini-card .capture-card-skeleton i{max-width:85%}.capture-mini-card .capture-card-skeleton i:last-child{max-width:60%}
+/* Keep a compact finish below the card-reading link; navigation clearance is
+   already reserved by AppLayout, so the capture page needs no extra spacer. */
+.capture-home{padding-bottom:8px}

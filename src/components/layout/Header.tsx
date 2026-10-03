@@ -3,6 +3,7 @@ import { ScanLine, ClipboardList, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
 import UserProfileDropdown from "./UserProfileDropdown";
+import pilot from "@/config/pilot";
 
 const navItems = [
   { name: "Scan Card", to: "/", icon: ScanLine, roles: ["exhibition_assistant"] },
@@ -34,7 +35,8 @@ export default function Header() {
       {/* Center Nav Links on Desktop */}
       <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200/70 dark:border-slate-700/60 shadow-xs">
         {navItems
-          .filter((item) => user && item.roles.includes(user.role))
+          // SUBMISSION-ONLY PILOT: retain Review Queue navigation for restoration.
+          .filter((item) => user && item.roles.includes(user.role) && (!pilot.submissionOnlyEnabled || item.to !== "/submissions") && (pilot.internalReviewEnabled || user.role !== "aventure_reviewer"))
           .map((item) => {
             const Icon = item.icon;
             return (

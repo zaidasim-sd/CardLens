@@ -5,6 +5,7 @@ import { decryptValue, encryptValue } from "../security/encryption.js";
 import { writeAudit } from "../audit/service.js";
 import { updateSheetRecord } from "../integrations/sheetService.js";
 import { approvalTransfer, transferApproved } from "../integrations/constantContact.js";
+import { pilot } from "../pilot.js";
 
 const fail = (code, status, message) => { throw Object.assign(new Error(message), { code, status }); };
 const fields = new Set(["fullName", "companyName", "jobTitle", "email", "phone", "alternatePhone", "website", "address", "city", "country", "notes", "metAtLocation", "whereMet"]);
@@ -35,6 +36,8 @@ function id(value) {
 }
 
 export async function duplicateReviewContext(db, user, recordId, session) {
+  // PILOT: internal comparison/dashboard API retained but paused for every role.
+  if (!pilot.internalReviewEnabled) fail("FEATURE_DISABLED", 403, "Review contacts directly in Google Sheets.");
   requireAction(user, "view_review_queue");
   const card = await db.collection("cards").findOne({ _id: id(recordId), tenantId: user.tenantId }, session ? { session } : {});
   if (!card) fail("CARD_NOT_FOUND", 404, "Record not found.");

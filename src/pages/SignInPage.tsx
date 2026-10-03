@@ -4,6 +4,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ArrowLeft, ArrowRight, Mail, LockKeyhole, Eye, EyeOff, AlertCircle, Loader2, ShieldCheck, Check } from "lucide-react";
 import "./signin.css";
+import pilot from "@/config/pilot";
 
 export default function SignInPage() {
   const { user, signIn } = useAuth();
@@ -14,7 +15,7 @@ export default function SignInPage() {
   const [busy, setBusy] = useState(false);
   const [prototypeNoticeOpen, setPrototypeNoticeOpen] = useState(true);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user && (pilot.internalReviewEnabled || user.role !== "aventure_reviewer")) return <Navigate to="/" replace />;
 
   async function submit(event: FormEvent) {
     event.preventDefault();

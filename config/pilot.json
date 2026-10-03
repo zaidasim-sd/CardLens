@@ -1,0 +1,7 @@
+{
+  "submissionOnlyEnabled": true,
+  "internalReviewEnabled": false,
+  "constantContactEnabled": false,
+  "historicFieldsEnabled": false,
+  "sheetPollIntervalMs": 30000
+}
