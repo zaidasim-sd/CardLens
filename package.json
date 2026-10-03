@@ -11,7 +11,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "node --import ./scripts/bootstrap-tests.mjs --test",
-    "test:pilot": "node --import ./scripts/bootstrap-tests.mjs --test server/integrations/pilotFlow.integration.test.mjs server/integrations/submissionSheet.integration.test.mjs",
+    "test:pilot": "node --import ./scripts/bootstrap-tests.mjs --test server/integrations/pilotFlow.integration.test.mjs server/integrations/submissionSheet.integration.test.mjs server/cards/recordId.integration.test.mjs",
     "test:step1": "node --test server/auth/*.test.mjs",
     "test:step2": "node --test server/cards/*.test.mjs",
     "test:step3": "node --test server/audit/*.test.mjs",

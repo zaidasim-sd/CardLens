@@ -7,6 +7,7 @@ import path from "node:path";
 import { MongoClient, ObjectId } from "mongodb";
 import { backupDatabase, restoreDatabase } from "./backup.js";
 import { encryptValue } from "../../server/security/encryption.js";
+import { allocateRecordId } from "../../server/cards/recordId.js";
 
 const marker = `${Date.now()}_${randomBytes(3).toString("hex")}`;
 const sourceName = `cs_bak_s_${marker}`;
@@ -33,6 +34,7 @@ before(async () => {
   await source.collection("users").insertOne({ _id: userId, tenantId, email: "admin@example.test", emailLower: "admin@example.test", name: "Fake Backup Admin", role: "vision71_administrator", passwordHash: "must not be backed up", createdAt: new Date() });
   await source.collection("lists").insertOne({ tenantId, key: "events", values: ["Fake Expo"] });
   await source.collection("settings").insertOne({ tenantId, key: "retentionHours", value: 24 });
+  await source.collection("settings").insertOne({ _id: "lead71_record_sequence:20261003", tenantId: "__lead71_system", key: "lead71_record_sequence:20261003", sequence: 40 });
   await source.collection("cardImages").insertOne({ tenantId, cardId: new ObjectId(), encryptedImage: "excluded" });
   await source.collection("sessions").insertOne({ tenantId, tokenHash: "excluded token" });
   await source.collection("loginAttempts").insertOne({ tenantId, outcome: "excluded" });
@@ -54,7 +56,12 @@ after(async () => {
 
 test("restore into a separate empty database matches collection counts", () => {
   assert.deepEqual(restoredCounts, backupCounts);
-  assert.deepEqual(restoredCounts, { cards: 1, users: 1, lists: 1, settings: 1 });
+  assert.deepEqual(restoredCounts, { cards: 1, users: 1, lists: 1, settings: 2 });
+});
+
+test("record ID sequence continues after restoring a backup", async () => {
+  const reference = await allocateRecordId(target, new Date("2026-10-03T12:00:00Z"));
+  assert.equal(reference.recordId, "L71-20261003-0041");
 });
 
 test("backup file contains no readable card or user text", async () => {

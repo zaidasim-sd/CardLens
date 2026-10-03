@@ -73,11 +73,12 @@ test("submission-only delivery uses row-2 headings, preserves client layout and 
     const capturer = { id: String(new ObjectId()), tenantId, role: "exhibition_assistant", name: "Demo Capturer" };
     const contact = await createCard(db, capturer, { source: "manual", verifiedData: { fullName: "Example Person", companyName: "Example Company", email: "example@fixture.test", notes: "=unsafe formula", meetingContext: { metAtLocation: "Demo Exhibition" } } }, new Date("2026-10-03T02:30:00Z"), { sheet: { gateway, env } });
     assert.equal(contact.sheetStatus, "submitted");
+    assert.match(contact.recordId, /^L71-20261002-\d{4,}$/);
     assert.equal(rows.length, 4);
     assert.deepEqual(rows[0], ["Existing merged section title"]);
     assert.deepEqual(rows[1], headings);
     assert.deepEqual(rows[2], ["Existing client note"]);
-    assert.equal(rows[3][0], contact.id);
+    assert.equal(rows[3][0], contact.recordId);
     assert.equal(rows[3][1], "Demo Exhibition");
     assert.equal(rows[3][7], "'=unsafe formula");
     assert.equal(rows[3][8], "2026-10-02");
@@ -88,9 +89,9 @@ test("submission-only delivery uses row-2 headings, preserves client layout and 
     [rows[2], rows[3]] = [rows[3], rows[2]];
     await syncContactSheet(db, contact, { gateway, env });
     assert.equal(rows.length, 4);
-    assert.equal(rows[2][0], contact.id);
+    assert.equal(rows[2][0], contact.recordId);
     assert.deepEqual(rows[3], ["Existing client note"]);
-    assert.equal(rows.filter(row => row[0] === contact.id).length, 1);
+    assert.equal(rows.filter(row => row[0] === contact.recordId).length, 1);
     assert.equal(calls.filter(call => call.url.includes(":append?")).length, 1);
     assert.equal(await db.collection("transfers").countDocuments({ tenantId, provider: "constant_contact" }), 0);
     assert.equal(await db.collection("cards").countDocuments({ tenantId, sheetWritePending: true }), 0);

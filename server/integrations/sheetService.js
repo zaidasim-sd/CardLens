@@ -44,7 +44,7 @@ export function sheetRow(card, people = {}) {
     duplicateFlag: card.duplicateReview?.state === "pending" ? `Possible duplicate — ${card.duplicateReview.reason || "review required"}` : card.duplicateReview?.state === "resolved" ? `Resolved — ${card.duplicateReview.decision}` : "No likely match found",
     transferStatus: { not_started: "Not transferred", transferred: "Transferred", failed: "Transfer failed", pending: "Pending transfer", reconciliation_required: "Transfer needs checking", existing_contact: "Existing contact preserved" }[card.transferStatus || "not_started"] || card.transferStatus,
     reviewerComment: card.reviewerComment || "",
-    recordId: card.id,
+    recordId: sheetRecordId(card),
   };
   return mapping.columns.map((column) => safeSheetValue(values[column.field]));
 }
@@ -179,6 +179,11 @@ export function createSheetGateway(env = process.env, fetcher = fetch) {
   // SUBMISSION-ONLY PILOT: existing review gateways remain below for restoration.
   if (pilot.submissionOnlyEnabled && !pilot.internalReviewEnabled) return createSubmissionSheetGateway(env, fetcher);
   return pilot.internalReviewEnabled ? createLegacySheetGateway(env, fetcher) : createPilotSheetGateway(env, fetcher);
+}
+
+export function sheetRecordId(card) {
+  // Preserve legacy Sheet references; API/database links continue using card.id.
+  return card.recordId || card.id;
 }
 
 // Uses the client's existing layout without configuring headers, formatting or status fields.
@@ -432,9 +437,9 @@ export async function refreshStatusesFromSheet(db, tenantId, options = {}) {
     const nextStatus = SHEET_TO_RECORD_STATUS.get(String(row[statusIndex] || "").trim());
     const id = String(row[idIndex] || "").trim();
     if (!nextStatus || !id) continue;
-    if (!ObjectId.isValid(id)) continue;
-    const _id = new ObjectId(id);
-    const card = await db.collection("cards").findOne({ _id, tenantId });
+    if (!ObjectId.isValid(id) && !/^L71-\d{8}-\d{4,}$/.test(id)) continue;
+    const card = await db.collection("cards").findOne({ ...(ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { recordId: id }), tenantId });
+    const _id = card?._id;
     const reviewerComment = commentIndex >= 0 ? String(row[commentIndex] || "") : "";
     if (!card || card.status === "draft" || (card.status === nextStatus && (card.reviewerComment || "") === reviewerComment)) continue;
     // PILOT: outbound changes and in-flight writes must finish before Sheet review is read.
@@ -486,8 +491,8 @@ export async function addPendingSheetRecord(db, card, options = {}) {
     const rows = await gateway.readAll();
     const idColumn = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing the Lead71 record ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
-    const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === card.id);
-    if (rows.filter((row, index) => index > 0 && String(row[idColumn] || "") === card.id).length > 1) throw Object.assign(new Error("Multiple Sheet records have the same Contact ID."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
+    const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === sheetRecordId(card));
+    if (rows.filter((row, index) => index > 0 && String(row[idColumn] || "") === sheetRecordId(card)).length > 1) throw Object.assign(new Error("Multiple Sheet records have the same Contact ID."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
     if (found > 0) {
       const values = sheetRow(card, options.people || await names(db, card));
       // PILOT: reviewer feedback is owned by Sheets, including edits since the last poll.
@@ -577,7 +582,7 @@ export async function updateSheetRecord(db, card, options = {}) {
     const rows = await gateway.readAll();
     const idColumn = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing its synchronization ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
-    const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === card.id);
+    const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === sheetRecordId(card));
     if (found < 1) return addPendingSheetRecord(db, card, { ...options, gateway });
     rowNumber = found + (gateway.headerRow || 1);
   }
@@ -596,7 +601,7 @@ export async function removeSheetRecord(db, card, options = {}) {
     const rows = await gateway.readAll();
     const idColumn = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (idColumn === undefined || idColumn < 0) throw Object.assign(new Error("The register is missing its synchronization ID column."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
-    const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === card.id);
+    const found = rows.findIndex((row, index) => index > 0 && String(row[idColumn] || "") === sheetRecordId(card));
     if (found < 1) return { skipped: true };
     rowNumber = found + (gateway.headerRow || 1);
   }

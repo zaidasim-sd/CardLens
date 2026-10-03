@@ -348,6 +348,7 @@ export default function OCRReviewModal({
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
                   {pilot.submissionOnlyEnabled ? (savedRecord.sheetStatus === "submitted" ? "Contact added to Google Sheets" : "Contact saved · delivery pending") : "Contact submitted for review"}
                 </h3>
+                {savedRecord.recordId?.startsWith("L71-") && <p className="text-xs font-medium text-[#248da3] tabular-nums">Reference: {savedRecord.recordId}</p>}
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   {pilot.submissionOnlyEnabled ? (savedRecord.sheetStatus === "submitted" ? "Your contact has been added to the connected Google Sheet, including the capture date, time, and your name." : "Your contact is safely saved in Lead71, but delivery to Google Sheets needs attention. Please contact your administrator rather than submitting another copy.") : "The contact is ready for the approved review workflow. Captured date, time, and user account have been recorded automatically."}
                 </p>

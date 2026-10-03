@@ -26,6 +26,7 @@ export interface OCRData {
 export type RecordStatus = "draft" | "submitted" | "correction_requested" | "approved" | "rejected" | "transferred";
 
 export interface ContactRecord {
+  recordId?: string;
   id: string; // uuid
   originalImage?: Blob;
   originalFileName: string;

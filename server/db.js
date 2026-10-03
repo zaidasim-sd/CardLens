@@ -34,6 +34,8 @@ export async function ensureDatabaseIndexes(db) {
     db.collection("rateLimits").createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection("rateLimits").createIndex({ key: 1 }, { unique: true }),
     db.collection("cards").createIndex({ tenantId: 1, status: 1, createdAt: -1 }),
+    db.collection("cards").createIndex({ recordId: 1 }, { unique: true, partialFilterExpression: { recordId: { $type: "string" } } }),
+    db.collection("cards").createIndex({ recordDate: 1, recordSequence: -1 }),
     db.collection("cards").createIndex({ tenantId: 1, capturedBy: 1, status: 1 }),
     db.collection("cards").createIndex({ tenantId: 1, "duplicateKeys.email": 1 }),
     db.collection("cards").createIndex({ tenantId: 1, "duplicateKeys.phones": 1 }),

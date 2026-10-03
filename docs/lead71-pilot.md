@@ -2,6 +2,16 @@
 
 ## Current scope: submission only
 
+New submissions receive a readable reference such as `L71-20261003-0001`.
+The middle part is the capture date in the Sheet's configured timezone (fixed
+GMT-4 by default); the sequence resets each day and is allocated atomically
+across the whole database. At least four digits are shown, expanding if needed.
+The counter is kept in the existing backed-up `settings` collection. MongoDB
+IDs and API URLs remain unchanged. Sheets use the readable reference to locate
+new records; retries retain that reference and do not append another row.
+Older records retain their existing Sheet IDs. Reserved numbers are not reused,
+so interrupted submissions or deleted records can leave gaps in the sequence.
+
 `config/pilot.json` now sets `submissionOnlyEnabled: true`. Capturers scan/upload
 or enter a card, check/edit OCR details and submit directly to the configured
 client Sheet. The contact remains encrypted in MongoDB for reliable delivery.

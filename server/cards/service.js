@@ -6,6 +6,7 @@ import { getRetentionHours } from "../retention/service.js";
 import { syncContactSheet, synchronizePilotSheet, refreshStatusesFromSheet, sheetFailure } from "../integrations/sheetService.js";
 import { approvalTransfer, transferApproved } from "../integrations/constantContact.js";
 import { pilot } from "../pilot.js";
+import { allocateRecordId } from "./recordId.js";
 
 export const RECORD_STATES = ["draft", "submitted", "correction_requested", "approved", "rejected", "transferred"];
 const IMAGE_LIMIT_BYTES = 500 * 1024;
@@ -67,6 +68,7 @@ export function toPublic(card) {
   }
   return {
     id: String(card._id),
+    recordId: card.recordId || String(card._id),
     tenantId: card.tenantId,
     capturedBy: String(card.capturedBy),
     capturedByName: card.capturedByName || "",
@@ -159,7 +161,10 @@ export async function createCard(db, user, input, now = new Date(), options = {}
     originalFileName: String(input.originalFileName || "card.jpg"),
     isDemo: Boolean(input.isDemo),
   };
+  const identity = pilot.submissionOnlyEnabled && !pilot.internalReviewEnabled
+    ? await allocateRecordId(db, now, options.sheet?.env || process.env) : {};
   const card = {
+    ...identity,
     tenantId: user.tenantId,
     capturedBy: new ObjectId(user.id),
     capturedByName: user.name || "Capturer",

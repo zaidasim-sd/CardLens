@@ -51,6 +51,8 @@ function Workflow() {
   const [active, setActive] = useState(0);
   const [reduced, setReduced] = useState(false);
   const [visible, setVisible] = useState(true);
+  // Pause/play control temporarily hidden; step selection keeps the animation running.
+  // const [paused, setPaused] = useState(false);
   const container = useRef<HTMLElement>(null);
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -71,6 +73,25 @@ function Workflow() {
     const timer = window.setTimeout(() => setActive(value => (value + 1) % steps.length), duration);
     return () => window.clearTimeout(timer);
   }, [active, reduced, visible]);
+  // Landing-only workspace presentation. Previous carousel/step cards below are
+  // retained for restoration; capture-page animation stays independent.
+  if (pilot.submissionOnlyEnabled) return <section id="workflow" className={`workflow-panel workflow-workspace ${!visible ? "motion-paused" : ""} ${reduced ? "motion-reduced" : ""}`} ref={container} aria-labelledby="workflow-title">
+    <div className="workspace-intro"><div><h2 id="workflow-title">A clear path from card to contact.</h2><p>Capture it. Check it. Keep it in your team’s Sheet.</p></div>{/* Pause/play button temporarily hidden for this layout.
+      <button type="button" className="workspace-motion-toggle" onClick={() => setPaused(value => !value)} aria-label={paused ? "Play workflow animation" : "Pause workflow animation"}>{paused ? <Play size={14} /> : <Pause size={14} />}</button>
+    */}</div>
+    <div className="workspace-window">
+      <div className="workspace-window-bar"><span><ScanLine size={15} /> Contact workspace</span><span className="workspace-counter">{String(active + 1).padStart(2, "0")} / 04</span></div>
+      <div className="workspace-body">
+        <div className={`workspace-source ${active === 0 ? "is-active" : ""}`}><span className="workspace-label">YOUR BUSINESS CARD</span><div className="workspace-card-preview" aria-hidden="true"><StagePreview stage={0} /></div><span className="workspace-source-caption">{active === 0 ? "Reading the card" : "Card captured"}{active > 0 && <Check size={13} />}</span></div>
+        <div className="workspace-handoff" aria-hidden="true"><ArrowRight size={20} /></div>
+        <div className="workspace-result" key={active}>
+          <div className="workspace-result-title">{active === 3 ? <FileSpreadsheet size={17} /> : active === 2 ? <PencilLine size={17} /> : active === 1 ? <Sparkles size={17} /> : <ScanLine size={17} />}<h3>{["A contact taking shape", "Details, without the typing", "A moment to make it right", "Right where your team needs it"][active]}</h3></div>
+          {active === 3 ? <div className="workspace-sheet" aria-hidden="true"><div className="workspace-sheet-bar"><FileSpreadsheet size={15} /><strong>Google Sheets</strong><span><Check size={11} /> Saved</span></div><div className="workspace-sheet-head"><span>Name</span><span>Company</span><span>Email</span></div>{[0, 1, 2].map(index => <div className={`workspace-sheet-row ${index === 0 ? "workspace-new-row" : ""}`} key={index}><i /><i /><i /></div>)}<div className="workspace-sheet-confirm"><CircleCheck size={15} />Your contact has a place.</div></div> : <div className={`workspace-details ${active === 0 ? "workspace-details-waiting" : ""}`} aria-hidden="true">{["Name", "Company", "Email", "Phone"].map((label, index) => <div className="workspace-detail" key={label} style={{ "--field-delay": `${index * 120}ms` } as CSSProperties}><span>{label}</span><i />{active === 2 && <Check size={12} />}</div>)}<div className="workspace-detail-note">{active === 0 ? "Your details will appear here." : active === 1 ? "The card does the talking. We do the typing." : "Every field stays editable before you submit."}</div></div>}
+        </div>
+      </div>
+    </div>
+    <ol className="workspace-steps" aria-label="Explore the contact workflow">{steps.map((step, index) => <li key={step.title}><button type="button" className={`${index === active ? "is-current" : ""} ${index < active ? "is-done" : ""}`} aria-current={index === active ? "step" : undefined} onClick={() => setActive(index)}><span>{index < active ? <Check size={12} /> : String(index + 1).padStart(2, "0")}</span><strong>{["Capture", "Extract", "Verify", "Save to Sheets"][index]}</strong></button></li>)}</ol>
+  </section>;
   return <section id="workflow" className={`workflow-panel workflow-carousel ${pilot.submissionOnlyEnabled ? "workflow-linear" : ""} ${!visible ? "motion-paused" : ""} ${reduced ? "motion-reduced" : ""}`} ref={container} aria-labelledby="workflow-title">
     <div className="workflow-toolbar"><h2 id="workflow-title">Every connection has a clear next step.</h2></div>
     <ol className="workflow-grid" aria-label={pilot.submissionOnlyEnabled ? "From business card to Google Sheets" : "From business card to approved contact"}>
