@@ -1,4 +1,3 @@
-const CARD_ASPECT_RATIO = 1.75;
 const MAX_OUTPUT_WIDTH = 1800;
 
 async function decodeImage(image: Blob): Promise<{
@@ -32,9 +31,36 @@ async function decodeImage(image: Blob): Promise<{
 }
 
 /**
- * Produces a compact, business-card-shaped image before OCR and storage.
- * Phone photos are expected to have the card centred in the upper-middle of
- * the capture frame, matching the camera guide shown by the app.
+ * Samples the corner pixels of the image to determine a natural background color
+ * for the padding area so cards with colored or dark backgrounds blend seamlessly.
+ */
+function getEdgePaddingColor(source: CanvasImageSource): string {
+  try {
+    const sample = document.createElement("canvas");
+    sample.width = 16;
+    sample.height = 16;
+    const ctx = sample.getContext("2d");
+    if (!ctx) return "#ffffff";
+    ctx.drawImage(source, 0, 0, 16, 16);
+    const p1 = ctx.getImageData(0, 0, 1, 1).data;
+    const p2 = ctx.getImageData(15, 0, 1, 1).data;
+    const p3 = ctx.getImageData(0, 15, 1, 1).data;
+    const p4 = ctx.getImageData(15, 15, 1, 1).data;
+    const avgR = Math.round((p1[0] + p2[0] + p3[0] + p4[0]) / 4);
+    const avgG = Math.round((p1[1] + p2[1] + p3[1] + p4[1]) / 4);
+    const avgB = Math.round((p1[2] + p2[2] + p3[2] + p4[2]) / 4);
+    if (avgR > 235 && avgG > 235 && avgB > 235) return "#ffffff";
+    return `rgb(${avgR},${avgG},${avgB})`;
+  } catch {
+    return "#ffffff";
+  }
+}
+
+/**
+ * Prepares an uploaded or scanned business card image for OCR and storage.
+ * Preserves 100% of the card without cropping away top, bottom, or sides.
+ * Adds generous extra spacing on top and bottom so text at the card edges is
+ * never clipped and Google Cloud Vision OCR achieves maximum detection accuracy.
  */
 export async function cropBusinessCardImage(
   image: Blob,
@@ -54,59 +80,35 @@ export async function cropBusinessCardImage(
     const { width, height } = decoded;
     if (!width || !height) throw new Error("Unable to read image dimensions");
 
-    const sourceAspect = width / height;
-    let cropWidth: number;
-    let cropHeight: number;
-    let cropX: number;
-    let cropY: number;
+    // Add generous extra spacing on top and bottom (and sides) so big cards
+    // and edge text are never cropped by OCR or preview containers.
+    const padY = Math.round(height * 0.08); // 8% extra spacing top and bottom
+    const padX = Math.round(width * 0.04);  // 4% extra spacing left and right
 
-    if (sourceAspect < CARD_ASPECT_RATIO) {
-      // Portrait and square phone photos: remove the table/background and
-      // favour the upper-middle area where the capture guide places the card.
-      cropWidth = width * 0.9;
-      cropHeight = cropWidth / CARD_ASPECT_RATIO;
-      if (cropHeight > height * 0.94) {
-        cropHeight = height * 0.94;
-        cropWidth = cropHeight * CARD_ASPECT_RATIO;
-      }
-      cropX = (width - cropWidth) / 2;
-      cropY = Math.min(
-        height - cropHeight,
-        Math.max(0, height * 0.45 - cropHeight / 2)
-      );
-    } else {
-      // Wide captures: retain almost the full height and centre the card.
-      cropHeight = height * 0.94;
-      cropWidth = cropHeight * CARD_ASPECT_RATIO;
-      if (cropWidth > width * 0.98) {
-        cropWidth = width * 0.98;
-        cropHeight = cropWidth / CARD_ASPECT_RATIO;
-      }
-      cropX = (width - cropWidth) / 2;
-      cropY = (height - cropHeight) / 2;
-    }
+    const totalWidth = width + padX * 2;
+    const totalHeight = height + padY * 2;
 
-    const outputScale = Math.min(1, MAX_OUTPUT_WIDTH / cropWidth);
+    const outputScale = Math.min(1, MAX_OUTPUT_WIDTH / Math.max(totalWidth, totalHeight));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(cropWidth * outputScale));
-    canvas.height = Math.max(1, Math.round(cropHeight * outputScale));
+    canvas.width = Math.max(1, Math.round(totalWidth * outputScale));
+    canvas.height = Math.max(1, Math.round(totalHeight * outputScale));
 
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("Unable to prepare image crop");
+    if (!context) throw new Error("Unable to prepare image");
+
+    // Fill background with matching edge color (or clean white)
+    context.fillStyle = getEdgePaddingColor(decoded.source);
+    context.fillRect(0, 0, canvas.width, canvas.height);
 
     context.imageSmoothingEnabled = true;
     context.imageSmoothingQuality = "high";
-    context.drawImage(
-      decoded.source,
-      cropX,
-      cropY,
-      cropWidth,
-      cropHeight,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
+
+    const drawX = Math.round(padX * outputScale);
+    const drawY = Math.round(padY * outputScale);
+    const drawW = Math.round(width * outputScale);
+    const drawH = Math.round(height * outputScale);
+
+    context.drawImage(decoded.source, drawX, drawY, drawW, drawH);
 
     const croppedBlob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(

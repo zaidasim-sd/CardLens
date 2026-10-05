@@ -143,25 +143,38 @@ function CameraModal({
     const renderedOffsetX = (videoRect.width - renderedWidth) / 2;
     const renderedOffsetY = (videoRect.height - renderedHeight) / 2;
 
-    const requestedX =
-      (frameRect.left - videoRect.left - renderedOffsetX) / coverScale;
-    const requestedY =
-      (frameRect.top - videoRect.top - renderedOffsetY) / coverScale;
-    const sourceX = Math.max(0, requestedX);
-    const sourceY = Math.max(0, requestedY);
+    const baseWidth = frameRect.width / coverScale;
+    const baseHeight = frameRect.height / coverScale;
+
+    // Generous extra spacing on top and bottom (and sides) so cards are never cropped
+    const padY = baseHeight * 0.30; // 30% extra spacing top and bottom
+    const padX = baseWidth * 0.18;  // 18% extra spacing left and right
+
+    const rawX = (frameRect.left - videoRect.left - renderedOffsetX) / coverScale - padX;
+    const rawY = (frameRect.top - videoRect.top - renderedOffsetY) / coverScale - padY;
+    const rawWidth = baseWidth + padX * 2;
+    const rawHeight = baseHeight + padY * 2;
+
+    const sourceX = Math.max(0, rawX);
+    const sourceY = Math.max(0, rawY);
     const sourceWidth = Math.min(
-      frameRect.width / coverScale,
+      rawWidth - (sourceX - rawX),
       video.videoWidth - sourceX
     );
     const sourceHeight = Math.min(
-      frameRect.height / coverScale,
+      rawHeight - (sourceY - rawY),
       video.videoHeight - sourceY
     );
 
+    const maxDimension = 1800;
+    const scale = Math.min(1, maxDimension / Math.max(sourceWidth, sourceHeight));
+
     const cap = document.createElement("canvas");
-    cap.width = Math.max(1, Math.round(sourceWidth));
-    cap.height = Math.max(1, Math.round(sourceHeight));
+    cap.width = Math.max(1, Math.round(sourceWidth * scale));
+    cap.height = Math.max(1, Math.round(sourceHeight * scale));
     const ctx = cap.getContext("2d")!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(
       video,
       sourceX,
