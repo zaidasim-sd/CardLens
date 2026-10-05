@@ -9,6 +9,7 @@ export interface SignedInUser {
   email: string;
   name: string;
   role: Role;
+  status?: string;
   expiresAt: string | null;
 }
 
@@ -17,6 +18,7 @@ interface AuthValue {
   loading: boolean;
   csrfToken: string;
   signIn: (emailOrTenantId: string, passwordOrEmail: string, optionalPassword?: string) => Promise<void>;
+  googleSignIn: (googleUser: { email?: string | null; displayName?: string | null; photoURL?: string | null }) => Promise<{ status: "active" | "pending_approval"; message?: string }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -81,14 +83,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setApiCsrfToken(body.csrfToken);
   }, []);
 
+  const googleSignIn = useCallback(async (googleUser: { email?: string | null; displayName?: string | null; photoURL?: string | null }) => {
+    const preauth = await json(await fetch("/api/auth?action=csrf", { credentials: "include" }));
+    const response = await fetch("/api/auth?action=google_auth", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": preauth.csrfToken,
+      },
+      body: JSON.stringify({
+        email: googleUser.email,
+        name: googleUser.displayName || (googleUser.email ? googleUser.email.split("@")[0] : ""),
+        photoUrl: googleUser.photoURL,
+      }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(body?.error || "Google authentication failed.");
+    }
+    if (body.status === "pending_approval") {
+      return { status: "pending_approval" as const, message: body.message };
+    }
+    setUser(body.user);
+    setCsrfToken(body.csrfToken);
+    setApiCsrfToken(body.csrfToken);
+    return { status: "active" as const };
+  }, []);
+
   const signOut = useCallback(async () => {
-    await json(await fetch("/api/auth?action=sign_out", { method: "POST", credentials: "include", headers: { "X-CSRF-Token": csrfToken } }));
-    setUser(null);
-    setCsrfToken("");
-    setApiCsrfToken("");
+    try {
+      await fetch("/api/auth?action=sign_out", {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-CSRF-Token": csrfToken },
+      });
+    } catch {
+      // Ignore network errors during sign out
+    } finally {
+      setUser(null);
+      setCsrfToken("");
+      setApiCsrfToken("");
+    }
   }, [csrfToken]);
 
-  const value = useMemo(() => ({ user, loading, csrfToken, signIn, signOut, refresh }), [user, loading, csrfToken, signIn, signOut, refresh]);
+  const value = useMemo(() => ({ user, loading, csrfToken, signIn, googleSignIn, signOut, refresh }), [user, loading, csrfToken, signIn, googleSignIn, signOut, refresh]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

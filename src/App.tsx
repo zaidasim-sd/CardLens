@@ -3,6 +3,10 @@ import AppLayout from "./components/layout/AppLayout";
 import HomePage from "./pages/HomePage";
 import VerifiedQueuePage from "./pages/VerifiedQueuePage";
 import SignInPage from "./pages/SignInPage";
+import CreateAccountPage from "./pages/CreateAccountPage";
+import VerifyOtpPage from "./pages/VerifyOtpPage";
+import PendingApprovalPage from "./pages/PendingApprovalPage";
+import ApproveUserPage from "./pages/ApproveUserPage";
 import UserAdminPage from "./pages/UserAdminPage";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
@@ -33,6 +37,10 @@ export default function App() {
           <Route index element={<HomePage />} />
         </Route>
         <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/create-account" element={<CreateAccountPage />} />
+        <Route path="/verify-otp" element={<VerifyOtpPage />} />
+        <Route path="/pending-approval" element={<PendingApprovalPage />} />
+        <Route path="/approve-user" element={<ApproveUserPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/submissions" element={<SubmissionQueueRoute />} />

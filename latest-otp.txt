@@ -1,0 +1,7 @@
+============================================================
+       [Lead71 Email Verification OTP - Nodemailer]         
+Recipient : zaidbinasim@aventureaviation.com (Zaid Bin Asim)
+OTP Code  : 789250
+Generated : 10/5/2026, 10:55:53 AM
+Valid for : 10 minutes
+============================================================

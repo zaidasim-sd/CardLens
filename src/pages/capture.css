@@ -93,3 +93,28 @@
 /* Keep a compact finish below the card-reading link; navigation clearance is
    already reserved by AppLayout, so the capture page needs no extra spacer. */
 .capture-home{padding-bottom:8px}
+
+.capture-manual-fallback {
+  margin-top: 14px;
+  text-align: center;
+}
+.capture-manual-link {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.2s, opacity 0.2s;
+}
+.capture-manual-link:hover {
+  color: #248da3;
+}
+.dark .capture-manual-link {
+  color: #94a3b8;
+}
+.dark .capture-manual-link:hover {
+  color: #38bdf8;
+}

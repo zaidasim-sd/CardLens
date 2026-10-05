@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import pilot from "@/config/pilot";
 import { createPortal } from "react-dom";
 import "./capture.css";
 import {
   Camera,
-  CirclePlay,
   Cloud,
   ArrowUpRight,
   UploadCloud,
@@ -403,39 +401,6 @@ export default function ScanPage() {
     }
   };
 
-  const handleTriggerDemoCard = async () => {
-    setScanError(null);
-
-    let demoFile: File;
-    try {
-      const res = await fetch("/demo-card.svg");
-      const blob = await res.blob();
-      demoFile = new File([blob], "demo-card.svg", { type: "image/svg+xml" });
-    } catch {
-      demoFile = new File([new Blob(["demo-card"])], "demo-card.svg", { type: "image/png" });
-    }
-
-    setSelectedFile(demoFile);
-    setPreviewUrl(SINGLE_DEMO_CARD.imagePath);
-    setIsScanning(true);
-    setScanProgress(35);
-
-    const timer = setInterval(() => {
-      setScanProgress((p) => (p < 90 ? p + 30 : p));
-    }, 200);
-
-    setTimeout(() => {
-      clearInterval(timer);
-      setScanProgress(100);
-      setIsScanning(false);
-      setOcrData(SINGLE_DEMO_CARD.preparedData);
-      setRawText(SINGLE_DEMO_CARD.rawOCRText);
-      setIsDemoMode(true);
-      setIsReviewModalOpen(true);
-      setTimeout(() => setScanProgress(0), 400);
-    }, 800);
-  };
-
   const handleManualEntry = () => {
     setScanError(null);
     const blankData: OCRData = {
@@ -491,18 +456,16 @@ export default function ScanPage() {
           <section onDrop={handleDrop} onDragOver={e => e.preventDefault()} className="capture-home">
             <div className="capture-intro">
               <h1>Capture exhibition contacts <span>quickly.</span></h1>
-              <p>Turn a business card into your next connection.<br />{pilot.submissionOnlyEnabled ? "Scan, check the details, and save directly to Google Sheets." : "Scan, review, and send for approval in a few simple steps."}</p>
+              <p>Turn a business card into your next connection.<br />Scan, check the details, and submit for review.</p>
               <div className="capture-actions">
                 <Button onClick={() => setIsCameraOpen(true)} className="capture-primary"><Camera size={18} />Scan a card</Button>
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="capture-upload"><UploadCloud size={18} />Upload a card</Button>
               </div>
-              <div className="capture-secondary-actions">
-                <button type="button" onClick={handleTriggerDemoCard}><CirclePlay size={15} strokeWidth={1.7} />Try demo</button>
-                <button type="button" onClick={handleManualEntry}><FileEdit size={14} />Enter manually</button>
+              <div className="capture-manual-fallback">
+                <button type="button" onClick={handleManualEntry} className="capture-manual-link">Card unreadable? Enter details manually.</button>
               </div>
-
             </div>
-            <ol className="capture-flow" aria-label={pilot.submissionOnlyEnabled ? "From business card to Google Sheets" : "From business card to approval"}>
+            <ol className="capture-flow" aria-label="From business card to review register">
               <li className="capture-stage">
                 <div className="capture-stage-preview capture-scan" aria-hidden="true"><div className="capture-frame"><div className="capture-mini-card"><span className="capture-card-mark capture-card-mark-skeleton" /><div className="capture-card-skeleton"><b /><span /><i /><i /></div></div><span className="capture-beam" /></div><span className="capture-preview-caption">A clear card. A fresh connection.</span></div>
                 <div className="capture-stage-heading"><span>01</span><h2>Capture</h2><Camera size={17} /></div><p>Scan or upload a card. <br />We’ll read the details for you.</p><span className="capture-connector" aria-hidden="true"><i /></span>
@@ -512,8 +475,8 @@ export default function ScanPage() {
                 <div className="capture-stage-heading"><span>02</span><h2>Review</h2><CheckSquare size={17} /></div><p>Check the extracted details. <br />Make any final edits.</p><span className="capture-connector" aria-hidden="true"><i /></span>
               </li>
               <li className="capture-stage">
-                <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>{pilot.submissionOnlyEnabled ? "Save directly to Google Sheets" : "Contact prepared for review"}</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
-                <div className="capture-stage-heading"><span>03</span><h2>{pilot.submissionOnlyEnabled ? "Save to Google Sheets" : "Send for approval"}</h2><ShieldCheck size={17} /></div><p>{pilot.submissionOnlyEnabled ? <>Submit your contact.<br />It goes straight to your connected Sheet.</> : <>Submit your contact.<br />Your reviewer takes it from here.</>}</p>
+                <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>Your contact will appear in Aventure’s review register.</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
+                <div className="capture-stage-heading"><span>03</span><h2>Submit for review</h2><ShieldCheck size={17} /></div><p>Submit your contact.<br />Your contact will appear in Aventure’s review register.</p>
               </li>
             </ol>
             <div className="capture-vision-footer"><div className="capture-vision-credit"><Cloud size={22} strokeWidth={1.7} /><span>Enhanced by <strong>Google Cloud Vision</strong></span></div><button type="button" onClick={() => setIsInfoModalOpen(true)}>How card reading works<ArrowUpRight size={14} /></button></div>

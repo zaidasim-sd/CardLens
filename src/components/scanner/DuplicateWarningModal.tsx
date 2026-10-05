@@ -118,7 +118,7 @@ export default function DuplicateWarningModal({
           {confirmSeparate ? (
             <div className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-left dark:border-slate-800 dark:bg-slate-900" role="group" aria-label="Confirm separate contact">
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                {pilot.submissionOnlyEnabled ? "Add this as a separate contact to Google Sheets? The existing contact will remain unchanged." : "Submit this possible duplicate for the Aventure reviewer to compare? The existing contact will remain unchanged. The reviewer decides whether to retain, update, keep both, or reject."}
+                {pilot.submissionOnlyEnabled ? "Submit this as a separate contact for review? The existing contact will remain unchanged in Aventure’s review register." : "Submit this possible duplicate for the Aventure reviewer to compare? The existing contact will remain unchanged. The reviewer decides whether to retain, update, keep both, or reject."}
               </p>
               <div className="flex gap-2 pt-1">
                 <Button
