@@ -1,3 +1,5 @@
+import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
@@ -46,31 +48,11 @@ export default function CreateAccountPage() {
     setBusy(true);
 
     try {
-      const res = await fetch("/api/auth?action=register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim().toLowerCase(),
-          password,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data.error || "Account registration could not be completed.");
-      }
-
-      if (data.devOtp) {
-        sessionStorage.setItem("lead71_dev_otp", data.devOtp);
-        console.log(
-          `%c[Lead71 Dev OTP] %c${data.devOtp}%c (Valid for 10m)`,
-          "background: #0f766e; color: #fff; font-weight: bold; padding: 4px 8px; border-radius: 4px;",
-          "background: #f0fdfa; color: #0f766e; font-weight: bold; font-size: 14px; padding: 3px 8px; border: 1px solid #99f6e4; border-radius: 4px; margin-left: 6px;",
-          "color: #64748b; font-size: 11px; margin-left: 6px;"
-        );
-      }
+      const credential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+      await updateProfile(credential.user, { displayName: name.trim() });
+      await sendEmailVerification(credential.user);
+      setPassword("");
+      setConfirmPassword("");
 
       // Navigate to OTP verification screen
       navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`);

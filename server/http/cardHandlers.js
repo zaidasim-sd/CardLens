@@ -1,11 +1,10 @@
 import { getDb, ensureDatabaseIndexes } from "../db.js";
 import { authenticate, verifyCsrf } from "../auth/service.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
-import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard, toPublic } from "../cards/service.js";
+import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "../cards/service.js";
 import { duplicateReviewContext, resolveDuplicate } from "../cards/duplicateReview.js";
 import { requireAction } from "../auth/permissions.js";
-import { diagnoseSheet, syncContactSheet, sheetFailure } from "../integrations/sheetService.js";
-import { pilot } from "../pilot.js";
+import { diagnoseSheet } from "../integrations/sheetService.js";
 
 function send(res, status, body) {
   return res.status(status).json(body);
@@ -23,7 +22,7 @@ async function context(req) {
 }
 
 function handleError(res, error) {
-  if (!error.status || error.status >= 500) console.error("[cardsHandler error]", error);
+  if (!error.status || error.status >= 500) console.error("[cardsHandler error]", { code: error.code || "SERVER_ERROR" });
   const body = { code: error.code || "SERVER_ERROR", error: error.status ? error.message : "The request could not be completed." };
   if (error.code === "DUPLICATE_FOUND") body.duplicate = error.duplicate;
   return send(res, error.status || 500, body);
@@ -68,18 +67,7 @@ export async function storageHealthHandler(req, res) {
     if (req.method === "POST" && req.query?.action === "sheet_retry") {
       requireAction(auth.user, "manage_users");
       verifyCsrf(auth.session, req.headers["x-csrf-token"]);
-      // SUBMISSION-ONLY PILOT: never retry old testing-Sheet jobs into the client Sheet.
-      const records = await db.collection("cards").find({ tenantId: auth.user.tenantId, sheetStatus: "failed", ...(pilot.submissionOnlyEnabled ? { sheetTarget: `${process.env.GOOGLE_SHEET_ID || process.env.GOOGLE_SHEET_TEST_ID || ""}:${process.env.GOOGLE_SHEET_TAB || "Contacts"}` } : {}), status: { $in: ["submitted", "approved", "rejected", "correction_requested", "transferred"] } }).limit(5).toArray();
-      let synced = 0;
-      for (const record of records) {
-        try {
-          const result = await syncContactSheet(db, toPublic(record));
-          if (result.skipped) throw { code: "SHEET_NOT_CONFIGURED" };
-          await db.collection("cards").updateOne({ _id: record._id, tenantId: auth.user.tenantId }, { $set: { sheetStatus: record.status }, $unset: { sheetError: "" } });
-          synced++;
-        } catch (error) { await db.collection("cards").updateOne({ _id: record._id, tenantId: auth.user.tenantId }, { $set: { sheetError: sheetFailure(error) } }); }
-      }
-      return send(res, 200, { checked: records.length, synced, failed: records.length - synced });
+      return send(res, 409, { code: "CLIENT_RETRY_REQUIRED", error: "Retry from the submission form with its original reference. MongoDB has no contacts to resend." });
     }
     if (req.query?.action === "sheet_health") {
       requireAction(auth.user, "manage_users");

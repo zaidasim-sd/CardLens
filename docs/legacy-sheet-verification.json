@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-05T06:38:50.260Z",
+  "cards": 113,
+  "matchingRows": 91,
+  "missingRows": [
+    "6abcfa100118004f693509ab",
+    "6abdff0fc13469a191795d1e",
+    "6abe00b7c13469a191795d23",
+    "6abe09298c0ebf09d1039799",
+    "6abe114a483311d1a5ccb5af",
+    "6abe3d695997bccf815a4b78",
+    "6abe41591ac43c721a9632c0",
+    "6abe41a532233de8c46c02e5",
+    "6abe43e6ce84e51c0c051eaa",
+    "6abe4aa6ee3239d6edadf0f9",
+    "6abf58547a2954f1f26212d1",
+    "6abfa2004617129bf6c482a7",
+    "6abfa58c6ad15672abee1122",
+    "6abfa58c6ad15672abee1123",
+    "6ac09ac66501d84b377a1ea3",
+    "6ac09f4d6501d84b377a1ea6",
+    "6ac0a0ce6501d84b377a1ea9",
+    "6ac0a29d9a654e8022ae6d50",
+    "6ac0a2fba8a19dd1f9fa96bd",
+    "6ac0a4fb9a654e8022ae6d53",
+    "6ac0a9e19a654e8022ae6d62"
+  ],
+  "differentRows": [],
+  "unreadable": [],
+  "differentTarget": [
+    "6ac0b76527b61f7d9f7aa452"
+  ]
+}

@@ -30,8 +30,12 @@ test("OCR refuses a request without a signed in session", async () => {
     authenticate: async () => { throw Object.assign(new Error("Please sign in"), { code: "UNAUTHENTICATED", status: 401 }); },
   });
   const res = response();
-  await handler(request(), res);
+  const req = request();
+  const image = req.body;
+  await handler(req, res);
   assert.equal(res.statusCode, 401);
+  assert.ok(image.every(byte => byte === 0));
+  assert.equal(req.body, undefined);
   assert.equal(res.payload.code, "UNAUTHENTICATED");
 });
 
@@ -67,7 +71,11 @@ test("authenticated capturer can use the single Google OCR handler", async () =>
     performOCR: async () => ({ rawText: "Fake Person\nfake@example.test", provider: "google", success: true }),
   });
   const res = response();
-  await handler(request(), res);
+  const req = request();
+  const image = req.body;
+  await handler(req, res);
   assert.equal(res.statusCode, 200);
+  assert.ok(image.every(byte => byte === 0));
+  assert.equal(req.body, undefined);
   assert.equal(res.payload.provider, "google");
 });

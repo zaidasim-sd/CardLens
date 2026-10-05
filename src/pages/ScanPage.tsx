@@ -309,6 +309,9 @@ export default function ScanPage() {
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => () => {
+    if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const processFile = async (file: File) => {
     const validTypes = ["image/jpeg", "image/png", "image/webp"];
@@ -394,6 +397,7 @@ export default function ScanPage() {
       clearInterval(interval);
       const message = error.message || OCR_FAILURE_MESSAGE;
       setScanError(message);
+      clearSelection();
       toast.error(message);
     } finally {
       setIsScanning(false);
@@ -430,6 +434,7 @@ export default function ScanPage() {
     if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setIsDemoMode(false);
+    setOcrData(null); setRawText("");
   };
 
   return (
@@ -630,7 +635,11 @@ export default function ScanPage() {
 
       <OCRReviewModal
         isOpen={isReviewModalOpen}
-        setIsOpen={setIsReviewModalOpen}
+        setIsOpen={(open) => { setIsReviewModalOpen(open); if (!open) clearSelection(); }}
+        onDiscardImage={() => {
+          if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
+          setPreviewUrl(null); setSelectedFile(null); setRawText("");
+        }}
         ocrData={ocrData}
         rawText={rawText}
         originalImage={selectedFile}
