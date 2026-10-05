@@ -3,7 +3,12 @@ import { firebaseIdentity } from "./firebaseIdentity.js";
 import { requireAction } from "./permissions.js";
 import { writeAudit } from "../audit/service.js";
 import { requirePilotRole, pilot } from "../pilot.js";
-import { sendApprovalRequestEmail, sendAccountApprovedEmail } from "../notifications/emailService.js";
+import {
+  sendApprovalRequestEmail,
+  sendAccountApprovedEmail,
+  sendAccountRejectedEmail,
+  sendPendingApprovalEmail,
+} from "../notifications/emailService.js";
 
 const SESSION_ABSOLUTE_MS = 8 * 60 * 60 * 1000;
 const SESSION_IDLE_MS = 30 * 60 * 1000;
@@ -463,6 +468,17 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
     }
   }
 
+  // Notify candidate that registration is pending approval
+  try {
+    await sendPendingApprovalEmail({
+      toEmail: emailLower,
+      name: identity.name || emailLower.split("@")[0],
+      statusUrl: `${baseUrl}/pending-approval?email=${encodeURIComponent(emailLower)}`,
+    });
+  } catch (userNoticeErr) {
+    console.warn(`[AUTH] Notice email to candidate ${emailLower} skipped:`, userNoticeErr.message);
+  }
+
   return { ok: true, email: emailLower, status: "pending_approval" };
 }
 
@@ -507,6 +523,14 @@ export async function approveUserByToken(db, { email, token: approvalToken, deci
       approvals.rejectedEmails.push(emailLower);
     }
     await saveApprovalsDoc(db, approvals);
+    try {
+      await sendAccountRejectedEmail({
+        toEmail: emailLower,
+        name: userName,
+      });
+    } catch (err) {
+      console.error(`Failed to send account rejection email to ${emailLower}:`, err.message);
+    }
     return { ok: true, status: "rejected", message: `Account request for ${userName} (${emailLower}) has been declined.` };
   }
 

@@ -53,7 +53,7 @@ export default function ApproveUserPage() {
         </Link>
       </header>
 
-      <main className="signin-main flex items-center justify-center py-12 px-4">
+      <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
         <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-2xl shadow-xl p-8 sm:p-10 text-center">
           {status === "idle" && (
             <>
@@ -194,7 +194,7 @@ export default function ApproveUserPage() {
       </main>
 
       <footer className="signin-footer">
-        © {new Date().getFullYear()} Vision71 Technologies · Aventure Aviation
+        © {new Date().getFullYear()} Vision71 Technologies
       </footer>
     </div>
   );

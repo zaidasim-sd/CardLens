@@ -1,6 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
@@ -46,23 +44,6 @@ export default function SignInPage() {
     }
   }
 
-  async function resetPassword() {
-    setBusy(true);
-    setError("");
-    try {
-      if (!email.trim()) {
-        setError("Please enter your work email address first.");
-        return;
-      }
-      await sendPasswordResetEmail(auth, email.trim());
-      setError("If an account exists for this email, a password reset link has been sent.");
-    } catch (caught: any) {
-      const formatted = formatAuthError(caught, "reset");
-      setError(formatted.message);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   function handleGoogleSuccess(result: { status: "active" | "pending_approval" | "pending_verification"; email?: string; message?: string }) {
     if (result.status === "pending_approval") {
@@ -190,7 +171,14 @@ export default function SignInPage() {
                 )}
               </button>
             </form>
-            <button type="button" className="mt-3 text-sm text-teal-700" disabled={busy} onClick={resetPassword}>Forgot password?</button>
+            <button
+              type="button"
+              className="mt-3 text-sm text-teal-700 hover:text-teal-900 transition-colors"
+              disabled={busy}
+              onClick={() => navigate(email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : "/forgot-password")}
+            >
+              Forgot password?
+            </button>
 
             <div className="mt-5 text-center text-xs text-slate-500">
               New Exhibition Assistant?{" "}
@@ -210,7 +198,7 @@ export default function SignInPage() {
       </main>
 
       <footer className="signin-footer">
-        © {new Date().getFullYear()} Vision71 Technologies · Aventure Aviation
+        © {new Date().getFullYear()} Vision71 Technologies
       </footer>
     </div>
   );
