@@ -64,9 +64,9 @@ export default function SignInPage() {
     }
   }
 
-  function handleGoogleSuccess(result: { status: "active" | "pending_approval" | "pending_verification"; message?: string }) {
+  function handleGoogleSuccess(result: { status: "active" | "pending_approval" | "pending_verification"; email?: string; message?: string }) {
     if (result.status === "pending_approval") {
-      navigate("/pending-approval");
+      navigate("/pending-approval" + (result.email ? `?email=${encodeURIComponent(result.email)}` : ""));
     } else {
       navigate("/");
     }

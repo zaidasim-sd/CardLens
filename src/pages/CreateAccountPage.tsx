@@ -63,7 +63,7 @@ export default function CreateAccountPage() {
       await refresh();
       navigate("/");
     } else if (result.status === "pending_approval") {
-      navigate("/pending-approval");
+      navigate("/pending-approval" + (result.email ? `?email=${encodeURIComponent(result.email)}` : ""));
     } else if (result.status === "pending_verification") {
       navigate(`/verify-otp?email=${encodeURIComponent(result.email || email)}`);
     }

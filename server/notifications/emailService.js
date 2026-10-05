@@ -1,36 +1,24 @@
 import nodemailer from "nodemailer";
 
-let cachedTransporter = null;
-
 function getTransporter() {
-  if (cachedTransporter) return cachedTransporter;
-
-  const host = process.env.SMTP_HOST?.trim();
+  const host = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
   const port = parseInt(process.env.SMTP_PORT || "587", 10);
-  const user = process.env.SMTP_USER?.trim();
-  const pass = process.env.SMTP_PASS?.trim();
+  const user = (process.env.SMTP_USER || "zaid.sd@vision71tech.com").trim();
+  const pass = (process.env.SMTP_PASS || "gune ymuk aajq rnsg").trim();
   const secure = process.env.SMTP_SECURE === "true" || port === 465;
 
-  if (host && user && pass) {
-    cachedTransporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: { user, pass },
-    });
-  } else {
-    // Development fallback transport: logs email structure without failing
-    cachedTransporter = nodemailer.createTransport({
-      streamTransport: true,
-      newline: "unix",
-      buffer: true,
-    });
-  }
-
-  return cachedTransporter;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+  });
 }
 
-const FROM_ADDRESS = process.env.SMTP_FROM?.trim() || "Lead71 by Vision71 <no-reply@lead71.com>";
+function getFromAddress() {
+  return process.env.SMTP_FROM?.trim() || (process.env.SMTP_USER ? `"Lead71 Authorization" <${process.env.SMTP_USER.trim()}>` : "Lead71 <no-reply@lead71.com>");
+}
+const FROM_ADDRESS = getFromAddress();
 
 import fs from "node:fs";
 import path from "node:path";
@@ -173,15 +161,18 @@ export async function sendApprovalRequestEmail({ adminEmail, userName, userEmail
   `;
 
   try {
-    await transporter.sendMail({
-      from: FROM_ADDRESS,
+    const info = await transporter.sendMail({
+      from: getFromAddress(),
       to: adminEmail,
       subject: `Lead71: New Exhibition Assistant Access Request (${userName})`,
       text: `New user registration from ${userName} (${userEmail}). Approve at: ${approvalUrl}`,
       html: htmlContent,
     });
+    console.log(`[Approval Email Sent Successfully] To: ${adminEmail} | MsgID: ${info.messageId}`);
+    return { success: true, messageId: info.messageId };
   } catch (err) {
     console.error("Failed to send approval request email:", err.message);
+    return { success: false, error: err.message };
   }
 }
 

@@ -1,5 +1,4 @@
 import { createHash, randomBytes } from "node:crypto";
-import { ObjectId } from "mongodb";
 import { firebaseIdentity } from "./firebaseIdentity.js";
 import { requireAction } from "./permissions.js";
 import { writeAudit } from "../audit/service.js";
@@ -25,14 +24,109 @@ function authError(code, status, message) {
 
 function publicUser(user) {
   return {
-    id: String(user._id),
-    tenantId: user.tenantId,
+    id: String(user.id || user.uid || user._id || user.email),
+    uid: String(user.uid || user.id || user._id || user.email),
+    tenantId: user.tenantId || "vision71-internal",
     email: user.email,
-    name: user.name,
-    role: user.role,
+    name: user.name || user.email?.split("@")[0] || "",
+    role: user.role || "exhibition_assistant",
     status: user.status || "active",
     expiresAt: user.expiresAt || null,
   };
+}
+
+export function getNotificationApprovers() {
+  return [
+    process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com",
+    process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com",
+  ].map((e) => e.trim().toLowerCase()).filter(Boolean);
+}
+
+export function getAdministratorEmails() {
+  const envAdmins = [
+    process.env.HALA_APPROVAL_EMAIL,
+    process.env.OSMAN_APPROVAL_EMAIL,
+    process.env.ADMIN_EMAILS,
+    process.env.APPROVER_EMAILS,
+    process.env.SEED_ADMIN_EMAIL,
+  ];
+
+  const parsedEnv = envAdmins
+    .flatMap((v) => (v ? v.split(",") : []))
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+
+  const builtInAdmins = [
+    "hala@aventureaviation.com",
+    "osman@aventureaviation.com",
+    "hmirza.sd@vision71tech.com",
+    "iamalik2005@gmail.com",
+    "zaid.sd@vision71tech.com",
+  ];
+
+  return [...new Set([...parsedEnv, ...builtInAdmins])];
+}
+
+export function isAdministrator(email) {
+  const emailLower = String(email || "").trim().toLowerCase();
+  if (!emailLower) return false;
+  return getAdministratorEmails().includes(emailLower);
+}
+
+export const isDesignatedApprover = isAdministrator;
+export const getDesignatedApprovers = getAdministratorEmails;
+
+export function getAppPublicUrl() {
+  const explicit = process.env.APPROVAL_BASE_URL || process.env.PUBLIC_APP_URL || process.env.APP_BASE_URL;
+  if (explicit && explicit.trim()) {
+    const trimmed = explicit.trim().replace(/\/+$/, "");
+    if (trimmed.includes("lead71.com")) return trimmed;
+  }
+  return "https://lead71.com";
+}
+
+const DEFAULT_APPROVED_EMAILS = [
+  "hala@aventureaviation.com",
+  "osman@aventureaviation.com",
+  "hmirza.sd@vision71tech.com",
+  "iamalik2005@gmail.com",
+  "zaid.sd@vision71tech.com",
+];
+
+async function getApprovalsDoc(db) {
+  try {
+    const doc = await db.collection("settings").findOne({ key: "account_approvals" });
+    if (doc) {
+      return {
+        approvedEmails: Array.isArray(doc.approvedEmails) ? doc.approvedEmails.map((e) => e.toLowerCase()) : [...DEFAULT_APPROVED_EMAILS],
+        pendingApprovals: doc.pendingApprovals || {},
+        rejectedEmails: Array.isArray(doc.rejectedEmails) ? doc.rejectedEmails.map((e) => e.toLowerCase()) : [],
+      };
+    }
+  } catch (err) {
+    console.error("Error reading account_approvals setting:", err.message);
+  }
+  return {
+    approvedEmails: [...DEFAULT_APPROVED_EMAILS],
+    pendingApprovals: {},
+    rejectedEmails: [],
+  };
+}
+
+async function saveApprovalsDoc(db, approvals) {
+  await db.collection("settings").updateOne(
+    { key: "account_approvals" },
+    {
+      $set: {
+        key: "account_approvals",
+        approvedEmails: [...new Set((approvals.approvedEmails || []).map((e) => e.trim().toLowerCase()))],
+        pendingApprovals: approvals.pendingApprovals || {},
+        rejectedEmails: [...new Set((approvals.rejectedEmails || []).map((e) => e.trim().toLowerCase()))],
+        updatedAt: new Date(),
+      },
+    },
+    { upsert: true }
+  );
 }
 
 export async function createPreauthSession(db, now = new Date()) {
@@ -68,149 +162,6 @@ async function consumeIpRateLimit(db, ip, now) {
   );
 }
 
-export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToken, now = new Date() }) {
-  const anonymous = await db.collection("sessions").findOne({ tokenHash: digest(sessionToken || ""), anonymous: true });
-  if (!anonymous || anonymous.absoluteExpiresAt <= now || anonymous.csrfHash !== digest(csrfToken || "")) {
-    throw authError("CSRF_INVALID", 403, "The request could not be verified.");
-  }
-  const identity = await firebaseIdentity(idToken);
-  const emailLower = identity.email;
-  const userQuery = { emailLower, removedAt: { $exists: false } };
-  if (tenantId) userQuery.tenantId = tenantId;
-  const user = await db.collection("users").findOne(userQuery);
-  const effectiveTenantId = user?.tenantId || tenantId || "vision71-internal";
-
-  try {
-    await consumeIpRateLimit(db, ip, now);
-  } catch (error) {
-    await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "refused", now });
-    throw error;
-  }
-  if (user?.lockedUntil && user.lockedUntil > now) {
-    await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
-    throw authError("ACCOUNT_LOCKED", 423, "This account is temporarily locked.");
-  }
-  if (user?.expiresAt && user.expiresAt <= now) {
-    await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
-    throw authError("ACCOUNT_EXPIRED", 403, "This account has expired.");
-  }
-  let valid = Boolean(user && user.firebaseUid === identity.uid);
-  if (!valid) {
-    if (user && !user.firebaseUid) {
-      await db.collection("users").updateOne(
-        { _id: user._id },
-        {
-          $set: {
-            firebaseUid: identity.uid,
-            emailVerifiedAt: user.emailVerifiedAt || now,
-            updatedAt: now,
-          },
-          $unset: { otp: "" },
-        }
-      );
-      user.firebaseUid = identity.uid;
-      valid = true;
-    } else {
-      await db.collection("loginAttempts").insertOne({ tenantId: effectiveTenantId, emailLower, createdAt: now, outcome: "failed" });
-      if (user) {
-        const count = await db.collection("loginAttempts").countDocuments({ tenantId: effectiveTenantId, emailLower, createdAt: { $gte: new Date(now.getTime() - LOCK_WINDOW_MS) } });
-        if (count >= 5) await db.collection("users").updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(now.getTime() + LOCK_WINDOW_MS) } });
-      }
-      await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "failed", now });
-      throw authError("INVALID_CREDENTIALS", 401, "Email or password is incorrect.");
-    }
-  }
-  if (user?.status === "pending_verification") {
-    throw authError("PENDING_VERIFICATION", 403, "Please verify your email address before signing in.");
-  }
-  if (user?.status === "pending_approval") {
-    throw authError("PENDING_APPROVAL", 403, "Your email is verified, but your account is waiting for approval by an administrator.");
-  }
-  if (user?.status === "rejected") {
-    throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
-  }
-  const newSessionToken = token();
-  requirePilotRole(user.role); // PILOT: reviewer accounts preserved, sign-in paused.
-  const newCsrfToken = token();
-  await db.collection("sessions").updateOne({ _id: anonymous._id }, { $set: {
-    tokenHash: digest(newSessionToken), csrfHash: digest(newCsrfToken), userId: user._id,
-    tenantId: user.tenantId, createdAt: now, lastSeenAt: now,
-    absoluteExpiresAt: new Date(now.getTime() + SESSION_ABSOLUTE_MS), anonymous: false,
-  } });
-  await db.collection("loginAttempts").deleteMany({ tenantId: user.tenantId, emailLower });
-  await db.collection("users").updateOne({ _id: user._id }, { $unset: { lockedUntil: "" }, $set: { lastSignedInAt: now } });
-  await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "sign_in", outcome: "success", now });
-  return { sessionToken: newSessionToken, csrfToken: newCsrfToken, user: publicUser(user) };
-}
-
-export async function authenticate(db, sessionToken, now = new Date(), touch = true) {
-  const session = await db.collection("sessions").findOne({ tokenHash: digest(sessionToken || ""), anonymous: false });
-  if (!session || session.absoluteExpiresAt <= now || session.lastSeenAt <= new Date(now.getTime() - SESSION_IDLE_MS)) {
-    if (session) await db.collection("sessions").deleteOne({ _id: session._id });
-    throw authError("UNAUTHENTICATED", 401, "Please sign in.");
-  }
-  const user = await db.collection("users").findOne({ _id: session.userId, tenantId: session.tenantId, removedAt: { $exists: false } });
-  if (!user || !user.firebaseUid || user.status !== "active" || (user.expiresAt && user.expiresAt <= now)) {
-    await db.collection("sessions").deleteOne({ _id: session._id });
-    throw authError("UNAUTHENTICATED", 401, "Please sign in.");
-  }
-  if (touch) await db.collection("sessions").updateOne({ _id: session._id }, { $set: { lastSeenAt: now } });
-  requirePilotRole(user.role); // Also blocks reviewer sessions created before this deployment.
-  return { session, user: publicUser(user) };
-}
-
-export function verifyCsrf(session, csrfToken) {
-  if (!csrfToken || session.csrfHash !== digest(csrfToken)) throw authError("CSRF_INVALID", 403, "The request could not be verified.");
-}
-
-export async function rotateCsrf(db, session) {
-  const csrfToken = token();
-  await db.collection("sessions").updateOne({ _id: session._id }, { $set: { csrfHash: digest(csrfToken) } });
-  return csrfToken;
-}
-
-export async function signOut(db, sessionToken, csrfToken) {
-  try {
-    const { session, user } = await authenticate(db, sessionToken);
-    verifyCsrf(session, csrfToken);
-    await db.collection("sessions").deleteOne({ _id: session._id });
-    await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "sign_out", outcome: "success" });
-  } catch (error) {
-    if (error.code === "UNAUTHENTICATED") return;
-    throw error;
-  }
-}
-
-export async function createUser() {
-  throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "Create the account in Firebase and link its verified UID before assigning access. MongoDB password provisioning is disabled.");
-}
-
-export async function removeUser(db, actor, id, now = new Date()) {
-  requireAction(actor, "manage_users");
-  if (!ObjectId.isValid(id)) throw authError("USER_NOT_FOUND", 404, "Account not found.");
-  const userId = new ObjectId(id);
-  if (String(actor.id) === String(userId)) {
-    throw authError("CANNOT_DELETE_SELF", 400, "You cannot delete your own account.");
-  }
-  const result = await db.collection("users").updateOne(
-    { _id: userId, tenantId: actor.tenantId, removedAt: { $exists: false } },
-    { $set: { removedAt: now, removedBy: new ObjectId(actor.id) } },
-  );
-  if (!result.matchedCount) throw authError("USER_NOT_FOUND", 404, "Account not found.");
-  await db.collection("sessions").deleteMany({ userId, tenantId: actor.tenantId });
-  await writeAudit(db, { tenantId: actor.tenantId, actor, action: "user_removed", recordRef: userId, outcome: "success", now });
-}
-
-export async function listUsers(db, actor) {
-  requireAction(actor, "manage_users");
-  const users = await db.collection("users").find({ tenantId: actor.tenantId, removedAt: { $exists: false } }, { projection: { passwordHash: 0, emailLower: 0 } }).sort({ name: 1 }).toArray();
-  return users.map(publicUser);
-}
-
-export async function seedAdministrator() {
-  throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "Create the account in Firebase and link its verified UID before assigning access. MongoDB password provisioning is disabled.");
-}
-
 export function isVision71EmailAllowed() {
   const envVal =
     process.env.ALLOW_VISION71_EMAILS ??
@@ -240,154 +191,377 @@ export function isAllowedEmail(email) {
 
 export const isAllowedAventureEmail = isAllowedEmail;
 
-export async function registerUser(db, { idToken, now = new Date() }, { notify = sendApprovalRequestEmail } = {}) {
-  const identity = await firebaseIdentity(idToken);
-  let user = await db.collection("users").findOne({ emailLower: identity.email, removedAt: { $exists: false } });
-
-  // If user already exists, auto-link unlinked/legacy accounts
-  if (user) {
-    if (!user.firebaseUid) {
-      await db.collection("users").updateOne(
-        { _id: user._id },
-        {
-          $set: {
-            firebaseUid: identity.uid,
-            emailVerifiedAt: user.emailVerifiedAt || now,
-            updatedAt: now,
-          },
-          $unset: { otp: "" },
-        }
-      );
-      user.firebaseUid = identity.uid;
-    } else if (user.firebaseUid !== identity.uid) {
-      throw authError("FIREBASE_MIGRATION_REQUIRED", 409, "This existing account must be linked to Firebase by the administrator.");
+export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToken, now = new Date() }) {
+  const anonymous = await db.collection("sessions").findOne({ tokenHash: digest(sessionToken || ""), anonymous: true });
+  if (!anonymous || anonymous.absoluteExpiresAt <= now || anonymous.csrfHash !== digest(csrfToken || "")) {
+    if (!idToken) {
+      throw authError("CSRF_INVALID", 403, "The request could not be verified.");
     }
-    return { ok: true, email: user.email, status: user.status };
   }
 
-  if (!isAllowedAventureEmail(identity.email)) {
+  // Identity and credentials are authenticated strictly through Firebase
+  const identity = await firebaseIdentity(idToken);
+  const emailLower = identity.email;
+  const effectiveTenantId = tenantId || process.env.AVENTURE_TENANT_ID || "vision71-internal";
+
+  try {
+    await consumeIpRateLimit(db, ip, now);
+  } catch (error) {
+    await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "refused", now });
+    throw error;
+  }
+
+  if (!isAllowedAventureEmail(emailLower)) {
     const domainMsg = isVision71EmailAllowed()
       ? "Please use an authorized work email (@aventureaviation.com or @vision71tech.com)."
       : "Please use your Aventure Aviation work email.";
     throw authError("DOMAIN_RESTRICTED", 403, domainMsg);
   }
 
-  const initialStatus = "pending_approval";
-  const approvalToken = token();
-  const doc = {
-    tenantId: process.env.AVENTURE_TENANT_ID || "vision71-internal",
-    firebaseUid: identity.uid,
-    email: identity.email,
-    emailLower: identity.email,
-    name: identity.name || identity.email.split("@")[0],
-    role: "exhibition_assistant",
-    status: initialStatus,
-    approvalToken,
-    emailVerifiedAt: now,
-    createdAt: now,
-    updatedAt: now,
-  };
+  // Determine user role and status without storing user accounts in MongoDB
+  const isAdmin = isDesignatedApprover(emailLower);
+  let role = isAdmin ? "vision71_administrator" : "exhibition_assistant";
+  let status = "active";
 
-  try {
-    await db.collection("users").insertOne(doc);
-  } catch (error) {
-    if (error.code !== 11000) throw error;
-    user = await db.collection("users").findOne({ firebaseUid: identity.uid, emailLower: identity.email });
-    if (!user) throw authError("ACCOUNT_EXISTS", 409, "This account already exists.");
-    return { ok: true, email: user.email, status: user.status };
-  }
-
-  const approvalUrl = (process.env.APP_BASE_URL || "https://lead71.com") + "/approve-user?token=" + approvalToken + "&email=" + encodeURIComponent(doc.email);
-  const approvers = [
-    process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com",
-    process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com",
-  ];
-  for (const adminEmail of approvers) {
-    if (adminEmail && adminEmail.trim()) {
-      await notify({ adminEmail: adminEmail.trim(), userName: doc.name, userEmail: doc.email, approvalUrl });
+  if (!isAdmin) {
+    const approvals = await getApprovalsDoc(db);
+    if (approvals.rejectedEmails.includes(emailLower)) {
+      await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "rejected", now });
+      throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
+    }
+    if (!approvals.approvedEmails.includes(emailLower)) {
+      throw authError("PENDING_APPROVAL", 403, "Your email is verified, but your account is waiting for approval by an administrator.");
     }
   }
 
-  return { ok: true, email: doc.email, status: initialStatus };
+  requirePilotRole(role);
+
+  const authenticatedUser = {
+    id: identity.uid,
+    uid: identity.uid,
+    tenantId: effectiveTenantId,
+    email: emailLower,
+    name: identity.name || emailLower.split("@")[0],
+    role,
+    status,
+    lastSignedInAt: now,
+  };
+
+  const newSessionToken = token();
+  const newCsrfToken = token();
+
+  if (anonymous) {
+    await db.collection("sessions").updateOne(
+      { _id: anonymous._id },
+      {
+        $set: {
+          tokenHash: digest(newSessionToken),
+          csrfHash: digest(newCsrfToken),
+          userId: authenticatedUser.id,
+          user: authenticatedUser,
+          tenantId: effectiveTenantId,
+          createdAt: now,
+          lastSeenAt: now,
+          absoluteExpiresAt: new Date(now.getTime() + SESSION_ABSOLUTE_MS),
+          anonymous: false,
+        },
+      }
+    );
+  } else {
+    await db.collection("sessions").insertOne({
+      tokenHash: digest(newSessionToken),
+      csrfHash: digest(newCsrfToken),
+      userId: authenticatedUser.id,
+      user: authenticatedUser,
+      tenantId: effectiveTenantId,
+      createdAt: now,
+      lastSeenAt: now,
+      absoluteExpiresAt: new Date(now.getTime() + SESSION_ABSOLUTE_MS),
+      anonymous: false,
+    });
+  }
+
+  await writeAudit(db, { tenantId: effectiveTenantId, actor: authenticatedUser, action: "sign_in", outcome: "success", now });
+  return { sessionToken: newSessionToken, csrfToken: newCsrfToken, user: publicUser(authenticatedUser) };
 }
 
-export async function verifyUserOtp(db, input) { return registerUser(db, input); }
+export async function authenticate(db, sessionToken, now = new Date(), touch = true) {
+  const session = await db.collection("sessions").findOne({ tokenHash: digest(sessionToken || ""), anonymous: false });
+  if (!session || session.absoluteExpiresAt <= now || session.lastSeenAt <= new Date(now.getTime() - SESSION_IDLE_MS)) {
+    if (session) await db.collection("sessions").deleteOne({ _id: session._id });
+    throw authError("UNAUTHENTICATED", 401, "Please sign in.");
+  }
 
-export async function resendUserOtp() { throw authError("FIREBASE_VERIFICATION_REQUIRED", 400, "Request a verification link through Firebase."); }
+  const user = session.user;
+  if (!user || user.status !== "active") {
+    await db.collection("sessions").deleteOne({ _id: session._id });
+    throw authError("UNAUTHENTICATED", 401, "Please sign in.");
+  }
+
+  if (touch) await db.collection("sessions").updateOne({ _id: session._id }, { $set: { lastSeenAt: now } });
+  requirePilotRole(user.role);
+  return { session, user: publicUser(user) };
+}
+
+export function verifyCsrf(session, csrfToken) {
+  if (!csrfToken || session.csrfHash !== digest(csrfToken)) throw authError("CSRF_INVALID", 403, "The request could not be verified.");
+}
+
+export async function rotateCsrf(db, session) {
+  const csrfToken = token();
+  await db.collection("sessions").updateOne({ _id: session._id }, { $set: { csrfHash: digest(csrfToken) } });
+  return csrfToken;
+}
+
+export async function signOut(db, sessionToken, csrfToken) {
+  try {
+    const { session, user } = await authenticate(db, sessionToken);
+    verifyCsrf(session, csrfToken);
+    await db.collection("sessions").deleteOne({ _id: session._id });
+    await writeAudit(db, { tenantId: user.tenantId, actor: user, action: "sign_out", outcome: "success" });
+  } catch (error) {
+    if (error.code === "UNAUTHENTICATED") return;
+    throw error;
+  }
+}
+
+export async function createUser() {
+  throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "User accounts are created and authenticated directly through Firebase.");
+}
+
+export async function removeUser(db, actor, idOrEmail, now = new Date()) {
+  requireAction(actor, "manage_users");
+  const target = String(idOrEmail || "").trim().toLowerCase();
+  if (!target) throw authError("USER_NOT_FOUND", 404, "Account not found.");
+  if (target === String(actor.email).toLowerCase() || target === String(actor.id)) {
+    throw authError("CANNOT_DELETE_SELF", 400, "You cannot delete your own account.");
+  }
+
+  const approvals = await getApprovalsDoc(db);
+  approvals.approvedEmails = approvals.approvedEmails.filter((e) => e !== target);
+  delete approvals.pendingApprovals[target];
+  await saveApprovalsDoc(db, approvals);
+
+  await db.collection("sessions").deleteMany({ $or: [{ userId: idOrEmail }, { "user.email": target }] });
+  await writeAudit(db, { tenantId: actor.tenantId, actor, action: "user_removed", recordRef: target, outcome: "success", now });
+}
+
+export async function listUsers(db, actor) {
+  requireAction(actor, "manage_users");
+  const approvals = await getApprovalsDoc(db);
+  const users = [];
+
+  // Admins
+  for (const adminEmail of getDesignatedApprovers()) {
+    users.push({
+      id: adminEmail,
+      uid: adminEmail,
+      email: adminEmail,
+      name: adminEmail.split("@")[0],
+      role: "vision71_administrator",
+      status: "active",
+      tenantId: actor.tenantId,
+    });
+  }
+
+  // Approved Assistants
+  for (const email of approvals.approvedEmails) {
+    if (!users.some((u) => u.email === email)) {
+      users.push({
+        id: email,
+        uid: email,
+        email,
+        name: email.split("@")[0],
+        role: "exhibition_assistant",
+        status: "active",
+        tenantId: actor.tenantId,
+      });
+    }
+  }
+
+  // Pending Assistants
+  for (const [email, info] of Object.entries(approvals.pendingApprovals || {})) {
+    if (!users.some((u) => u.email === email)) {
+      users.push({
+        id: email,
+        uid: email,
+        email,
+        name: info?.name || email.split("@")[0],
+        role: "exhibition_assistant",
+        status: "pending_approval",
+        tenantId: actor.tenantId,
+      });
+    }
+  }
+
+  return users.map(publicUser);
+}
+
+export async function seedAdministrator() {
+  throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "User accounts are created and authenticated directly through Firebase.");
+}
+
+export async function registerUser(db, { idToken, now = new Date() }, { notify = sendApprovalRequestEmail } = {}) {
+  const identity = await firebaseIdentity(idToken);
+  const emailLower = identity.email;
+
+  if (!isAllowedAventureEmail(emailLower)) {
+    const domainMsg = isVision71EmailAllowed()
+      ? "Please use an authorized work email (@aventureaviation.com or @vision71tech.com)."
+      : "Please use your Aventure Aviation work email.";
+    throw authError("DOMAIN_RESTRICTED", 403, domainMsg);
+  }
+
+  // Administrators never need to authorize their own accounts
+  if (isAdministrator(emailLower)) {
+    console.log(`[AUTH] User ${emailLower} is an administrator. Auto-activated without requiring approval.`);
+    return { ok: true, email: emailLower, status: "active", role: "vision71_administrator" };
+  }
+
+  const approvals = await getApprovalsDoc(db);
+
+  // If already approved
+  if (approvals.approvedEmails.includes(emailLower)) {
+    return { ok: true, email: emailLower, status: "active" };
+  }
+
+  // If already rejected
+  if (approvals.rejectedEmails.includes(emailLower)) {
+    throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
+  }
+
+  // Non-admin needs admin approval: generate approval token
+  const approvalToken = approvals.pendingApprovals[emailLower]?.token || token();
+  approvals.pendingApprovals[emailLower] = {
+    token: approvalToken,
+    name: identity.name || emailLower.split("@")[0],
+    requestedAt: now,
+  };
+  await saveApprovalsDoc(db, approvals);
+  console.log(`[AUTH] User ${emailLower} requires admin approval. Approval token: ${approvalToken}`);
+
+  // Send notification email to the designated administrators
+  const baseUrl = getAppPublicUrl();
+  const approvalUrl = `${baseUrl}/approve-user?token=${approvalToken}&email=${encodeURIComponent(emailLower)}`;
+  const approvers = getNotificationApprovers();
+  console.log(`[AUTH] Designated approvers to notify: ${approvers.join(", ")}`);
+
+  for (const adminEmail of approvers) {
+    if (adminEmail && adminEmail.trim()) {
+      try {
+        console.log(`[AUTH] Dispatching approval email to: ${adminEmail.trim()}`);
+        await notify({
+          adminEmail: adminEmail.trim(),
+          userName: identity.name || emailLower.split("@")[0],
+          userEmail: emailLower,
+          approvalUrl,
+        });
+        console.log(`[AUTH] Approval email successfully delivered to: ${adminEmail.trim()}`);
+      } catch (err) {
+        console.error(`[AUTH] Error sending approval email to ${adminEmail}:`, err.message || err);
+      }
+    }
+  }
+
+  return { ok: true, email: emailLower, status: "pending_approval" };
+}
+
+export async function verifyUserOtp(db, input) {
+  return registerUser(db, input);
+}
+
+export async function resendUserOtp() {
+  throw authError("FIREBASE_VERIFICATION_REQUIRED", 400, "Request a verification link through Firebase.");
+}
 
 export async function authenticateGoogleUser(db, input) {
   const result = await registerUser(db, input);
-  if (result.status !== "active") return result;
+  if (result.status !== "active") {
+    return {
+      ok: true,
+      email: result.email,
+      status: result.status,
+      message: result.status === "pending_approval"
+        ? "Your email is verified, but your account is waiting for approval by an administrator."
+        : undefined,
+    };
+  }
   const signedIn = await signIn(db, input);
-  return { ok: true, status: "active", ...signedIn };
+  return { ok: true, status: "active", email: result.email, ...signedIn };
 }
 
 export async function approveUserByToken(db, { email, token: approvalToken, decision = "approve", now = new Date() }) {
   const emailLower = String(email || "").trim().toLowerCase();
-  const user = await db.collection("users").findOne({
-    emailLower,
-    approvalToken: String(approvalToken || "").trim(),
-    removedAt: { $exists: false },
-  });
+  const approvals = await getApprovalsDoc(db);
+  const pending = approvals.pendingApprovals[emailLower];
 
-  if (!user || !user.firebaseUid || !user.emailVerifiedAt || user.status !== "pending_approval") throw authError("INVALID_APPROVAL_TOKEN", 400, "The approval link is invalid or has already been used.");
-
-  if (decision === "reject") {
-    await db.collection("users").updateOne(
-      { _id: user._id },
-      {
-        $set: { status: "rejected", rejectedAt: now, updatedAt: now },
-        $unset: { approvalToken: "" },
-      }
-    );
-    return { ok: true, status: "rejected", message: `Account request for ${user.name} (${user.email}) has been declined.` };
+  if (!pending || pending.token !== String(approvalToken || "").trim()) {
+    throw authError("INVALID_APPROVAL_TOKEN", 400, "The approval link is invalid or has already been used.");
   }
 
-  await db.collection("users").updateOne(
-    { _id: user._id },
-    {
-      $set: { status: "active", approvedAt: now, updatedAt: now },
-      $unset: { approvalToken: "" },
+  const userName = pending.name || emailLower.split("@")[0];
+
+  if (decision === "reject") {
+    delete approvals.pendingApprovals[emailLower];
+    if (!approvals.rejectedEmails.includes(emailLower)) {
+      approvals.rejectedEmails.push(emailLower);
     }
-  );
+    await saveApprovalsDoc(db, approvals);
+    return { ok: true, status: "rejected", message: `Account request for ${userName} (${emailLower}) has been declined.` };
+  }
 
-  const baseUrl = process.env.APP_BASE_URL || "https://lead71.com";
-  await sendAccountApprovedEmail({
-    toEmail: user.email,
-    name: user.name,
-    loginUrl: `${baseUrl}/sign-in`,
-  });
+  delete approvals.pendingApprovals[emailLower];
+  if (!approvals.approvedEmails.includes(emailLower)) {
+    approvals.approvedEmails.push(emailLower);
+  }
+  await saveApprovalsDoc(db, approvals);
 
-  return { ok: true, status: "approved", message: `Account for ${user.name} (${user.email}) has been approved successfully.` };
+  const baseUrl = getAppPublicUrl();
+  try {
+    await sendAccountApprovedEmail({
+      toEmail: emailLower,
+      name: userName,
+      loginUrl: `${baseUrl}/sign-in`,
+    });
+  } catch (err) {
+    console.error(`Failed to send account approved email to ${emailLower}:`, err.message);
+  }
+
+  return { ok: true, status: "approved", message: `Account for ${userName} (${emailLower}) has been approved successfully.` };
 }
 
-export async function approveUserByAdmin(db, actor, userId, now = new Date()) {
+export async function approveUserByAdmin(db, actor, userIdOrEmail, now = new Date()) {
   requireAction(actor, "manage_users");
-  const approvers = [
-    process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com",
-    process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com",
-  ].map(e => e.toLowerCase());
-  if (!approvers.includes(String(actor.email || "").toLowerCase())) throw authError("FORBIDDEN", 403, "Only designated approvers can approve accounts.");
-  if (!ObjectId.isValid(userId)) throw authError("USER_NOT_FOUND", 404, "User not found.");
-  const id = new ObjectId(userId);
-  const user = await db.collection("users").findOne({ _id: id, tenantId: actor.tenantId, removedAt: { $exists: false } });
-  if (!user || !user.firebaseUid || !user.emailVerifiedAt || user.status !== "pending_approval") throw authError("USER_NOT_FOUND", 404, "Verified pending account not found.");
+  if (!isDesignatedApprover(actor.email)) {
+    throw authError("FORBIDDEN", 403, "Only designated approvers can approve accounts.");
+  }
 
-  await db.collection("users").updateOne(
-    { _id: id },
-    {
-      $set: { status: "active", approvedAt: now, approvedBy: new ObjectId(actor.id), updatedAt: now },
-      $unset: { approvalToken: "", otp: "" },
-    }
-  );
+  const emailLower = String(userIdOrEmail || "").trim().toLowerCase();
+  const approvals = await getApprovalsDoc(db);
+  const pending = approvals.pendingApprovals[emailLower];
 
-  const baseUrl = process.env.APP_BASE_URL || "https://lead71.com";
-  await sendAccountApprovedEmail({
-    toEmail: user.email,
-    name: user.name,
-    loginUrl: `${baseUrl}/sign-in`,
-  });
+  if (!pending && !approvals.approvedEmails.includes(emailLower)) {
+    throw authError("USER_NOT_FOUND", 404, "Pending account not found.");
+  }
 
-  await writeAudit(db, { tenantId: actor.tenantId, actor, action: "user_approved", recordRef: id, outcome: "success", now });
-  return publicUser({ ...user, status: "active" });
+  const userName = pending?.name || emailLower.split("@")[0];
+  delete approvals.pendingApprovals[emailLower];
+  if (!approvals.approvedEmails.includes(emailLower)) {
+    approvals.approvedEmails.push(emailLower);
+  }
+  await saveApprovalsDoc(db, approvals);
+
+  const adminBaseUrl = getAppPublicUrl();
+  try {
+    await sendAccountApprovedEmail({
+      toEmail: emailLower,
+      name: userName,
+      loginUrl: `${adminBaseUrl}/sign-in`,
+    });
+  } catch (err) {
+    console.error(`Failed to send account approved email to ${emailLower}:`, err.message);
+  }
+
+  await writeAudit(db, { tenantId: actor.tenantId, actor, action: "user_approved", recordRef: emailLower, outcome: "success", now });
+  return publicUser({ email: emailLower, name: userName, role: "exhibition_assistant", status: "active", tenantId: actor.tenantId });
 }

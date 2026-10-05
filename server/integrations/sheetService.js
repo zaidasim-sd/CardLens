@@ -477,10 +477,7 @@ export async function refreshStatusesFromSheet(db, tenantId, options = {}) {
 }
 
 async function names(db, card) {
-  const ids = [card.capturedBy, card.reviewedBy].filter(Boolean).map((id) => typeof id === "string" ? id : String(id));
-  const users = ids.length ? await db.collection("users").find({ tenantId: card.tenantId, $expr: { $in: [{ $toString: "$_id" }, ids] } }, { projection: { name: 1 } }).toArray() : [];
-  const byId = new Map(users.map((user) => [String(user._id), user.name]));
-  return { capturedByName: byId.get(String(card.capturedBy)) || "", reviewedByName: byId.get(String(card.reviewedBy)) || "" };
+  return { capturedByName: card.capturedByName || "", reviewedByName: card.reviewedByName || "" };
 }
 
 export async function addPendingSheetRecord(db, card, options = {}) {
