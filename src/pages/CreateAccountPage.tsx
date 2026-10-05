@@ -85,7 +85,7 @@ export default function CreateAccountPage() {
               <span>Deliver with confidence.</span>
             </h2>
             <p className="text-sm text-slate-500 mt-3 max-w-sm leading-relaxed">
-              Authorized onboarding for Aventure Aviation exhibition personnel. Scan cards, verify details, and submit contacts straight to the review register.
+              Authorized onboarding for exhibition personnel. Scan cards, verify details, and submit contacts straight to the review register.
             </p>
           </div>
         </aside>

@@ -17,7 +17,7 @@ const previousSteps = [
   { title: "Transferred", description: "A clear, confirmed finish." },
 ];
 const steps = pilot.submissionOnlyEnabled
-  ? [...previousSteps.slice(0, 3), { title: "Submit for review", description: "Your contact will appear in Aventure’s review register." }]
+  ? [...previousSteps.slice(0, 3), { title: "Submit for review", description: "Your contact will appear in the review register." }]
   : previousSteps;
 const stageDuration = 3000;
 const endOfFlowHold = 2000;
@@ -40,7 +40,7 @@ function StagePreview({ stage }: { stage: number }) {
   if (stage === 1) return <div className="extract-preview"><div className="preview-heading"><Sparkles size={13} /><span>Extracted details</span></div><SkeletonFields /><span className="tiny-status"><span /> OCR extraction</span></div>;
   if (stage === 2) return <div className="verify-preview"><div className="preview-heading"><PencilLine size={13} /><span>Verify details</span></div><SkeletonFields form /><div className="preview-save">Submit for review <ArrowRight size={10} /></div></div>;
   // Submission-only pilot: one destination; portal and transfer previews below stay restorable.
-  if (stage === 3 && pilot.submissionOnlyEnabled) return <div className="sheet-only-preview"><span className="sheet-only-icon"><FileSpreadsheet size={32} strokeWidth={1.5} /></span><strong>Review Register</strong><span>Your contact will appear in Aventure’s review register</span><span className="sheet-only-status"><Check size={12} /> Submitted for review</span></div>;
+  if (stage === 3 && pilot.submissionOnlyEnabled) return <div className="sheet-only-preview"><span className="sheet-only-icon"><FileSpreadsheet size={32} strokeWidth={1.5} /></span><strong>Review Register</strong><span>Your contact will appear in the review register</span><span className="sheet-only-status"><Check size={12} /> Submitted for review</span></div>;
   if (stage === 3) return <div className="split-preview"><div className="split-branch" /><div className="destination sheet-destination"><span className="destination-icon"><FileSpreadsheet size={17} /></span><div><strong>Google Sheet</strong><span>Record saved</span></div><Check size={12} className="destination-check" /></div><div className="destination portal-destination"><span className="destination-icon"><UsersRound size={17} /></span><div><strong>Reviewer Portal</strong><span>Awaiting review</span></div><Check size={12} className="destination-check" /></div></div>;
   if (stage === 4) return <div className="approval-preview"><span className="approval-avatar"><ShieldCheck size={22} /></span><div className="approval-lines"><i /><i /></div><div className="approval-stamp"><CircleCheck size={12} /> Approved</div><span className="approval-footnote">Reviewed by your team</span></div>;
   if (stage === 5) return <div className="contact-preview"><span className="contact-symbol"><span /><i /></span><strong>Constant Contact</strong><div className="outgoing-card"><span /><span /><span /></div><span className="tiny-status"><span /> Approved record only</span></div>;
@@ -100,7 +100,7 @@ function Workflow() {
         const slot = ((index - active + steps.length + half) % steps.length) - half;
         return <li key={step.title} style={{ "--slot": slot, "--depth": Math.abs(slot), zIndex: 7 - Math.abs(slot) } as CSSProperties} className={`workflow-node ${index === active && !reduced ? "is-active" : ""} ${index < active || reduced ? "is-complete" : ""} ${index === 3 ? "split-node" : ""}`}>
         <div className="node-heading"><span className="step-number">{index < active || reduced ? <Check size={11} /> : String(index + 1).padStart(2, "0")}</span><div><h3>{step.title}</h3><p>{step.description}</p></div></div>
-        {index === 3 && <span className="sr-only">Your contact will appear in Aventure’s review register.</span>}
+        {index === 3 && <span className="sr-only">Your contact will appear in the review register.</span>}
         <div className="node-preview" aria-hidden="true"><StagePreview stage={index} /></div>
       </li>;
       })}
@@ -118,7 +118,7 @@ export default function LandingPage() {
     <main id="main-content">
       <section className="landing-hero" aria-labelledby="hero-title"><h1 id="hero-title">A business card.<br />A better <span>next step.</span></h1><p className="hero-description">Turn the cards you collect into contacts you can trust.<br className="desktop-break" /> Scan, check the details, and submit for review.</p><div className="hero-actions"><Link to="/sign-in" className="landing-primary">Start capturing <ArrowRight size={16} /></Link><a href="#workflow" className="landing-secondary" onClick={restartWorkflow}>See the workflow <ArrowDown size={15} /></a></div></section>
       <div className="landing-content"><Workflow key={workflowRun} />
-        <section id="features" className="landing-features" aria-label="Why Lead71"><div><span className="feature-icon"><ScanLine size={20} /></span><h2>Capture without the typing.</h2><p>OCR extracts the details. You add context and check what matters.</p></div><div><span className="feature-icon"><UsersRound size={20} /></span><h2>{pilot.submissionOnlyEnabled ? "Check before you save." : "A second set of eyes."}</h2><p>{pilot.submissionOnlyEnabled ? "Edit the extracted details and check possible duplicates before submitting." : "Compare possible duplicates and let your reviewer decide what stays."}</p></div><div><span className="feature-icon"><ShieldCheck size={20} /></span><h2>Confidence in every handoff.</h2><p>Encrypted records in Lead71, with contacts submitted directly to Aventure’s review register.</p></div></section>
+        <section id="features" className="landing-features" aria-label="Why Lead71"><div><span className="feature-icon"><ScanLine size={20} /></span><h2>Capture without the typing.</h2><p>OCR extracts the details. You add context and check what matters.</p></div><div><span className="feature-icon"><UsersRound size={20} /></span><h2>{pilot.submissionOnlyEnabled ? "Check before you save." : "A second set of eyes."}</h2><p>{pilot.submissionOnlyEnabled ? "Edit the extracted details and check possible duplicates before submitting." : "Compare possible duplicates and let your reviewer decide what stays."}</p></div><div><span className="feature-icon"><ShieldCheck size={20} /></span><h2>Confidence in every handoff.</h2><p>Encrypted records in Lead71, with contacts submitted directly to the review register.</p></div></section>
         <section className="landing-final" aria-labelledby="final-title"><div><span className="final-eyebrow">FROM THE FIRST SCAN TO THE FINAL HANDOFF</span><h2 id="final-title">Keep the connection.<br className="mobile-break" /> Lose the busywork.</h2></div><Link to="/sign-in" className="landing-primary">Open Lead71 <ArrowRight size={16} /></Link></section>
       </div>
     </main><SiteFooter />

@@ -58,7 +58,7 @@ const roleOptions: RoleOption[] = [
   {
     value: "aventure_reviewer",
     label: "Reviewer",
-    badgeLabel: "Aventure Reviewer",
+    badgeLabel: "Reviewer",
     description: "Reviews submitted cards and requests corrections in the queue",
     icon: ListChecks,
     badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",

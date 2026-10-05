@@ -48,10 +48,12 @@ export function getFriendlyErrorMessage(status?: number, code?: string, serverMe
     return "The requested record was not found.";
   }
   if (status === 409) {
-    return "A conflicting contact already exists.";
+    return serverMessage && typeof serverMessage === "string" && serverMessage.trim()
+      ? serverMessage
+      : "This contact is currently being processed or already exists. Please retry shortly.";
   }
   if (status === 413) {
-    return "Image file is too large. Please use a file under 2 MB.";
+    return "Image file is too large. Please use a file under 20 MB.";
   }
   if (status === 415) {
     return "Unsupported image format. Please upload a JPG, PNG, or WEBP photo.";

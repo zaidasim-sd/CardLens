@@ -33,12 +33,13 @@ export function getTransporter() {
 }
 
 export function getFromAddress() {
-  return (
-    process.env.SMTP_FROM?.trim() ||
-    (process.env.SMTP_USER
-      ? `"Lead71 by Vision71" <${process.env.SMTP_USER.trim()}>`
-      : '"Lead71 by Vision71" <zaid.sd@vision71tech.com>')
-  );
+  const fromEnv = process.env.SMTP_FROM?.trim();
+  const user = process.env.SMTP_USER?.trim() || "zaid.sd@vision71tech.com";
+  if (fromEnv) {
+    if (fromEnv.includes("<") && fromEnv.includes(">")) return fromEnv;
+    return `"${fromEnv.replace(/"/g, "")}" <${user}>`;
+  }
+  return `"Lead71 by Vision71" <${user}>`;
 }
 
 export function getReplyToAddress() {
@@ -83,7 +84,7 @@ export async function sendLead71Email({ to, subject, html, text }) {
 /**
  * Unified Lead71 Email Design System Layout
  * Ensures all authentication and transactional emails share a consistent,
- * professional visual identity aligned with Lead71 and Aventure Aviation.
+ * professional visual identity aligned with the Lead71 platform.
  */
 function renderLead71Layout({
   title,
@@ -149,7 +150,7 @@ function renderLead71Layout({
                 <img src="${logoUrl}" alt="Lead71 by Vision71" width="144" height="48" style="display: block; border: 0; margin: 0 auto 6px auto; max-width: 144px; height: auto;" />
               </a>
               <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #64748b; margin-top: 4px;">
-                Exhibition Platform · Aventure Aviation
+                Exhibition Capture Platform
               </div>
             </td>
           </tr>
@@ -211,7 +212,7 @@ function renderLead71Layout({
           <tr>
             <td style="padding: 28px 24px 0; text-align: center; font-size: 12px; line-height: 20px; color: #94a3b8;">
               <p style="margin: 0 0 6px 0; font-weight: 500; color: #64748b;">
-                Lead71 by Vision71 · Developed for Aventure Aviation
+                Lead71 by Vision71 · Exhibition Platform
               </p>
               <p style="margin: 0 0 8px 0; font-size: 11px;">
                 Secure Exhibition Card Capture &amp; Onboarding System
@@ -236,7 +237,7 @@ function renderLead71Layout({
 // ============================================================================
 // 1. EMAIL VERIFICATION / OTP TEMPLATE
 // ============================================================================
-export async function sendOtpEmail({ toEmail, otpCode, name = "Aventure Team Member" }) {
+export async function sendOtpEmail({ toEmail, otpCode, name = "Team Member" }) {
   console.log("\n============================================================");
   console.log("       [Lead71 Email Verification OTP - Nodemailer]         ");
   console.log(`Recipient : ${toEmail} (${name})`);
@@ -286,7 +287,7 @@ export async function sendOtpEmail({ toEmail, otpCode, name = "Aventure Team Mem
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\nYour Lead71 verification code is: ${otpCode}\n\nThis code expires in 10 minutes.\n\nOnce verified, your account request will be submitted to administrators for authorization.\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `Hello ${name},\n\nYour Lead71 verification code is: ${otpCode}\n\nThis code expires in 10 minutes.\n\nOnce verified, your account request will be submitted to administrators for authorization.\n\nLead71 by Vision71`;
 
   try {
     const res = await sendLead71Email({
@@ -356,11 +357,11 @@ export async function sendApprovalRequestEmail({ adminEmail, userName, userEmail
     bodyHtml,
     ctaText: "Review Access Request",
     ctaUrl: approvalUrl,
-    footerNote: "This authorization request is restricted to designated administrators for Aventure Aviation.",
+    footerNote: "This authorization request is restricted to designated administrators.",
     baseUrl,
   });
 
-  const text = `New Exhibition Assistant Access Request\n\nCandidate: ${userName}\nEmail: ${userEmail}\nRole: Exhibition Assistant\nEvent: Aero-Engines Americas 2026\n\nPlease review and authorize access at:\n${approvalUrl}\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `New Exhibition Assistant Access Request\n\nCandidate: ${userName}\nEmail: ${userEmail}\nRole: Exhibition Assistant\nEvent: Aero-Engines Americas 2026\n\nPlease review and authorize access at:\n${approvalUrl}\n\nLead71 by Vision71`;
 
   try {
     const info = await sendLead71Email({
@@ -393,7 +394,7 @@ export async function sendAccountApprovedEmail({ toEmail, name, loginUrl }) {
   const bodyHtml = `
     <p style="margin: 0 0 16px 0;">Hello <strong>${escapeHtml(name)}</strong>,</p>
     <p style="margin: 0 0 16px 0;">
-      Your Lead71 Exhibition Assistant account has been approved by Aventure Aviation administrators.
+      Your Lead71 Exhibition Assistant account has been approved by administrators.
     </p>
     <p style="margin: 0 0 20px 0;">
       Your workspace is now active. You can sign in to begin capturing business cards, running OCR recognition, and submitting contacts directly to the review register.
@@ -421,7 +422,7 @@ export async function sendAccountApprovedEmail({ toEmail, name, loginUrl }) {
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\nYour Lead71 Exhibition Assistant account has been approved by Aventure Aviation.\n\nYou can sign in at: ${effectiveLoginUrl}\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `Hello ${name},\n\nYour Lead71 Exhibition Assistant account has been approved.\n\nYou can sign in at: ${effectiveLoginUrl}\n\nLead71 by Vision71`;
 
   try {
     const res = await sendLead71Email({
@@ -473,7 +474,7 @@ export async function sendAccountRejectedEmail({ toEmail, name, reason = "" }) {
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\nThank you for registering for Lead71. At this time, your request for Exhibition Assistant access could not be approved.\n\nIf you believe this is in error, contact support at ${supportEmail}.\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `Hello ${name},\n\nThank you for registering for Lead71. At this time, your request for Exhibition Assistant access could not be approved.\n\nIf you believe this is in error, contact support at ${supportEmail}.\n\nLead71 by Vision71`;
 
   try {
     return await sendLead71Email({
@@ -501,7 +502,7 @@ export async function sendPendingApprovalEmail({ toEmail, name, statusUrl }) {
       Your work email address has been verified successfully.
     </p>
     <p style="margin: 0 0 16px 0;">
-      Your account registration has been placed in <strong>Pending Approval</strong> and queued for authorization by Aventure Aviation administrators (Hala and Osman).
+      Your account registration has been placed in <strong>Pending Approval</strong> and queued for authorization by designated administrators.
     </p>
 
     <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; margin: 20px 0;">
@@ -528,7 +529,7 @@ export async function sendPendingApprovalEmail({ toEmail, name, statusUrl }) {
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\nYour Lead71 account registration is received and pending administrator approval.\n\nYou do not need to register again. You will receive an email confirmation once authorized.\n\nCheck status: ${effectiveStatusUrl}\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `Hello ${name},\n\nYour Lead71 account registration is received and pending administrator approval.\n\nYou do not need to register again. You will receive an email confirmation once authorized.\n\nCheck status: ${effectiveStatusUrl}\n\nLead71 by Vision71`;
 
   try {
     return await sendLead71Email({
@@ -546,7 +547,7 @@ export async function sendPendingApprovalEmail({ toEmail, name, statusUrl }) {
 // ============================================================================
 // 6. FORGOT PASSWORD / PASSWORD RESET REQUEST EMAIL
 // ============================================================================
-export async function sendPasswordResetEmailTemplate({ toEmail, name = "Aventure Team Member", resetUrl }) {
+export async function sendPasswordResetEmailTemplate({ toEmail, name = "Team Member", resetUrl }) {
   console.log("\n============================================================");
   console.log("       [Lead71 Password Reset Email - Nodemailer]           ");
   console.log(`User      : ${toEmail} (${name})`);
@@ -579,7 +580,7 @@ export async function sendPasswordResetEmailTemplate({ toEmail, name = "Aventure
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\nWe received a request to reset your Lead71 password.\n\nReset your password here:\n${resetUrl}\n\nThis link is valid for 1 hour. If you did not request this, please ignore this email.\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `Hello ${name},\n\nWe received a request to reset your Lead71 password.\n\nReset your password here:\n${resetUrl}\n\nThis link is valid for 1 hour. If you did not request this, please ignore this email.\n\nLead71 by Vision71`;
 
   try {
     return await sendLead71Email({
@@ -597,7 +598,7 @@ export async function sendPasswordResetEmailTemplate({ toEmail, name = "Aventure
 // ============================================================================
 // 7. PASSWORD RESET SUCCESS CONFIRMATION EMAIL
 // ============================================================================
-export async function sendPasswordResetSuccessEmail({ toEmail, name = "Aventure Team Member" }) {
+export async function sendPasswordResetSuccessEmail({ toEmail, name = "Team Member" }) {
   const baseUrl = getAppPublicUrl();
   const loginUrl = `${baseUrl}/sign-in`;
   const supportEmail = process.env.SMTP_REPLY_TO?.trim() || "az@vision71tech.com";
@@ -630,7 +631,7 @@ export async function sendPasswordResetSuccessEmail({ toEmail, name = "Aventure 
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\nYour Lead71 account password was changed successfully.\n\nSign in at: ${loginUrl}\n\nIf you did not make this change, contact ${supportEmail} immediately.\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `Hello ${name},\n\nYour Lead71 account password was changed successfully.\n\nSign in at: ${loginUrl}\n\nIf you did not make this change, contact ${supportEmail} immediately.\n\nLead71 by Vision71`;
 
   try {
     return await sendLead71Email({
@@ -648,7 +649,7 @@ export async function sendPasswordResetSuccessEmail({ toEmail, name = "Aventure 
 // ============================================================================
 // 8. SECURITY / SYSTEM NOTIFICATION EMAIL
 // ============================================================================
-export async function sendSecurityNotificationEmail({ toEmail, name = "Aventure Team Member", title, details }) {
+export async function sendSecurityNotificationEmail({ toEmail, name = "Team Member", title, details }) {
   const baseUrl = getAppPublicUrl();
 
   const bodyHtml = `
@@ -667,7 +668,7 @@ export async function sendSecurityNotificationEmail({ toEmail, name = "Aventure 
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\n${details}\n\nLead71 by Vision71 for Aventure Aviation`;
+  const text = `Hello ${name},\n\n${details}\n\nLead71 by Vision71`;
 
   try {
     return await sendLead71Email({
