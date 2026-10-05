@@ -7,6 +7,8 @@ import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import { ArrowLeft, ArrowRight, Mail, LockKeyhole, Eye, EyeOff, AlertCircle, Loader2, Check } from "lucide-react";
 import "./signin.css";
 import pilot from "@/config/pilot";
+import { getSignInIntroText, getEmailPlaceholder } from "@/lib/authConfig";
+import { formatAuthError } from "@/lib/authErrors";
 
 export default function SignInPage() {
   const { user, signIn } = useAuth();
@@ -28,29 +30,38 @@ export default function SignInPage() {
     try {
       await signIn(email.trim(), password);
     } catch (caught: any) {
-      const msg = caught instanceof Error ? caught.message : "Sign in failed. Please check your credentials.";
-      if (msg.toLowerCase().includes("pending authorization") || msg.toLowerCase().includes("waiting for approval")) {
+      const formatted = formatAuthError(caught, "signin");
+      if (!formatted.message && !formatted.redirect) return;
+      if (formatted.redirect === "pending_approval") {
         navigate(`/pending-approval?email=${encodeURIComponent(email.trim())}`);
         return;
       }
-      if (msg.toLowerCase().includes("verification pending") || msg.toLowerCase().includes("verify your email")) {
+      if (formatted.redirect === "verify_otp") {
         navigate(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
         return;
       }
-      setError(msg);
+      setError(formatted.message);
     } finally {
       setBusy(false);
     }
   }
 
   async function resetPassword() {
-    setBusy(true); setError("");
+    setBusy(true);
+    setError("");
     try {
-      if (!email.trim()) throw new Error("Enter your work email first.");
+      if (!email.trim()) {
+        setError("Please enter your work email address first.");
+        return;
+      }
       await sendPasswordResetEmail(auth, email.trim());
-      setError("If a Firebase account exists for this email, a password reset link will be sent.");
-    } catch (caught: any) { setError(caught.message || "Unable to request a password reset."); }
-    finally { setBusy(false); }
+      setError("If an account exists for this email, a password reset link has been sent.");
+    } catch (caught: any) {
+      const formatted = formatAuthError(caught, "reset");
+      setError(formatted.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   function handleGoogleSuccess(result: { status: "active" | "pending_approval" | "pending_verification"; message?: string }) {
@@ -95,7 +106,7 @@ export default function SignInPage() {
         <section className="signin-panel" aria-labelledby="signin-title">
           <div className="signin-form-wrap">
             <h1 id="signin-title">Welcome back.</h1>
-            <p className="signin-intro">Sign in to Lead71 with your Aventure Aviation work account.</p>
+            <p className="signin-intro">{getSignInIntroText()}</p>
 
             {/* Google Authentication for Exhibition Assistant */}
             <div className="mb-2">
@@ -123,7 +134,7 @@ export default function SignInPage() {
                     type="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="name@aventureaviation.com"
+                    placeholder={getEmailPlaceholder()}
                     required
                     autoComplete="username"
                     disabled={busy}

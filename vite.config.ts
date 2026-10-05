@@ -14,6 +14,7 @@ export default defineConfig({
       "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
+  envPrefix: ['VITE_', 'ALLOW_VISION71_'],
   build: {
     outDir: "dist",
     sourcemap: false,

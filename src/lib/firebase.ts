@@ -15,11 +15,23 @@ const firebaseConfig = {
 const app: FirebaseApp = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
 export const auth: Auth = getAuth(app);
 
+import { isVision71Allowed } from "@/lib/authConfig";
+
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
+const googleCustomParameters: Record<string, string> = {
   prompt: "select_account",
-  // Prompt Aventure domain where possible
-  hd: "aventureaviation.com",
-});
+};
+
+// When Vision71 testing/internal access is enabled, do NOT set hd to avoid locking Google OAuth to @aventureaviation.com.
+// Only restrict to @aventureaviation.com when strictly in single-domain client mode.
+const allowVision71 = isVision71Allowed();
+const configuredHd = (import.meta.env.VITE_GOOGLE_HD || "").trim();
+if (configuredHd) {
+  googleCustomParameters.hd = configuredHd;
+} else if (!allowVision71) {
+  googleCustomParameters.hd = "aventureaviation.com";
+}
+
+googleProvider.setCustomParameters(googleCustomParameters);
 
 export default app;

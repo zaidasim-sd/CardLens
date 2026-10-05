@@ -3,5 +3,6 @@
   "internalReviewEnabled": false,
   "constantContactEnabled": false,
   "historicFieldsEnabled": false,
-  "sheetPollIntervalMs": 30000
+  "sheetPollIntervalMs": 30000,
+  "allowVision71Emails": true
 }

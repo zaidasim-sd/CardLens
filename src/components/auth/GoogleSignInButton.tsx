@@ -3,6 +3,8 @@ import { signInWithPopup } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
 import { useAuth } from "@/auth/AuthContext";
 import { Loader2 } from "lucide-react";
+import { isAllowedEmailDomain, getDomainErrorMessage } from "@/lib/authConfig";
+import { formatAuthError } from "@/lib/authErrors";
 
 interface GoogleSignInButtonProps {
   onSuccess: (result: { status: "active" | "pending_approval" | "pending_verification"; user?: any; message?: string }) => void;
@@ -30,12 +32,9 @@ export default function GoogleSignInButton({
       const email = googleUser.email?.trim().toLowerCase() || "";
 
       // Enforce client-side domain validation as first barrier
-      const isAventure = email.endsWith("@aventureaviation.com");
-      const isInternalTest = email.endsWith("@vision71tech.com") || email.endsWith("@example.test");
-
-      if (!isAventure && !isInternalTest) {
+      if (!isAllowedEmailDomain(email)) {
         await auth.signOut();
-        onError("Please use your Aventure Aviation work account (@aventureaviation.com).");
+        onError(getDomainErrorMessage());
         setLoading(false);
         return;
       }
@@ -45,13 +44,9 @@ export default function GoogleSignInButton({
 
       onSuccess(result);
     } catch (err: any) {
-      // Clean error messaging without exposing raw Firebase codes
-      if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
-        // User deliberately closed popup - do not display scary alert
-      } else if (err.code === "auth/network-request-failed") {
-        onError("Unable to connect. Please check your connection and try again.");
-      } else {
-        onError(err.message || "Unable to sign in with Google. Please try again.");
+      const formatted = formatAuthError(err, "google");
+      if (formatted.message) {
+        onError(formatted.message);
       }
     } finally {
       setLoading(false);

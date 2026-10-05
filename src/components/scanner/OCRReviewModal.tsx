@@ -190,7 +190,7 @@ export default function OCRReviewModal({
       if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
         toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to Aventure’s review register is pending; do not submit another copy."}`);
       } else {
-        toast.success("Contact submitted for review");
+        toast.success("Your contact has been submitted for Aventure review.");
       }
     } catch (error: any) {
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
@@ -351,7 +351,7 @@ export default function OCRReviewModal({
 
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
-                  Contact submitted for review
+                  Your contact has been submitted for Aventure review.
                 </h3>
                 {savedRecord.recordId?.startsWith("L71-") && <p className="text-xs font-medium text-[#248da3] tabular-nums">Reference: {savedRecord.recordId}</p>}
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">

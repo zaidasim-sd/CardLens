@@ -6,6 +6,8 @@ import { useAuth } from "@/auth/AuthContext";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
 import { ArrowLeft, ArrowRight, Mail, LockKeyhole, User, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import "./signin.css";
+import { isAllowedEmailDomain, getEmailHelperText, getEmailPlaceholder, getDomainErrorMessage } from "@/lib/authConfig";
+import { formatAuthError } from "@/lib/authErrors";
 
 export default function CreateAccountPage() {
   const navigate = useNavigate();
@@ -18,20 +20,12 @@ export default function CreateAccountPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function validateEmailDomain(val: string) {
-    const trimmed = val.trim().toLowerCase();
-    if (!trimmed) return true;
-    const isAventure = trimmed.endsWith("@aventureaviation.com");
-    const isTest = trimmed.endsWith("@vision71tech.com") || trimmed.endsWith("@example.test");
-    return isAventure || isTest;
-  }
-
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError("");
 
-    if (!validateEmailDomain(email)) {
-      setError("Please use your Aventure Aviation work email (@aventureaviation.com).");
+    if (!isAllowedEmailDomain(email)) {
+      setError(getDomainErrorMessage());
       return;
     }
 
@@ -57,7 +51,8 @@ export default function CreateAccountPage() {
       // Navigate to OTP verification screen
       navigate(`/verify-otp?email=${encodeURIComponent(email.trim().toLowerCase())}`);
     } catch (caught: any) {
-      setError(caught.message || "Registration failed. Please try again.");
+      const formatted = formatAuthError(caught, "signup");
+      setError(formatted.message);
     } finally {
       setBusy(false);
     }
@@ -146,13 +141,13 @@ export default function CreateAccountPage() {
                       setEmail(e.target.value);
                       if (error) setError("");
                     }}
-                    placeholder="name@aventureaviation.com"
+                    placeholder={getEmailPlaceholder()}
                     required
                     autoComplete="email"
                     disabled={busy}
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">Must be an @aventureaviation.com account.</p>
+                <p className="text-[11px] text-slate-500 mt-1">{getEmailHelperText()}</p>
               </div>
 
               <div className="signin-field">

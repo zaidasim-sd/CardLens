@@ -98,6 +98,7 @@ export default function UserAdminPage() {
   const [savingRetention, setSavingRetention] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -263,8 +264,6 @@ export default function UserAdminPage() {
       setExporting(false);
     }
   }
-
-  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   async function approveUser(accountId: string) {
     setApprovingId(accountId);

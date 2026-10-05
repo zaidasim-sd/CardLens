@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { reload, sendEmailVerification } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { formatAuthError } from "@/lib/authErrors";
 import "./signin.css";
+
 export default function VerifyOtpPage() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -20,7 +22,9 @@ export default function VerifyOtpPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Unable to request approval. Please retry.");
       navigate(body.status === "active" ? "/sign-in" : "/pending-approval");
-    } catch (caught: any) { setError(caught.message); }
+    } catch (caught: any) {
+      setError(formatAuthError(caught, "general").message);
+    }
     finally { setBusy(false); }
   }
   async function resend() {
@@ -29,7 +33,9 @@ export default function VerifyOtpPage() {
       if (!auth.currentUser) throw new Error("Sign in before requesting another verification email.");
       await sendEmailVerification(auth.currentUser);
       setMessage("A verification link has been sent to your email.");
-    } catch (caught: any) { setError(caught.message); }
+    } catch (caught: any) {
+      setError(formatAuthError(caught, "general").message);
+    }
     finally { setBusy(false); }
   }
   return <main className="lead71-signin min-h-screen flex items-center justify-center p-6">
