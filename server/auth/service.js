@@ -96,13 +96,12 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
   }
   let valid = Boolean(user && user.firebaseUid === identity.uid);
   if (!valid) {
-    if (user && (!user.firebaseUid || isVision71EmailAllowed())) {
+    if (user && !user.firebaseUid) {
       await db.collection("users").updateOne(
         { _id: user._id },
         {
           $set: {
             firebaseUid: identity.uid,
-            status: isVision71EmailAllowed() ? "active" : (user.status || "active"),
             emailVerifiedAt: user.emailVerifiedAt || now,
             updatedAt: now,
           },
@@ -110,7 +109,6 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
         }
       );
       user.firebaseUid = identity.uid;
-      if (isVision71EmailAllowed()) user.status = "active";
       valid = true;
     } else {
       await db.collection("loginAttempts").insertOne({ tenantId: effectiveTenantId, emailLower, createdAt: now, outcome: "failed" });
@@ -126,16 +124,7 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
     throw authError("PENDING_VERIFICATION", 403, "Please verify your email address before signing in.");
   }
   if (user?.status === "pending_approval") {
-    const isVision71 = isVision71EmailAllowed() && (emailLower.endsWith("@vision71tech.com") || emailLower.endsWith("@example.test"));
-    if (isVision71) {
-      await db.collection("users").updateOne(
-        { _id: user._id },
-        { $set: { status: "active", approvedAt: now, updatedAt: now }, $unset: { approvalToken: "" } }
-      );
-      user.status = "active";
-    } else {
-      throw authError("PENDING_APPROVAL", 403, "Your account has been verified and is waiting for approval by Aventure Aviation.");
-    }
+    throw authError("PENDING_APPROVAL", 403, "Your email is verified, but your account is waiting for approval by an administrator.");
   }
   if (user?.status === "rejected") {
     throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
@@ -255,35 +244,23 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
   const identity = await firebaseIdentity(idToken);
   let user = await db.collection("users").findOne({ emailLower: identity.email, removedAt: { $exists: false } });
 
-  const isVision71 = isVision71EmailAllowed() && (identity.email.endsWith("@vision71tech.com") || identity.email.endsWith("@example.test"));
-
-  // If user already exists, auto-link unlinked/legacy accounts or Vision71 test accounts so testers can immediately log in
+  // If user already exists, auto-link unlinked/legacy accounts
   if (user) {
-    if (!user.firebaseUid || isVision71) {
+    if (!user.firebaseUid) {
       await db.collection("users").updateOne(
         { _id: user._id },
         {
           $set: {
             firebaseUid: identity.uid,
-            status: isVision71 ? "active" : (user.status || "active"),
             emailVerifiedAt: user.emailVerifiedAt || now,
             updatedAt: now,
           },
-          $unset: isVision71 ? { approvalToken: "", otp: "" } : { otp: "" },
+          $unset: { otp: "" },
         }
       );
       user.firebaseUid = identity.uid;
-      if (isVision71) user.status = "active";
     } else if (user.firebaseUid !== identity.uid) {
       throw authError("FIREBASE_MIGRATION_REQUIRED", 409, "This existing account must be linked to Firebase by the administrator.");
-    }
-
-    if (user.status === "pending_approval" && isVision71) {
-      await db.collection("users").updateOne(
-        { _id: user._id },
-        { $set: { status: "active", approvedAt: now, updatedAt: now }, $unset: { approvalToken: "" } }
-      );
-      user.status = "active";
     }
     return { ok: true, email: user.email, status: user.status };
   }
@@ -295,7 +272,7 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
     throw authError("DOMAIN_RESTRICTED", 403, domainMsg);
   }
 
-  const initialStatus = isVision71 ? "active" : "pending_approval";
+  const initialStatus = "pending_approval";
   const approvalToken = token();
   const doc = {
     tenantId: process.env.AVENTURE_TENANT_ID || "vision71-internal",
@@ -305,8 +282,7 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
     name: identity.name || identity.email.split("@")[0],
     role: "exhibition_assistant",
     status: initialStatus,
-    approvalToken: initialStatus === "active" ? undefined : approvalToken,
-    approvedAt: initialStatus === "active" ? now : undefined,
+    approvalToken,
     emailVerifiedAt: now,
     createdAt: now,
     updatedAt: now,
@@ -321,12 +297,14 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
     return { ok: true, email: user.email, status: user.status };
   }
 
-  if (initialStatus === "pending_approval") {
-    const approvalUrl = (process.env.APP_BASE_URL || "https://lead71.com") + "/approve-user?token=" + approvalToken + "&email=" + encodeURIComponent(doc.email);
-    for (const adminEmail of [process.env.HALA_APPROVAL_EMAIL || "hala@aventureaviation.com", process.env.OSMAN_APPROVAL_EMAIL || "osman@aventureaviation.com"]) {
-      if (adminEmail) {
-        await notify({ adminEmail, userName: doc.name, userEmail: doc.email, approvalUrl });
-      }
+  const approvalUrl = (process.env.APP_BASE_URL || "https://lead71.com") + "/approve-user?token=" + approvalToken + "&email=" + encodeURIComponent(doc.email);
+  const approvers = [
+    process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com",
+    process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com",
+  ];
+  for (const adminEmail of approvers) {
+    if (adminEmail && adminEmail.trim()) {
+      await notify({ adminEmail: adminEmail.trim(), userName: doc.name, userEmail: doc.email, approvalUrl });
     }
   }
 
@@ -385,8 +363,11 @@ export async function approveUserByToken(db, { email, token: approvalToken, deci
 
 export async function approveUserByAdmin(db, actor, userId, now = new Date()) {
   requireAction(actor, "manage_users");
-  const approvers = [process.env.HALA_APPROVAL_EMAIL || "hala@aventureaviation.com", process.env.OSMAN_APPROVAL_EMAIL || "osman@aventureaviation.com"];
-  if (!approvers.includes(String(actor.email || "").toLowerCase())) throw authError("FORBIDDEN", 403, "Only designated Aventure approvers can approve accounts.");
+  const approvers = [
+    process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com",
+    process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com",
+  ].map(e => e.toLowerCase());
+  if (!approvers.includes(String(actor.email || "").toLowerCase())) throw authError("FORBIDDEN", 403, "Only designated approvers can approve accounts.");
   if (!ObjectId.isValid(userId)) throw authError("USER_NOT_FOUND", 404, "User not found.");
   const id = new ObjectId(userId);
   const user = await db.collection("users").findOne({ _id: id, tenantId: actor.tenantId, removedAt: { $exists: false } });

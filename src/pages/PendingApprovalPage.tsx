@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import { Clock, ShieldAlert, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Clock, RefreshCw, CheckCircle2 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import "./signin.css";
 
@@ -18,18 +18,39 @@ export default function PendingApprovalPage() {
     setStatusMessage("");
 
     try {
-      await refresh();
-      // Check session
+      if (auth.currentUser) {
+        await auth.currentUser.reload().catch(() => {});
+        const idToken = await auth.currentUser.getIdToken(true);
+        const preauthRes = await fetch("/api/auth?action=csrf", { credentials: "include" });
+        const preauth = await preauthRes.json().catch(() => ({}));
+        const signInRes = await fetch("/api/auth?action=sign_in", {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-Token": preauth.csrfToken || "",
+          },
+          body: JSON.stringify({ idToken }),
+        });
+        const signInData = await signInRes.json().catch(() => ({}));
+        if (signInRes.ok && signInData.user?.status === "active") {
+          await refresh();
+          navigate("/");
+          return;
+        }
+      }
+
+      // Check existing session
       const res = await fetch("/api/auth?action=session", { credentials: "include" });
       const data = await res.json().catch(() => ({}));
 
       if (data?.user?.status === "active") {
         navigate("/");
       } else {
-        setStatusMessage("Your account is still awaiting review by Hala or Osman. Please check back shortly.");
+        setStatusMessage("Your email is verified, but your account is still awaiting administrator approval. Please check back shortly.");
       }
     } catch {
-      setStatusMessage("Your account is still awaiting review by Hala or Osman. Please check back shortly.");
+      setStatusMessage("Your email is verified, but your account is still awaiting administrator approval. Please check back shortly.");
     } finally {
       setIsChecking(false);
     }
@@ -62,21 +83,21 @@ export default function PendingApprovalPage() {
           </div>
 
           <h1 id="pending-title" className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Pending Approval
+            Pending Administrator Approval
           </h1>
 
-          <div className="rounded-xl bg-amber-50/80 border border-amber-200/80 p-3.5 my-4 text-xs text-amber-800 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-300 text-left">
-            <p className="font-semibold flex items-center gap-1.5 mb-1">
-              <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600" />
-              Account Verified
+          <div className="rounded-xl bg-emerald-50/90 border border-emerald-200/90 p-3.5 my-4 text-xs text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-900/60 dark:text-emerald-200 text-left">
+            <p className="font-semibold flex items-center gap-1.5 mb-1 text-emerald-800 dark:text-emerald-300">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              Email Verified Successfully
             </p>
-            <p className="leading-relaxed">
-              Your email has been verified. To protect Aventure Aviation contacts, all Exhibition Assistant accounts require authorization before scanner access is granted.
+            <p className="leading-relaxed text-slate-700 dark:text-slate-300">
+              Your email has been verified. To protect exhibition and client contacts, all accounts require administrator authorization before access is granted.
             </p>
           </div>
 
           <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed max-w-sm mx-auto mb-6">
-            An access approval request has been dispatched to <strong>Hala</strong> and <strong>Osman</strong>. You will receive an email confirmation as soon as your access is approved.
+            An access authorization request has been dispatched to designated administrators. You will receive an email confirmation as soon as your account is approved.
           </p>
 
           {emailParam && (

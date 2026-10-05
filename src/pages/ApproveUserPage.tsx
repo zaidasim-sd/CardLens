@@ -66,7 +66,7 @@ export default function ApproveUserPage() {
               </h1>
 
               <p className="text-sm text-slate-500 leading-relaxed mb-6">
-                A new user registration has requested access to the Aventure Aviation card capture workspace.
+                A new user registration has requested access to the business card capture workspace.
               </p>
 
               <div className="bg-slate-50 border border-slate-200/70 rounded-xl p-4 text-left mb-6 space-y-2">
@@ -112,7 +112,7 @@ export default function ApproveUserPage() {
               </div>
 
               <p className="text-xs text-slate-400 mt-6 leading-relaxed">
-                Authorized approvers: Hala or Osman (Aventure Aviation Management).
+                Authorized approvers: Designated administrators.
               </p>
             </>
           )}
