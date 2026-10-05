@@ -9,7 +9,7 @@ const roleLabels: Record<Role, { title: string; badgeClass: string }> = {
     badgeClass: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800",
   },
   aventure_reviewer: {
-    title: "Aventure Reviewer",
+    title: "Reviewer",
     badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800",
   },
   vision71_administrator: {

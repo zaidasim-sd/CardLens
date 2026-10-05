@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const idToken = await credential.user.getIdToken();
     const registration = await json(await fetch("/api/auth?action=register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) }));
     if (registration.status === "rejected") throw new Error("Your account request was rejected.");
-    if (registration.status !== "active") throw new Error("Your verified account is waiting for approval by Aventure.");
+    if (registration.status !== "active") throw new Error("Your verified account is waiting for approval by an administrator.");
     const preauth = await json(await fetch("/api/auth?action=csrf", { credentials: "include" }));
     const body = await json(await fetch("/api/auth?action=sign_in", {
       method: "POST",

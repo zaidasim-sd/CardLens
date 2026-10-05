@@ -58,38 +58,26 @@ export function isAllowedEmailDomain(email: string): boolean {
  * User-facing helper text indicating permitted domains without leaking unnecessary internal information.
  */
 export function getEmailHelperText(): string {
-  if (isVision71Allowed()) {
-    return "Must be an @aventureaviation.com or @vision71tech.com account.";
-  }
-  return "Must be an @aventureaviation.com account.";
+  return "Must be an authorized work account.";
 }
 
 /**
  * Placeholder text for email input fields.
  */
 export function getEmailPlaceholder(): string {
-  if (isVision71Allowed()) {
-    return "name@aventureaviation.com or name@vision71tech.com";
-  }
-  return "name@aventureaviation.com";
+  return "name@company.com";
 }
 
 /**
  * Introductory description text on the sign-in page.
  */
 export function getSignInIntroText(): string {
-  if (isVision71Allowed()) {
-    return "Sign in to Lead71 with your authorized work account.";
-  }
-  return "Sign in to Lead71 with your Aventure Aviation work account.";
+  return "Sign in to Lead71 with your authorized work account.";
 }
 
 /**
  * Domain restriction error message formatted clearly.
  */
 export function getDomainErrorMessage(): string {
-  if (isVision71Allowed()) {
-    return "Please use an authorized work account (@aventureaviation.com or @vision71tech.com).";
-  }
-  return "Please use your Aventure Aviation work account (@aventureaviation.com).";
+  return "Please use an authorized work email account.";
 }

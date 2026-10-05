@@ -319,8 +319,8 @@ export default function ScanPage() {
       toast.error("Invalid file type. Please upload a JPG, PNG, or WEBP image.");
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("File size must be less than 2 MB.");
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File size must be less than 20 MB.");
       return;
     }
     try {
@@ -480,8 +480,8 @@ export default function ScanPage() {
                 <div className="capture-stage-heading"><span>02</span><h2>Review</h2><CheckSquare size={17} /></div><p>Check the extracted details. <br />Make any final edits.</p><span className="capture-connector" aria-hidden="true"><i /></span>
               </li>
               <li className="capture-stage">
-                <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>Your contact will appear in Aventure’s review register.</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
-                <div className="capture-stage-heading"><span>03</span><h2>Submit for review</h2><ShieldCheck size={17} /></div><p>Submit your contact.<br />Your contact will appear in Aventure’s review register.</p>
+                <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>Your contact will appear in the review register.</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
+                <div className="capture-stage-heading"><span>03</span><h2>Submit for review</h2><ShieldCheck size={17} /></div><p>Submit your contact.<br />Your contact will appear in the review register.</p>
               </li>
             </ol>
             <div className="capture-vision-footer"><div className="capture-vision-credit"><Cloud size={22} strokeWidth={1.7} /><span>Enhanced by <strong>Google Cloud Vision</strong></span></div><button type="button" onClick={() => setIsInfoModalOpen(true)}>How card reading works<ArrowUpRight size={14} /></button></div>

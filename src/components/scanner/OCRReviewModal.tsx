@@ -188,9 +188,9 @@ export default function OCRReviewModal({
       setSavedRecord(record);
       onDiscardImage();
       if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
-        toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to Aventure’s review register is pending; do not submit another copy."}`);
+        toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to the review register is pending; do not submit another copy."}`);
       } else {
-        toast.success("Your contact has been submitted for Aventure review.");
+        toast.success("Your contact has been submitted for review.");
       }
     } catch (error: any) {
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
@@ -351,11 +351,11 @@ export default function OCRReviewModal({
 
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
-                  Your contact has been submitted for Aventure review.
+                  Your contact has been submitted for review.
                 </h3>
                 {savedRecord.recordId?.startsWith("L71-") && <p className="text-xs font-medium text-[#248da3] tabular-nums">Reference: {savedRecord.recordId}</p>}
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Your contact will appear in Aventure’s review register. Capture date, time, and user account have been recorded automatically.
+                  Your contact will appear in the review register. Capture date, time, and user account have been recorded automatically.
                 </p>
               </div>
 
@@ -451,7 +451,7 @@ export default function OCRReviewModal({
                     )}
                   </div>
                   <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-                    Check your contact details, then submit for review. Your contact will appear in Aventure’s review register.
+                    Check your contact details, then submit for review. Your contact will appear in the review register.
                   </DialogDescription>
                 </div>
               </DialogHeader>

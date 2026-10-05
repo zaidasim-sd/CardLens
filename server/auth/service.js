@@ -217,9 +217,7 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
   }
 
   if (!isAllowedAventureEmail(emailLower)) {
-    const domainMsg = isVision71EmailAllowed()
-      ? "Please use an authorized work email (@aventureaviation.com or @vision71tech.com)."
-      : "Please use your Aventure Aviation work email.";
+    const domainMsg = "Please use an authorized corporate work email.";
     throw authError("DOMAIN_RESTRICTED", 403, domainMsg);
   }
 
@@ -411,9 +409,7 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
   const emailLower = identity.email;
 
   if (!isAllowedAventureEmail(emailLower)) {
-    const domainMsg = isVision71EmailAllowed()
-      ? "Please use an authorized work email (@aventureaviation.com or @vision71tech.com)."
-      : "Please use your Aventure Aviation work email.";
+    const domainMsg = "Please use an authorized corporate work email.";
     throw authError("DOMAIN_RESTRICTED", 403, domainMsg);
   }
 

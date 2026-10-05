@@ -7,7 +7,7 @@ import { hasReadableContact } from "../../shared/contactValidation.mjs";
 import { parseOCRText } from "../services/cardParser.js";
 import { OCR_FAILURE_MESSAGE, performOCR } from "../services/ocrService.js";
 
-export const OCR_MAX_BYTES = 2 * 1024 * 1024;
+export const OCR_MAX_BYTES = 20 * 1024 * 1024;
 const OCR_USER_LIMIT = 30;
 const OCR_IP_LIMIT = 60;
 

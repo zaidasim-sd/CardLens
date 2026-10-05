@@ -47,11 +47,11 @@ export async function submitDirect(db, user, input, now = new Date(), options = 
     if (column === undefined || column < 0) throw failure("SHEET_COLUMNS_INVALID", 502, "The Sheet is missing the Contact ID column.");
     // Recover an uncertain successful append without overwriting reviewer edits.
     if (!rows.slice(1).some(row => String(row[column] || "") === card.recordId)) await gateway.append(sheetRow(card));
-    await settings.updateOne({ key, lease }, { $set: { completedAt: new Date() } });
+    await settings.updateOne({ key }, { $set: { completedAt: new Date() } });
     return { ...card, sheetStatus: "submitted" };
   } catch {
     throw failure("SHEET_SUBMISSION_FAILED", 502, "Delivery to Google Sheets could not be confirmed. Keep these details and retry with the same reference. No contact is saved in MongoDB.");
   } finally {
-    await settings.updateOne({ key, lease }, { $unset: { lease: "" } });
+    await settings.updateOne({ key }, { $unset: { lease: "" } });
   }
 }
