@@ -8,9 +8,13 @@ export function parseCookies(header = "") {
 }
 
 export function sessionCookie(token, maxAgeSeconds = 8 * 60 * 60) {
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSeconds}`;
+  const isProd = process.env.NODE_ENV === "production" || process.env.APP_ENV === "production";
+  const secure = isProd ? "; Secure" : "";
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly${secure}; SameSite=Lax; Max-Age=${maxAgeSeconds}`;
 }
 
 export function clearSessionCookie() {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+  const isProd = process.env.NODE_ENV === "production" || process.env.APP_ENV === "production";
+  const secure = isProd ? "; Secure" : "";
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly${secure}; SameSite=Lax; Max-Age=0`;
 }

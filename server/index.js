@@ -15,6 +15,7 @@ import { pilot } from "./pilot.js";
 
 // Load environment variables
 dotenv.config();
+console.log(`[Lead71 Server] Approvers: HALA=${process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com"}, OSMAN=${process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com"}`);
 
 // Validate OCR configuration
 validateOcrConfig();

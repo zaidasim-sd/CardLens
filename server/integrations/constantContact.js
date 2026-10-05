@@ -54,8 +54,8 @@ export async function finishConnection(db, query, nonce) {
   const state = await db.collection("settings").findOneAndDelete({ key: `cc_oauth:${hash(query.state)}`, nonceHash: hash(nonce), expires: { $gt: new Date() } });
   if (!state) throw problem("Authorization expired. Connect again.");
   const session = await db.collection("sessions").findOne({ _id: state.sessionId, userId: state.userId });
-  const user = await db.collection("users").findOne({ _id: state.userId, tenantId: state.tenantId, role: "vision71_administrator", removedAt: { $exists: false } });
-  if (!session || !user || session.anonymous || new Date(session.absoluteExpiresAt) <= new Date() || (user.expiresAt && new Date(user.expiresAt) <= new Date()) || Date.now() - new Date(session.lastSeenAt).getTime() > 30 * 60000) throw problem("Administrator session expired. Sign in and connect again.");
+  const isAdmin = session?.user?.role === "vision71_administrator";
+  if (!session || !isAdmin || session.anonymous || new Date(session.absoluteExpiresAt) <= new Date() || Date.now() - new Date(session.lastSeenAt).getTime() > 30 * 60000) throw problem("Administrator session expired. Sign in and connect again.");
   await exchange(db, state.tenantId, { grant_type: "authorization_code", code: query.code, redirect_uri: process.env.CC_REDIRECT_URI });
   return state.tenantId;
 }

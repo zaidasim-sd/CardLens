@@ -8,7 +8,7 @@ import "./signin.css";
 export default function PendingApprovalPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const emailParam = searchParams.get("email") || "";
+  const emailParam = searchParams.get("email") || auth.currentUser?.email || "";
   const { signOut, refresh } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");

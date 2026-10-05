@@ -156,6 +156,9 @@ export function formatAuthError(
     };
   }
   if (context === "google") {
+    if (rawMsg && !rawMsg.startsWith("Firebase:") && !rawMsg.includes("(auth/") && !rawLower.includes("generic")) {
+      return { message: rawMsg };
+    }
     return {
       message: "Unable to sign in with Google. Please try again or use your work email and password.",
     };

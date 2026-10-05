@@ -7,7 +7,7 @@ import { isAllowedEmailDomain, getDomainErrorMessage } from "@/lib/authConfig";
 import { formatAuthError } from "@/lib/authErrors";
 
 interface GoogleSignInButtonProps {
-  onSuccess: (result: { status: "active" | "pending_approval" | "pending_verification"; user?: any; message?: string }) => void;
+  onSuccess: (result: { status: "active" | "pending_approval" | "pending_verification"; email?: string; user?: any; message?: string }) => void;
   onError: (errorMessage: string) => void;
   disabled?: boolean;
   text?: string;
@@ -44,7 +44,12 @@ export default function GoogleSignInButton({
 
       onSuccess(result);
     } catch (err: any) {
+      console.error("[GoogleSignIn Error]", err);
       const formatted = formatAuthError(err, "google");
+      if (formatted.redirect === "pending_approval") {
+        onSuccess({ status: "pending_approval", email: auth.currentUser?.email || "" });
+        return;
+      }
       if (formatted.message) {
         onError(formatted.message);
       }

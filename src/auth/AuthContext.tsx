@@ -20,7 +20,7 @@ interface AuthValue {
   loading: boolean;
   csrfToken: string;
   signIn: (emailOrTenantId: string, passwordOrEmail: string, optionalPassword?: string) => Promise<void>;
-  googleSignIn: (googleUser: User) => Promise<{ status: "active" | "pending_approval"; message?: string }>;
+  googleSignIn: (googleUser: User) => Promise<{ status: "active" | "pending_approval"; email?: string; message?: string }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -107,12 +107,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(body?.error || "Google authentication failed.");
     }
     if (body.status === "pending_approval") {
-      return { status: "pending_approval" as const, message: body.message };
+      return { status: "pending_approval" as const, email: body.email || googleUser.email || "", message: body.message };
     }
     setUser(body.user);
     setCsrfToken(body.csrfToken);
     setApiCsrfToken(body.csrfToken);
-    return { status: "active" as const };
+    return { status: "active" as const, email: body.email || googleUser.email || "" };
   }, []);
 
   const signOut = useCallback(async () => {

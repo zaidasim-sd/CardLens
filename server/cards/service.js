@@ -103,7 +103,7 @@ export async function updateCard() { sheetOnly(); }
 export async function deleteCard() { sheetOnly(); }
 export async function storageHealth(db, user) {
   requireAction(user, "manage_users");
-  const names = ["users", "sessions", "loginAttempts", "cards", "cardImages", "auditLogs", "settings", "rateLimits", "transfers", "lists"];
+  const names = ["sessions", "loginAttempts", "cards", "cardImages", "auditLogs", "settings", "rateLimits", "transfers", "lists"];
   const collections = [];
   for (const name of names) {
     try {

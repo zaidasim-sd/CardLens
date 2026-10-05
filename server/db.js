@@ -26,8 +26,6 @@ export async function getDb() {
 
 export async function ensureDatabaseIndexes(db) {
   await Promise.all([
-    db.collection("users").createIndex({ firebaseUid: 1 }, { unique: true, partialFilterExpression: { firebaseUid: { $type: "string" } } }),
-    db.collection("users").createIndex({ tenantId: 1, emailLower: 1 }, { unique: true }),
     db.collection("sessions").createIndex({ tokenHash: 1 }, { unique: true }),
     db.collection("sessions").createIndex({ absoluteExpiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection("loginAttempts").createIndex({ tenantId: 1, emailLower: 1, createdAt: 1 }),
@@ -39,10 +37,10 @@ export async function ensureDatabaseIndexes(db) {
   ]);
 }
 
-// A final guard for legacy endpoints: contact collections are unavailable and
-// password fields cannot be written, even by an overlooked provisioning path.
+// A final guard for privacy: contact collections and user accounts are unavailable in MongoDB.
+// Authentication and user profiles are managed entirely via Firebase.
 export function privacyDatabase(db) {
-  const denied = new Set(["cards", "cardImages", "transfers", "lists"]);
+  const denied = new Set(["cards", "cardImages", "transfers", "lists", "users"]);
   const writes = new Set(["insertOne", "insertMany", "updateOne", "updateMany", "replaceOne", "findOneAndUpdate", "findOneAndReplace", "bulkWrite"]);
   function check(value) {
     if (!value || typeof value !== "object" || value instanceof Date) return;
@@ -53,6 +51,7 @@ export function privacyDatabase(db) {
   }
   return new Proxy(db, { get(target, key) {
     if (key === "collection") return name => {
+      if (name === "users") throw Object.assign(new Error("User accounts must not be stored in MongoDB. Authentication is managed via Firebase."), { code: "FIREBASE_AUTH_ONLY", status: 410 });
       if (denied.has(name)) throw Object.assign(new Error("Contact storage in MongoDB is disabled."), { code: "SHEET_ONLY", status: 410 });
       const collection = target.collection(name);
       return new Proxy(collection, { get(object, method) {
