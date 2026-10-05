@@ -6,6 +6,7 @@ import "dotenv/config";
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { MongoClient } from "mongodb";
+import { setServers } from "node:dns";
 import { authenticate, createPreauthSession, createUser, removeUser, seedAdministrator, signIn, verifyCsrf } from "./service.js";
 import { ensureDatabaseIndexes } from "../db.js";
 
@@ -18,6 +19,8 @@ let administrator;
 
 before(async () => {
   assert.ok(process.env.MONGODB_URI, "MONGODB_URI is required for integration tests");
+  const dnsServers = process.env.MONGODB_DNS_SERVERS?.split(",").map((server) => server.trim()).filter(Boolean);
+  if (dnsServers?.length) setServers(dnsServers);
   client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
   await client.connect();
   db = client.db(databaseName);
