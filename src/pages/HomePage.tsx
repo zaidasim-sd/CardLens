@@ -1,6 +1,5 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import ScanPage from "./ScanPage";
 import pilot from "@/config/pilot";
 
 
@@ -30,5 +29,5 @@ export default function HomePage() {
     );
   }
 
-  return <ScanPage />;
+  return <Navigate to="/scan" replace />;
 }

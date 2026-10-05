@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import HomePage from "./pages/HomePage";
+import ScanPage from "./pages/ScanPage";
 import VerifiedQueuePage from "./pages/VerifiedQueuePage";
 import SignInPage from "./pages/SignInPage";
 import CreateAccountPage from "./pages/CreateAccountPage";
@@ -28,6 +29,13 @@ function RootPage() {
   return user ? <AppLayout /> : <LandingPage />;
 }
 
+function CaptureRoute() {
+  const { user } = useAuth();
+  return user?.role === "exhibition_assistant" || user?.role === "vision71_administrator"
+    ? <ScanPage />
+    : <Navigate to="/" replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -47,6 +55,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
+            <Route path="/scan" element={<CaptureRoute />} />
             <Route path="/submissions" element={<SubmissionQueueRoute />} />
             <Route path="/users" element={<UserAdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

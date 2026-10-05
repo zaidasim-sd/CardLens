@@ -1,0 +1,94 @@
+.review-submit[data-slot="button"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 184px;
+  height: 44px;
+  padding: 0 20px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #269bb2, #147c92);
+  background-size: 160% 100%;
+  background-position: 0% 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 3px 8px rgb(18 62 80 / 20%), inset 0 1px 0 rgb(255 255 255 / 15%);
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 220ms ease, background-position 350ms ease, background-color 220ms ease;
+}
+
+.review-submit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 25%, rgb(255 255 255 / 16%) 48%, transparent 70%);
+  transform: translateX(-120%);
+  pointer-events: none;
+}
+
+.review-submit-content {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+}
+
+.review-submit-icon { transition: transform 180ms ease; }
+
+@media (hover: hover) {
+  .review-submit:not(:disabled):hover {
+    background-position: 100% 50%;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgb(18 62 80 / 25%), inset 0 1px 0 rgb(255 255 255 / 20%);
+  }
+  .review-submit:not(:disabled):hover::before { animation: review-submit-shine 650ms ease-out; }
+  .review-submit:not(:disabled):hover .review-submit-icon { transform: translate(2px, -1px); }
+}
+
+.review-submit:not(:disabled):active {
+  transform: translateY(1px);
+  background: #116777;
+  box-shadow: inset 0 2px 4px rgb(18 62 80 / 20%);
+}
+.review-submit:focus-visible { outline: 3px solid #81d3df; outline-offset: 3px; }
+.review-submit[data-slot="button"]:disabled { opacity: 1; cursor: wait; }
+.review-submit[data-slot="button"][aria-busy="true"] {
+  background: #123e50;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+.review-submit[aria-busy="true"] .review-submit-content {
+  animation: review-submit-enter 220ms ease-out;
+}
+.review-submit-spinner { animation: review-submit-spin 1s linear infinite; }
+.review-submit-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  height: 2px;
+  background: rgb(255 255 255 / 65%);
+  animation: review-submit-progress 1.5s ease-in-out infinite;
+}
+
+@keyframes review-submit-shine { to { transform: translateX(120%); } }
+@keyframes review-submit-spin { to { transform: rotate(360deg); } }
+@keyframes review-submit-enter {
+  from { opacity: .5; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes review-submit-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-submit[data-slot="button"], .review-submit-icon { transition: none; }
+  .review-submit::before, .review-submit-spinner, .review-submit-progress,
+  .review-submit[aria-busy="true"] .review-submit-content { animation: none !important; }
+  .review-submit:not(:disabled):hover, .review-submit:not(:disabled):active,
+  .review-submit:not(:disabled):hover .review-submit-icon { transform: none; }
+  .review-submit-progress { width: 100%; opacity: .5; }
+}

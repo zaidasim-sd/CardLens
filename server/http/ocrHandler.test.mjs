@@ -52,7 +52,7 @@ test("OCR refuses a request from another origin before database access", async (
   assert.equal(databaseCalled, false);
 });
 
-test("authenticated capturer can use the single Google OCR handler", async () => {
+for (const role of ["exhibition_assistant", "vision71_administrator"]) test(`authenticated ${role} can use the single Google OCR handler`, async () => {
   const csrf = "fake-csrf";
   const csrfHash = createHash("sha256").update(csrf).digest("hex");
   const limits = new Map();
@@ -67,7 +67,7 @@ test("authenticated capturer can use the single Google OCR handler", async () =>
     env: { ALLOWED_ORIGINS: "https://staging.example.test", OCR_MONTHLY_CAP: "900" },
     getDb: async () => db,
     ensureDatabaseIndexes: async () => {},
-    authenticate: async () => ({ session: { csrfHash }, user: { id: "capturer-1", tenantId: "vision71", role: "exhibition_assistant" } }),
+    authenticate: async () => ({ session: { csrfHash }, user: { id: "capturer-1", tenantId: "vision71", role } }),
     performOCR: async () => ({ rawText: "Fake Person\nfake@example.test", provider: "google", success: true }),
   });
   const res = response();

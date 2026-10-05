@@ -9,7 +9,7 @@ import { ACTIONS, can, requireAction, ROLES } from "./permissions.js";
 const expected = {
   exhibition_assistant: ["capture_card", "use_ocr", "view_own_draft", "correct_own_draft", "submit_own_draft"],
   aventure_reviewer: ["view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction"],
-  vision71_administrator: ["manage_users", "manage_lists", "change_retention", "delete_record", "end_pilot_export", "view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction"],
+  vision71_administrator: ["capture_card", "use_ocr", "view_own_draft", "correct_own_draft", "submit_own_draft", "manage_users", "manage_lists", "change_retention", "delete_record", "end_pilot_export", "view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction"],
   vision71_support: ["view_aggregate_counts"],
 };
 
@@ -36,4 +36,14 @@ test("reviewer cannot approve a record captured by that reviewer", () => {
 test("record checks reject another tenant", () => {
   const user = { id: "reviewer_one", tenantId: "tenant_one", role: "aventure_reviewer" };
   assert.throws(() => requireAction(user, "reject_card", { tenantId: "tenant_two", capturedBy: "assistant_two" }), { code: "FORBIDDEN" });
+});
+
+test("administrators capture their own cards without bypassing ownership or self-approval checks", () => {
+  const user = { id: "admin_one", tenantId: "tenant_one", role: "vision71_administrator" };
+  const own = { tenantId: "tenant_one", capturedBy: "admin_one" };
+  for (const action of ["view_own_draft", "correct_own_draft", "submit_own_draft"]) {
+    assert.doesNotThrow(() => requireAction(user, action, own));
+    assert.throws(() => requireAction(user, action, { ...own, capturedBy: "other" }), { code: "FORBIDDEN" });
+  }
+  assert.throws(() => requireAction(user, "approve_card", own), { code: "SELF_APPROVAL_FORBIDDEN" });
 });

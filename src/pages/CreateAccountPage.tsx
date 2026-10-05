@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
-import { ArrowLeft, ArrowRight, Mail, LockKeyhole, User, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowRight, Mail, LockKeyhole, User, Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react";
 import "./signin.css";
 import { isAllowedEmailDomain, getEmailHelperText, getEmailPlaceholder, getDomainErrorMessage } from "@/lib/authConfig";
 import { formatAuthError } from "@/lib/authErrors";
@@ -221,12 +221,6 @@ export default function CreateAccountPage() {
                   Sign in
                 </Link>
               </p>
-              <div>
-                <Link to="/welcome" className="signin-back inline-flex">
-                  <ArrowLeft size={14} />
-                  <span>Back to website</span>
-                </Link>
-              </div>
             </div>
           </div>
         </section>

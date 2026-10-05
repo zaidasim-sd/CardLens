@@ -6,7 +6,7 @@ import UserProfileDropdown from "./UserProfileDropdown";
 import pilot from "@/config/pilot";
 
 const navItems = [
-  { name: "Scan Card", to: "/", icon: ScanLine, roles: ["exhibition_assistant"] },
+  { name: "Scan Card", to: "/scan?camera=1", icon: ScanLine, roles: ["exhibition_assistant", "vision71_administrator"] },
   { name: "Review Queue", to: "/submissions", icon: ClipboardList, roles: ["exhibition_assistant", "aventure_reviewer"] },
   { name: "User accounts", to: "/users", icon: Users, roles: ["vision71_administrator"] },
 ];

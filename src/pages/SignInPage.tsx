@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
-import { ArrowLeft, ArrowRight, Mail, LockKeyhole, Eye, EyeOff, AlertCircle, Loader2, Check } from "lucide-react";
+import { ArrowRight, Mail, LockKeyhole, Eye, EyeOff, AlertCircle, Loader2, Check } from "lucide-react";
 import "./signin.css";
 import pilot from "@/config/pilot";
 import { getSignInIntroText, getEmailPlaceholder } from "@/lib/authConfig";
@@ -187,12 +187,6 @@ export default function SignInPage() {
               </Link>
             </div>
 
-            <div className="signin-return">
-              <Link to="/welcome" className="signin-back">
-                <ArrowLeft size={14} />
-                <span>Back to website</span>
-              </Link>
-            </div>
           </div>
         </section>
       </main>

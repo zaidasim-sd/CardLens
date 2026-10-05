@@ -295,15 +295,24 @@ export async function authenticate(db, sessionToken, now = new Date(), touch = t
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
 
-  const user = session.user;
-  if (!user || user.status !== "active") {
+  if (!session.user || session.user.status !== "active") {
     await db.collection("sessions").deleteOne({ _id: session._id });
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
 
-  if (touch) await db.collection("sessions").updateOne({ _id: session._id }, { $set: { lastSeenAt: now } });
+  // Designated admins with older capturer sessions gain access immediately.
+  // Preserve all other existing roles and administrator accounts.
+  const user = {
+    ...session.user,
+    role: isAdministrator(session.user.email)
+      ? "vision71_administrator"
+      : session.user.role,
+  };
+  const updates = touch ? { lastSeenAt: now } : {};
+  if (user.role !== session.user.role) updates["user.role"] = user.role;
+  if (Object.keys(updates).length) await db.collection("sessions").updateOne({ _id: session._id }, { $set: updates });
   requirePilotRole(user.role);
-  return { session, user: publicUser(user) };
+  return { session: { ...session, user }, user: publicUser(user) };
 }
 
 export function verifyCsrf(session, csrfToken) {
