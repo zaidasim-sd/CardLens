@@ -41,6 +41,7 @@ test("verified registration notifies once; pending/rejected accounts and legacy 
     if (name === "sessions") return { findOne: async query => query.anonymous ? preauth : { userId: savedUser?._id, tenantId: savedUser?.tenantId, absoluteExpiresAt: new Date(Date.now() + 60000), lastSeenAt: new Date() }, deleteOne: async () => {} };
     if (name === "rateLimits") return { findOneAndUpdate: async () => ({ count: 1 }) };
     if (name === "auditLogs") return { insertOne: async () => {} };
+    if (name === "settings") return { findOne: async () => null, updateOne: async () => {} };
     assert.fail(`unexpected collection ${name}`);
   } };
   const notify = async () => { notifications++; };

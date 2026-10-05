@@ -622,12 +622,12 @@ export default function UserAdminPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        disabled={approvingId === account.id}
+                        disabled={approvingId === account.id || removingId === account.id}
                         onClick={() => approveUser(account.id)}
-                        className="h-8 px-2.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg transition-colors"
+                        className="h-8 px-2.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg transition-colors cursor-pointer"
                       >
                         <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" />
-                        <span>Approve</span>
+                        <span>{approvingId === account.id ? "Approving…" : "Approve"}</span>
                       </Button>
                     )}
                     {!isProtected && (
@@ -635,12 +635,12 @@ export default function UserAdminPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        disabled={removingId === account.id}
+                        disabled={removingId === account.id || approvingId === account.id}
                         onClick={() => setUserToRemove(account)}
-                        className="h-8 px-2.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                        className="h-8 px-2.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                       >
                         <Trash2 className="h-3.5 w-3.5 mr-1" />
-                        <span>Remove</span>
+                        <span>{account.status === "pending_approval" ? "Decline" : "Remove"}</span>
                       </Button>
                     )}
                   </div>
@@ -811,10 +811,14 @@ export default function UserAdminPage() {
             </div>
             <div className="mt-4 text-center">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Remove team account?
+                {userToRemove.status === "pending_approval" ? "Decline access request?" : "Remove team account?"}
               </h3>
               <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                Are you sure you want to remove <strong className="text-slate-700 dark:text-slate-200">{userToRemove.name}</strong> ({userToRemove.email})? Their sessions will be invalidated immediately.
+                {userToRemove.status === "pending_approval" ? (
+                  <>Are you sure you want to decline registration access for <strong className="text-slate-700 dark:text-slate-200">{userToRemove.name}</strong> ({userToRemove.email})?</>
+                ) : (
+                  <>Are you sure you want to remove <strong className="text-slate-700 dark:text-slate-200">{userToRemove.name}</strong> ({userToRemove.email})? Their sessions will be invalidated immediately.</>
+                )}
               </p>
             </div>
             <div className="mt-6 flex items-center gap-3">
@@ -822,7 +826,7 @@ export default function UserAdminPage() {
                 type="button"
                 variant="outline"
                 onClick={() => setUserToRemove(null)}
-                className="flex-1 h-10 rounded-xl text-xs font-semibold"
+                className="flex-1 h-10 rounded-xl text-xs font-semibold cursor-pointer"
               >
                 Cancel
               </Button>
@@ -833,7 +837,7 @@ export default function UserAdminPage() {
                 onClick={() => void confirmRemove()}
                 className="flex-1 h-10 rounded-xl text-xs font-semibold cursor-pointer"
               >
-                {removingId ? "Removing..." : "Yes, remove"}
+                {removingId ? "Processing…" : userToRemove.status === "pending_approval" ? "Yes, decline request" : "Yes, remove"}
               </Button>
             </div>
           </div>
