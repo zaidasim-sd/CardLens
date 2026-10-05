@@ -3,7 +3,7 @@ import { ObjectId } from "mongodb";
 import { firebaseIdentity } from "./firebaseIdentity.js";
 import { requireAction } from "./permissions.js";
 import { writeAudit } from "../audit/service.js";
-import { requirePilotRole } from "../pilot.js";
+import { requirePilotRole, pilot } from "../pilot.js";
 import { sendApprovalRequestEmail, sendAccountApprovedEmail } from "../notifications/emailService.js";
 
 const SESSION_ABSOLUTE_MS = 8 * 60 * 60 * 1000;
@@ -94,21 +94,48 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
     await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "refused", now });
     throw authError("ACCOUNT_EXPIRED", 403, "This account has expired.");
   }
-  const valid = Boolean(user && user.firebaseUid === identity.uid);
+  let valid = Boolean(user && user.firebaseUid === identity.uid);
   if (!valid) {
-    await db.collection("loginAttempts").insertOne({ tenantId: effectiveTenantId, emailLower, createdAt: now, outcome: "failed" });
-    if (user) {
-      const count = await db.collection("loginAttempts").countDocuments({ tenantId: effectiveTenantId, emailLower, createdAt: { $gte: new Date(now.getTime() - LOCK_WINDOW_MS) } });
-      if (count >= 5) await db.collection("users").updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(now.getTime() + LOCK_WINDOW_MS) } });
+    if (user && (!user.firebaseUid || isVision71EmailAllowed())) {
+      await db.collection("users").updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            firebaseUid: identity.uid,
+            status: isVision71EmailAllowed() ? "active" : (user.status || "active"),
+            emailVerifiedAt: user.emailVerifiedAt || now,
+            updatedAt: now,
+          },
+          $unset: { otp: "" },
+        }
+      );
+      user.firebaseUid = identity.uid;
+      if (isVision71EmailAllowed()) user.status = "active";
+      valid = true;
+    } else {
+      await db.collection("loginAttempts").insertOne({ tenantId: effectiveTenantId, emailLower, createdAt: now, outcome: "failed" });
+      if (user) {
+        const count = await db.collection("loginAttempts").countDocuments({ tenantId: effectiveTenantId, emailLower, createdAt: { $gte: new Date(now.getTime() - LOCK_WINDOW_MS) } });
+        if (count >= 5) await db.collection("users").updateOne({ _id: user._id }, { $set: { lockedUntil: new Date(now.getTime() + LOCK_WINDOW_MS) } });
+      }
+      await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "failed", now });
+      throw authError("INVALID_CREDENTIALS", 401, "Email or password is incorrect.");
     }
-    await writeAudit(db, { tenantId: effectiveTenantId, actor: user, action: "failed_sign_in", outcome: "failed", now });
-    throw authError("INVALID_CREDENTIALS", 401, "Email or password is incorrect.");
   }
   if (user?.status === "pending_verification") {
     throw authError("PENDING_VERIFICATION", 403, "Please verify your email address before signing in.");
   }
   if (user?.status === "pending_approval") {
-    throw authError("PENDING_APPROVAL", 403, "Your account has been verified and is waiting for approval by Aventure Aviation.");
+    const isVision71 = isVision71EmailAllowed() && (emailLower.endsWith("@vision71tech.com") || emailLower.endsWith("@example.test"));
+    if (isVision71) {
+      await db.collection("users").updateOne(
+        { _id: user._id },
+        { $set: { status: "active", approvedAt: now, updatedAt: now }, $unset: { approvalToken: "" } }
+      );
+      user.status = "active";
+    } else {
+      throw authError("PENDING_APPROVAL", 403, "Your account has been verified and is waiting for approval by Aventure Aviation.");
+    }
   }
   if (user?.status === "rejected") {
     throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
@@ -195,38 +222,115 @@ export async function seedAdministrator() {
   throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "Create the account in Firebase and link its verified UID before assigning access. MongoDB password provisioning is disabled.");
 }
 
-export function isAllowedAventureEmail(email) {
+export function isVision71EmailAllowed() {
+  const envVal =
+    process.env.ALLOW_VISION71_EMAILS ??
+    process.env.VITE_ALLOW_VISION71_EMAILS ??
+    process.env.ALLOW_VISION71_EMAIL;
+
+  if (envVal !== undefined && envVal !== "") {
+    const norm = String(envVal).trim().toLowerCase();
+    return norm === "true" || norm === "1" || norm === "yes";
+  }
+
+  if (typeof pilot?.allowVision71Emails === "boolean") {
+    return pilot.allowVision71Emails;
+  }
+
+  return process.env.APP_ENV === "development" || process.env.NODE_ENV === "test";
+}
+
+export function isAllowedEmail(email) {
   const emailLower = String(email || "").trim().toLowerCase();
   if (emailLower.endsWith("@aventureaviation.com")) return true;
-  if (process.env.APP_ENV === "development" || process.env.NODE_ENV === "test") {
+  if (isVision71EmailAllowed()) {
     if (emailLower.endsWith("@vision71tech.com") || emailLower.endsWith("@example.test")) return true;
   }
   return false;
 }
 
+export const isAllowedAventureEmail = isAllowedEmail;
+
 export async function registerUser(db, { idToken, now = new Date() }, { notify = sendApprovalRequestEmail } = {}) {
   const identity = await firebaseIdentity(idToken);
   let user = await db.collection("users").findOne({ emailLower: identity.email, removedAt: { $exists: false } });
-  if (user && user.firebaseUid !== identity.uid) throw authError("FIREBASE_MIGRATION_REQUIRED", 409, "This existing account must be linked to Firebase by the administrator.");
-  if (user) return { ok: true, email: user.email, status: user.status };
-  if (!isAllowedAventureEmail(identity.email)) throw authError("DOMAIN_RESTRICTED", 403, "Please use your Aventure Aviation work email.");
+
+  const isVision71 = isVision71EmailAllowed() && (identity.email.endsWith("@vision71tech.com") || identity.email.endsWith("@example.test"));
+
+  // If user already exists, auto-link unlinked/legacy accounts or Vision71 test accounts so testers can immediately log in
+  if (user) {
+    if (!user.firebaseUid || isVision71) {
+      await db.collection("users").updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            firebaseUid: identity.uid,
+            status: isVision71 ? "active" : (user.status || "active"),
+            emailVerifiedAt: user.emailVerifiedAt || now,
+            updatedAt: now,
+          },
+          $unset: isVision71 ? { approvalToken: "", otp: "" } : { otp: "" },
+        }
+      );
+      user.firebaseUid = identity.uid;
+      if (isVision71) user.status = "active";
+    } else if (user.firebaseUid !== identity.uid) {
+      throw authError("FIREBASE_MIGRATION_REQUIRED", 409, "This existing account must be linked to Firebase by the administrator.");
+    }
+
+    if (user.status === "pending_approval" && isVision71) {
+      await db.collection("users").updateOne(
+        { _id: user._id },
+        { $set: { status: "active", approvedAt: now, updatedAt: now }, $unset: { approvalToken: "" } }
+      );
+      user.status = "active";
+    }
+    return { ok: true, email: user.email, status: user.status };
+  }
+
+  if (!isAllowedAventureEmail(identity.email)) {
+    const domainMsg = isVision71EmailAllowed()
+      ? "Please use an authorized work email (@aventureaviation.com or @vision71tech.com)."
+      : "Please use your Aventure Aviation work email.";
+    throw authError("DOMAIN_RESTRICTED", 403, domainMsg);
+  }
+
+  const initialStatus = isVision71 ? "active" : "pending_approval";
   const approvalToken = token();
-  const doc = { tenantId: process.env.AVENTURE_TENANT_ID || "vision71-internal", firebaseUid: identity.uid,
-    email: identity.email, emailLower: identity.email, name: identity.name || identity.email.split("@")[0],
-    role: "exhibition_assistant", status: "pending_approval", approvalToken,
-    emailVerifiedAt: now, createdAt: now, updatedAt: now };
-  try { await db.collection("users").insertOne(doc); }
-  catch (error) {
+  const doc = {
+    tenantId: process.env.AVENTURE_TENANT_ID || "vision71-internal",
+    firebaseUid: identity.uid,
+    email: identity.email,
+    emailLower: identity.email,
+    name: identity.name || identity.email.split("@")[0],
+    role: "exhibition_assistant",
+    status: initialStatus,
+    approvalToken: initialStatus === "active" ? undefined : approvalToken,
+    approvedAt: initialStatus === "active" ? now : undefined,
+    emailVerifiedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await db.collection("users").insertOne(doc);
+  } catch (error) {
     if (error.code !== 11000) throw error;
     user = await db.collection("users").findOne({ firebaseUid: identity.uid, emailLower: identity.email });
     if (!user) throw authError("ACCOUNT_EXISTS", 409, "This account already exists.");
     return { ok: true, email: user.email, status: user.status };
   }
-  const approvalUrl = (process.env.APP_BASE_URL || "https://lead71.com") + "/approve-user?token=" + approvalToken + "&email=" + encodeURIComponent(doc.email);
-  for (const adminEmail of [process.env.HALA_APPROVAL_EMAIL || "hala@aventureaviation.com", process.env.OSMAN_APPROVAL_EMAIL || "osman@aventureaviation.com"]) {
-    await notify({ adminEmail, userName: doc.name, userEmail: doc.email, approvalUrl });
+
+  if (initialStatus === "pending_approval") {
+    const approvalUrl = (process.env.APP_BASE_URL || "https://lead71.com") + "/approve-user?token=" + approvalToken + "&email=" + encodeURIComponent(doc.email);
+    for (const adminEmail of [process.env.HALA_APPROVAL_EMAIL || "hala@aventureaviation.com", process.env.OSMAN_APPROVAL_EMAIL || "osman@aventureaviation.com"]) {
+      if (adminEmail) {
+        await notify({ adminEmail, userName: doc.name, userEmail: doc.email, approvalUrl });
+      }
+    }
   }
-  return { ok: true, email: doc.email, status: "pending_approval" };
+
+  return { ok: true, email: doc.email, status: initialStatus };
 }
 
 export async function verifyUserOtp(db, input) { return registerUser(db, input); }
