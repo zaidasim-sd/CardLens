@@ -5,19 +5,24 @@ export interface ExhibitionOption {
   value: string;
 }
 
-/** Returns configured exhibitions, with Event A–D available by default. */
+/** Returns configured exhibitions with confirmed exhibition and Other / Source fallback. */
 export async function getExhibitions(): Promise<ExhibitionOption[]> {
   try {
     const data = await apiFetch<{ exhibitions: ExhibitionOption[] }>("/api/config/exhibitions");
-    if (Array.isArray(data?.exhibitions) && data.exhibitions.some(option => option.value)) {
+    if (Array.isArray(data?.exhibitions) && data.exhibitions.length > 0) {
       return data.exhibitions;
     }
   } catch {
-    // Keep the default events available if the endpoint is unavailable.
+    // Keep fallback available if endpoint is offline
   }
 
-  return [
+  const confirmed = (import.meta.env.VITE_CONFIRMED_EXHIBITION || "").trim();
+  const options: ExhibitionOption[] = [
     { label: "Select exhibition / source", value: "" },
-    ...["Event A", "Event B", "Event C", "Event D"].map(value => ({ label: value, value })),
   ];
+  if (confirmed) {
+    options.push({ label: confirmed, value: confirmed });
+  }
+  options.push({ label: "Other / Source", value: "Other / Source" });
+  return options;
 }

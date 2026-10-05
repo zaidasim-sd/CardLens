@@ -1,8 +1,11 @@
 export default function handler(req, res) {
-  res.status(200).json({
-    exhibitions: [
+  const confirmed = process.env.CONFIRMED_EXHIBITION?.trim();
+  const exhibitions = [
     { label: "Select exhibition / source", value: "" },
-    ...["Event A", "Event B", "Event C", "Event D"].map(value => ({ label: value, value })),
-  ],
-  });
+  ];
+  if (confirmed) {
+    exhibitions.push({ label: confirmed, value: confirmed });
+  }
+  exhibitions.push({ label: "Other / Source", value: "Other / Source" });
+  res.status(200).json({ exhibitions });
 }

@@ -264,6 +264,25 @@ export default function UserAdminPage() {
     }
   }
 
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  async function approveUser(accountId: string) {
+    setApprovingId(accountId);
+    setMessage(null);
+    try {
+      await apiFetch(`/api/users?action=approve&id=${encodeURIComponent(accountId)}`, {
+        method: "POST",
+        headers: { "X-CSRF-Token": csrfToken },
+      });
+      setMessage({ type: "success", text: "User account approved." });
+      await load();
+    } catch (caught) {
+      setMessage({ type: "error", text: caught instanceof Error ? caught.message : "Failed to approve user." });
+    } finally {
+      setApprovingId(null);
+    }
+  }
+
   // PILOT: reviewer accounts are kept in MongoDB, hidden from this pilot UI.
   const teamMembers = users.filter(account => account.role !== "vision71_administrator" && (pilot.internalReviewEnabled || account.role !== "aventure_reviewer"));
 
@@ -580,6 +599,16 @@ export default function UserAdminPage() {
                         >
                           {opt.badgeLabel}
                         </span>
+                        {account.status === "pending_approval" && (
+                          <span className="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                            Pending Approval
+                          </span>
+                        )}
+                        {account.status === "pending_verification" && (
+                          <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
+                            Pending OTP
+                          </span>
+                        )}
                       </div>
                       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">
                         {account.email}
@@ -588,7 +617,20 @@ export default function UserAdminPage() {
                   </div>
 
                   {/* Actions / Protection Badge */}
-                  <div className="flex items-center shrink-0">
+                  <div className="flex items-center shrink-0 gap-1.5">
+                    {account.status === "pending_approval" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={approvingId === account.id}
+                        onClick={() => approveUser(account.id)}
+                        className="h-8 px-2.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 rounded-lg transition-colors"
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                        <span>Approve</span>
+                      </Button>
+                    )}
                     {!isProtected && (
                       <Button
                         type="button"

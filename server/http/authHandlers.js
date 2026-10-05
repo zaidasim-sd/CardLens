@@ -1,5 +1,21 @@
 import { getDb, ensureDatabaseIndexes } from "../db.js";
-import { authenticate, createPreauthSession, createUser, listUsers, removeUser, rotateCsrf, signIn, signOut, verifyCsrf } from "../auth/service.js";
+import {
+  authenticate,
+  createPreauthSession,
+  createUser,
+  listUsers,
+  removeUser,
+  rotateCsrf,
+  signIn,
+  signOut,
+  verifyCsrf,
+  registerUser,
+  verifyUserOtp,
+  resendUserOtp,
+  authenticateGoogleUser,
+  approveUserByToken,
+  approveUserByAdmin,
+} from "../auth/service.js";
 import { clearSessionCookie, parseCookies, sessionCookie, SESSION_COOKIE } from "../auth/cookies.js";
 
 function send(res, status, body, cookie) {
@@ -51,6 +67,41 @@ export async function authHandler(req, res) {
       const result = await signIn(db, { ...req.body, ip: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown", sessionToken: requestToken(req), csrfToken: csrf(req) });
       return send(res, 200, { user: result.user, csrfToken: result.csrfToken }, sessionCookie(result.sessionToken));
     }
+    if (req.method === "POST" && (action === "register" || action === "create_account")) {
+      stage = "register";
+      const result = await registerUser(db, req.body);
+      return send(res, 200, result);
+    }
+    if (req.method === "POST" && action === "verify_otp") {
+      stage = "verify_otp";
+      const result = await verifyUserOtp(db, req.body);
+      return send(res, 200, result);
+    }
+    if (req.method === "POST" && action === "resend_otp") {
+      stage = "resend_otp";
+      const result = await resendUserOtp(db, req.body);
+      return send(res, 200, result);
+    }
+    if (req.method === "POST" && action === "google_auth") {
+      stage = "google_auth";
+      const result = await authenticateGoogleUser(db, {
+        ...req.body,
+        sessionToken: requestToken(req),
+        csrfToken: csrf(req),
+      });
+      if (result.sessionToken) {
+        return send(res, 200, { ok: true, status: result.status, user: result.user, csrfToken: result.csrfToken }, sessionCookie(result.sessionToken));
+      }
+      return send(res, 200, result);
+    }
+    if (action === "approve_user") {
+      stage = "approve_user";
+      const token = req.query?.token || req.body?.token;
+      const email = req.query?.email || req.body?.email;
+      const decision = req.query?.decision || req.body?.decision || "approve";
+      const result = await approveUserByToken(db, { email, token, decision });
+      return send(res, 200, result);
+    }
     if (req.method === "POST" && action === "sign_out") {
       stage = "sign_out";
       await signOut(db, requestToken(req), csrf(req));
@@ -75,6 +126,10 @@ export async function usersHandler(req, res) {
     const auth = await authenticate(db, requestToken(req));
     if (req.method === "GET") return send(res, 200, { users: await listUsers(db, auth.user) });
     verifyCsrf(auth.session, csrf(req));
+    if (req.method === "POST" && req.query?.action === "approve") {
+      const approved = await approveUserByAdmin(db, auth.user, req.query?.id);
+      return send(res, 200, { ok: true, user: approved });
+    }
     if (req.method === "POST") return send(res, 201, { user: await createUser(db, auth.user, req.body) });
     if (req.method === "DELETE") {
       await removeUser(db, auth.user, req.query?.id);

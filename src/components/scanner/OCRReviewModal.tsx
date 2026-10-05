@@ -182,8 +182,11 @@ export default function OCRReviewModal({
         allowDuplicate,
       });
       setSavedRecord(record);
-      if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) toast.warning(`Contact saved in Lead71. ${record.sheetError?.message || (pilot.submissionOnlyEnabled ? "Google Sheet delivery is pending. Please contact your administrator; do not submit another copy." : "Google Sheet synchronization is pending; open the queue to retry.")}`);
-      else toast.success(pilot.submissionOnlyEnabled ? "Contact added to Google Sheets" : "Contact submitted for review");
+      if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
+        toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to Aventure’s review register is pending; do not submit another copy."}`);
+      } else {
+        toast.success("Contact submitted for review");
+      }
     } catch (error: any) {
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
         setDuplicateMatch({ record: error.duplicate, reason: error.duplicate.matchReason || "A possible matching record was found while saving.", pendingVerifiedData: verifiedData });
@@ -211,7 +214,7 @@ export default function OCRReviewModal({
       notes: data.notes?.trim() || "",
       meetingContext: {
         metAtLocation: data.metAtLocation?.trim() || "",
-          whereMet: pilot.historicFieldsEnabled ? data.whereMet?.trim() || "" : ocrData?.meetingContext?.whereMet || "",
+        whereMet: pilot.historicFieldsEnabled ? data.whereMet?.trim() || "" : ocrData?.meetingContext?.whereMet || "",
         notes: data.notes?.trim() || "",
       },
     };
@@ -280,9 +283,6 @@ export default function OCRReviewModal({
         <div className="flex justify-between items-center flex-wrap gap-1">
           <Label htmlFor={name} className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
             {label}
-            {["fullName", "companyName", "email", "phone"].includes(name) && (
-              <span className="ml-1 text-red-600" aria-label="Required when the paired field is blank">*</span>
-            )}
           </Label>
 
           {/* Clean, Quiet Verification Status Badge */}
@@ -307,15 +307,14 @@ export default function OCRReviewModal({
           id={name}
           type={type}
           {...register(name)}
-          className={`h-11 min-w-0 text-base sm:text-sm rounded-xl ${
-            errors[name]
-              ? "border-red-500 focus-visible:ring-red-500"
-              : isEdited
+          className={`h-11 min-w-0 text-base sm:text-sm rounded-xl ${errors[name]
+            ? "border-red-500 focus-visible:ring-red-500"
+            : isEdited
               ? "border-amber-300 focus-visible:ring-amber-300 font-medium"
               : needsVerification
-              ? "border-amber-300 dark:border-amber-900/60 bg-amber-50/20"
-              : "border-slate-200 dark:border-slate-800"
-          }`}
+                ? "border-amber-300 dark:border-amber-900/60 bg-amber-50/20"
+                : "border-slate-200 dark:border-slate-800"
+            }`}
           placeholder={placeholder || `Enter ${label.toLowerCase()}`}
         />
         {errors[name] && (
@@ -346,17 +345,12 @@ export default function OCRReviewModal({
 
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
-                  {pilot.submissionOnlyEnabled ? (savedRecord.sheetStatus === "submitted" ? "Contact added to Google Sheets" : "Contact saved · delivery pending") : "Contact submitted for review"}
+                  Contact submitted for review
                 </h3>
                 {savedRecord.recordId?.startsWith("L71-") && <p className="text-xs font-medium text-[#248da3] tabular-nums">Reference: {savedRecord.recordId}</p>}
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {pilot.submissionOnlyEnabled ? (savedRecord.sheetStatus === "submitted" ? "Your contact has been added to the connected Google Sheet, including the capture date, time, and your name." : "Your contact is safely saved in Lead71, but delivery to Google Sheets needs attention. Please contact your administrator rather than submitting another copy.") : "The contact is ready for the approved review workflow. Captured date, time, and user account have been recorded automatically."}
+                  Your contact will appear in Aventure’s review register. Capture date, time, and user account have been recorded automatically.
                 </p>
-                {isDemo && (
-                  <p className="pt-1 text-[11px] text-slate-500 leading-relaxed">
-                    {pilot.submissionOnlyEnabled ? "Demonstration contact submitted to the connected Sheet." : "Demonstration card. Saved to local demonstration register."}
-                  </p>
-                )}
               </div>
 
               {/* Submitted Contact Summary Card */}
@@ -451,7 +445,7 @@ export default function OCRReviewModal({
                     )}
                   </div>
                   <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-                    {pilot.submissionOnlyEnabled ? "Check your contact details, then submit directly to Google Sheets." : originalImage ? "Verify the extracted details before submitting for approval. Every detail remains fully editable." : "Enter your contact details below, then submit for approval."}
+                    Check your contact details, then submit for review. Your contact will appear in Aventure’s review register.
                   </DialogDescription>
                 </div>
               </DialogHeader>
@@ -460,22 +454,22 @@ export default function OCRReviewModal({
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50/40 lg:flex-row lg:overflow-hidden">
                 {/* Left: Card Preview Panel */}
                 {originalImage && imageUrl && (
-                <div className="group relative h-[180px] min-h-[180px] shrink-0 overflow-hidden border-b border-slate-200 bg-slate-100/80 p-3 dark:bg-slate-900/40 dark:border-slate-800 sm:h-[220px] sm:min-h-[220px] sm:p-4 lg:h-auto lg:min-h-0 lg:w-5/12 lg:border-b-0 lg:border-r">
-                  <div className="absolute inset-3 flex items-center justify-center sm:inset-4 lg:inset-6">
-                    <img
-                      src={imageUrl}
-                      alt="Business Card Preview"
-                      className="h-full w-full rounded-xl border border-slate-200 object-contain shadow-xs bg-white dark:border-slate-800 dark:bg-slate-950"
-                    />
+                  <div className="group relative h-[180px] min-h-[180px] shrink-0 overflow-hidden border-b border-slate-200 bg-slate-100/80 p-3 dark:bg-slate-900/40 dark:border-slate-800 sm:h-[220px] sm:min-h-[220px] sm:p-4 lg:h-auto lg:min-h-0 lg:w-5/12 lg:border-b-0 lg:border-r">
+                    <div className="absolute inset-3 flex items-center justify-center sm:inset-4 lg:inset-6">
+                      <img
+                        src={imageUrl}
+                        alt="Business Card Preview"
+                        className="h-full w-full rounded-xl border border-slate-200 object-contain shadow-xs bg-white dark:border-slate-800 dark:bg-slate-950"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsZoomImageOpen(true)}
+                      className="absolute right-4 top-4 flex items-center gap-1 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-xs backdrop-blur-xs hover:bg-white cursor-pointer dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5 text-blue-600" /> Full View
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsZoomImageOpen(true)}
-                    className="absolute right-4 top-4 flex items-center gap-1 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-xs backdrop-blur-xs hover:bg-white cursor-pointer dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5 text-blue-600" /> Full View
-                  </button>
-                </div>
 
                 )}
                 {/* Right: Approved Version 1 Form Fields Panel */}
@@ -486,7 +480,10 @@ export default function OCRReviewModal({
                     className="space-y-4"
                     noValidate
                   >
-                    <p className="text-xs text-slate-500">Select an exhibition. Enter a contact name or company, and an email or phone. <span className="text-red-600">*</span> marks required fields.</p>
+                    <div className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">Form requirement:</p>
+                      <p className="mt-0.5">Enter either the contact name or company name, and at least one contact method: email or phone.</p>
+                    </div>
                     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                       {/* 1. Exhibition Name (Approved Field) */}
                       <div className="space-y-1.5 sm:col-span-2">
@@ -514,26 +511,21 @@ export default function OCRReviewModal({
                         )}
                       </div>
 
-                      {/* PILOT: historic location input retained for later restoration. */}
-                      {pilot.historicFieldsEnabled && <div className="sm:col-span-2">
-                        {renderField("Where met / Location", "whereMet", "text", "e.g. Hall 2, Booth 14 (optional)")}
-                      </div>}
-
                       {/* 2. Contact Name */}
-                      {renderField("Contact name", "fullName", "text", "e.g. John Doe")}
+                      {renderField("Contact name", "fullName", "text", "")}
 
                       {/* 3. Company Name */}
-                      {renderField("Company name", "companyName", "text", "e.g. AeroCorp Global")}
+                      {renderField("Company name", "companyName", "text", "")}
 
                       {/* 4. Job Title */}
-                      {renderField("Job title", "jobTitle", "text", "e.g. Director of Operations")}
+                      {renderField("Job title", "jobTitle", "text", "")}
 
                       {/* 5. Email Address */}
-                      {renderField("Email address", "email", "email", "e.g. john@example.com")}
+                      {renderField("Email address", "email", "email", "")}
 
                       {/* 6. Phone Number */}
                       <div className="sm:col-span-2">
-                        {renderField("Phone number", "phone", "tel", "e.g. +1 555-0199")}
+                        {renderField("Phone number", "phone", "tel", "")}
                       </div>
 
                       {/* 7. Short Notes */}
@@ -578,7 +570,7 @@ export default function OCRReviewModal({
                     </>
                   ) : (
                     <>
-                      <Send className="w-4 h-4 mr-1.5" /> {pilot.submissionOnlyEnabled ? "Submit contact" : "Submit for review"}
+                      <Send className="w-4 h-4 mr-1.5" /> Submit for review
                     </>
                   )}
                 </Button>

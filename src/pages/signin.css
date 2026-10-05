@@ -126,5 +126,22 @@
 /* Neutralize the browser's saved-credential background. */
 .signin-input-wrap input:is(:-webkit-autofill,:-webkit-autofill:hover,:-webkit-autofill:focus,:-webkit-autofill:active){-webkit-box-shadow:0 0 0 1000px #fff inset;box-shadow:0 0 0 1000px #fff inset;-webkit-text-fill-color:#143b50;caret-color:#143b50;border-radius:4px}
 .signin-input-wrap input:autofill{background:#fff;color:#143b50;box-shadow:0 0 0 1000px #fff inset}
-.signin-return{display:flex;justify-content:center;margin-top:21px}.signin-return .signin-back{display:inline-flex;align-items:center;gap:7px;padding:8px 10px;font-size:11px;color:#718b97;transition:color .2s}.signin-return .signin-back svg{width:13px;height:13px;transition:transform .2s}.signin-return .signin-back:hover{color:#147c92}@media(hover:hover) and (prefers-reduced-motion:no-preference){.signin-return .signin-back:hover svg{transform:translateX(-3px)}}
 .signin-header{padding:17px max(22px,calc((100% - 1280px)/2 + 22px))}.signin-brand img{height:44px}@media(min-width:640px){.signin-header{padding:22px max(36px,calc((100% - 1280px)/2 + 36px))}.signin-brand img{height:48px}}@media(min-width:1024px){.signin-brand img{height:62px}}
+
+/* Create Account layout: align left side content upward to match form header */
+@media (min-width: 1024px) {
+  .create-account-main {
+    align-items: start !important;
+    padding-top: 48px !important;
+  }
+  .create-account-main .signin-story {
+    padding-top: 12px !important;
+  }
+  .create-account-main .signin-story-content {
+    margin: 0 !important;
+    max-width: 440px;
+  }
+  .create-account-main .signin-panel {
+    padding-top: 0 !important;
+  }
+}
