@@ -54,6 +54,16 @@ test("missing Sheet configuration is an error, never success", async () => {
   await assert.rejects(submitDirect(f.db, user, input, new Date(), { sheet: { gateway: null } }), { code: "SHEET_NOT_CONFIGURED" });
   assert.equal(f.writes.length, 0);
 });
+
+test("administrator uses the same submission flow and retains capturer attribution", async () => {
+  const f = fixture();
+  const admin = { ...user, email: "hala@aventureaviation.com", role: "vision71_administrator", name: "Hala" };
+  const record = await submitDirect(f.db, admin, input, new Date(), { sheet: { gateway: f.gateway } });
+  assert.equal(record.sheetStatus, "submitted");
+  assert.equal(record.capturedBy, admin.id);
+  assert.equal(record.capturedByName, admin.name);
+  assert.equal(f.rows.length, 2);
+});
 test("Mongo guard blocks contact collections and nested password/contact writes", () => {
   const db = privacyDatabase({ collection: () => ({ insertOne() { assert.fail("write reached database"); } }) });
   for (const collection of ["cards", "cardImages", "transfers"]) assert.throws(() => db.collection(collection), { code: "SHEET_ONLY" });

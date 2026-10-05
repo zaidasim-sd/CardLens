@@ -29,7 +29,7 @@ export const ACTIONS = [
 const permissions = {
   exhibition_assistant: new Set(["capture_card", "use_ocr", "view_own_draft", "correct_own_draft", "submit_own_draft"]),
   aventure_reviewer: new Set(["view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction"]),
-  vision71_administrator: new Set(["manage_users", "manage_lists", "change_retention", "delete_record", "end_pilot_export", "view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction"]),
+  vision71_administrator: new Set(["capture_card", "use_ocr", "view_own_draft", "correct_own_draft", "submit_own_draft", "manage_users", "manage_lists", "change_retention", "delete_record", "end_pilot_export", "view_review_queue", "correct_submitted_card", "approve_card", "reject_card", "request_correction"]),
   vision71_support: new Set(["view_aggregate_counts"]),
 };
 

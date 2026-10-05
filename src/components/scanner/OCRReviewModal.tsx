@@ -9,7 +9,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  RefreshCw,
+  LoaderCircle,
   ZoomIn,
   Mail,
   Phone,
@@ -27,6 +27,7 @@ import DuplicateWarningModal from "./DuplicateWarningModal";
 import ViewCardModal from "@/components/verified/ViewCardModal";
 import type { OCRData, ContactRecord } from "@/types";
 import pilot from "@/config/pilot";
+import "./reviewSubmit.css";
 
 /**
  * Approved Version 1 Fields Schema:
@@ -601,17 +602,14 @@ export default function OCRReviewModal({
                   type="submit"
                   form="ocr-review-form"
                   disabled={isSaving}
-                  className="h-10 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:opacity-60 disabled:cursor-not-allowed px-5 text-xs font-semibold text-white shadow-sm transition-all"
+                  aria-busy={isSaving}
+                  className="review-submit"
                 >
-                  {isSaving ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" /> Submitting for review…
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-1.5" /> Submit for review
-                    </>
-                  )}
+                  <span className="review-submit-content">
+                    {isSaving ? <LoaderCircle className="review-submit-spinner" aria-hidden="true" /> : <Send className="review-submit-icon" aria-hidden="true" />}
+                    <span role="status" aria-live="polite">{isSaving ? "Submitting…" : "Submit for review"}</span>
+                  </span>
+                  {isSaving && <span className="review-submit-progress" aria-hidden="true" />}
                 </Button>
               </div>
             </>
