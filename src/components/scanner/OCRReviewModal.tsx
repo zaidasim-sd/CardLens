@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -91,6 +91,7 @@ interface Props {
   imageUrl: string;
   isDemo?: boolean;
   onSuccess: () => void;
+  onDiscardImage: () => void;
 }
 
 export default function OCRReviewModal({
@@ -102,8 +103,10 @@ export default function OCRReviewModal({
   imageUrl,
   isDemo = false,
   onSuccess,
+  onDiscardImage,
 }: Props) {
   const navigate = useNavigate();
+  const submissionId = useRef(crypto.randomUUID());
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedRecord, setSavedRecord] = useState<ContactRecord | null>(null);
@@ -161,6 +164,7 @@ export default function OCRReviewModal({
         whereMet: ocrData.meetingContext?.whereMet || "",
         notes: ocrData.notes || "",
       });
+      submissionId.current = crypto.randomUUID();
       setSavedRecord(null);
       setDuplicateMatch(null);
     }
@@ -172,7 +176,7 @@ export default function OCRReviewModal({
       const isManual = !originalImage;
       const fileName = originalImage instanceof File ? originalImage.name : undefined;
       const record = await submitContact({
-        originalImage: originalImage || undefined,
+        submissionId: submissionId.current,
         originalFileName: fileName,
         rawOCRText: rawText,
         ocrData: ocrData || verifiedData,
@@ -182,6 +186,7 @@ export default function OCRReviewModal({
         allowDuplicate,
       });
       setSavedRecord(record);
+      onDiscardImage();
       if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
         toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to Aventure’s review register is pending; do not submit another copy."}`);
       } else {
@@ -193,6 +198,7 @@ export default function OCRReviewModal({
         setIsDuplicateModalOpen(true);
         return;
       }
+      onDiscardImage();
       toast.error(error.message || "Failed to submit contact for review. Please try again.");
     } finally {
       setIsSaving(false);

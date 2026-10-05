@@ -11,10 +11,8 @@ export function recordDate(now, env = process.env) {
 export async function allocateRecordId(db, now, env = process.env) {
   const date = recordDate(now, env);
   const _id = `lead71_record_sequence:${date}`;
-  // Settings are included in existing backups. Seed from stored contacts as a
-  // safeguard if an older backup lacks the counter. Never reuse a reserved number.
-  const last = await db.collection("cards").find({ recordDate: date }, { projection: { recordSequence: 1 } }).sort({ recordSequence: -1 }).limit(1).next();
-  const initialize = { $max: { sequence: last?.recordSequence || 0 }, $setOnInsert: { tenantId: "__lead71_system", key: _id, createdAt: now } };
+  // Persist only the monotonically increasing reference counter.
+  const initialize = { $max: { sequence: 0 }, $setOnInsert: { tenantId: "__lead71_system", key: _id, createdAt: now } };
   try { await db.collection("settings").updateOne({ _id }, initialize, { upsert: true }); }
   catch (error) {
     if (error.code !== 11000) throw error;

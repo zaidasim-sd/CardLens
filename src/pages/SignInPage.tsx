@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
@@ -31,7 +33,7 @@ export default function SignInPage() {
         navigate(`/pending-approval?email=${encodeURIComponent(email.trim())}`);
         return;
       }
-      if (msg.toLowerCase().includes("verification pending")) {
+      if (msg.toLowerCase().includes("verification pending") || msg.toLowerCase().includes("verify your email")) {
         navigate(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
         return;
       }
@@ -39,6 +41,16 @@ export default function SignInPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function resetPassword() {
+    setBusy(true); setError("");
+    try {
+      if (!email.trim()) throw new Error("Enter your work email first.");
+      await sendPasswordResetEmail(auth, email.trim());
+      setError("If a Firebase account exists for this email, a password reset link will be sent.");
+    } catch (caught: any) { setError(caught.message || "Unable to request a password reset."); }
+    finally { setBusy(false); }
   }
 
   function handleGoogleSuccess(result: { status: "active" | "pending_approval" | "pending_verification"; message?: string }) {
@@ -167,6 +179,7 @@ export default function SignInPage() {
                 )}
               </button>
             </form>
+            <button type="button" className="mt-3 text-sm text-teal-700" disabled={busy} onClick={resetPassword}>Forgot password?</button>
 
             <div className="mt-5 text-center text-xs text-slate-500">
               New Exhibition Assistant?{" "}

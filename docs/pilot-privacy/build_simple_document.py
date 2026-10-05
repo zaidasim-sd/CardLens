@@ -1,0 +1,171 @@
+from pathlib import Path
+import unicodedata
+from docx import Document
+from docx.shared import Pt, Inches, RGBColor
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / 'output/documents/CardSnap Privacy and Pilot Documents.docx'
+OUT.parent.mkdir(parents=True, exist_ok=True)
+doc = Document()
+sec = doc.sections[0]
+sec.page_width = Inches(8.27)
+sec.page_height = Inches(11.69)
+sec.top_margin = sec.bottom_margin = Inches(.65)
+sec.left_margin = sec.right_margin = Inches(.75)
+for name, size in [('Normal',9),('Title',12),('Heading 1',12),('Heading 2',10.5)]:
+    s = doc.styles[name]
+    s.font.name = 'Aptos'
+    s.font.size = Pt(size)
+    s.font.color.rgb = RGBColor(0,0,0)
+    s.font.bold = name != 'Normal'
+    s.paragraph_format.space_after = Pt(5)
+    s.paragraph_format.space_before = Pt(7 if name == 'Heading 2' else 0)
+    s.paragraph_format.line_spacing = 1.08
+    s.element.get_or_add_rPr().rFonts.set(qn('w:eastAsia'),'Aptos')
+    s.element.get_or_add_rPr().rFonts.set(qn('w:cs'),'Aptos')
+    for attr in ['asciiTheme','hAnsiTheme','eastAsiaTheme','cstheme']:
+        s.element.get_or_add_rPr().rFonts.attrib.pop(qn('w:'+attr),None)
+for node in list(doc.styles.element.iter(qn('w:pBdr'))):
+    node.getparent().remove(node)
+
+def check(t):
+    assert ';' not in t and not any(unicodedata.category(c)=='Pd' for c in t),t
+def p(t,style=None):
+    check(t)
+    return doc.add_paragraph(t,style)
+def h(t): p(t,'Heading 2')
+def title(t): p(t,'Title')
+def page(t): doc.add_page_break(); title(t)
+def link(label,url):
+    check(label)
+    para=doc.add_paragraph()
+    item=OxmlElement('w:hyperlink')
+    item.set(qn('r:id'),para.part.relate_to(url,RT.HYPERLINK,is_external=True))
+    run=OxmlElement('w:r'); props=OxmlElement('w:rPr')
+    fonts=OxmlElement('w:rFonts'); fonts.set(qn('w:ascii'),'Aptos'); fonts.set(qn('w:hAnsi'),'Aptos')
+    size=OxmlElement('w:sz'); size.set(qn('w:val'),'18')
+    color=OxmlElement('w:color'); color.set(qn('w:val'),'000000')
+    props.extend([fonts,size,color]); run.append(props)
+    text=OxmlElement('w:t'); text.text=label; run.append(text); item.append(run); para._p.append(item)
+
+title('CardSnap by Vision71 Privacy Facts Sheet')
+p('Prepared for Aventure on 29 September 2026. First draft for review.')
+p('Do not use real Aventure cards or contact information until the remaining facts are confirmed and the client agreement is reviewed. This summary describes the inspected code and confirmed hosting information.')
+h('Hosting and region')
+p('The website is hosted on Vercel at https://cardsnapbyv71.vercel.app/. The owner confirms the free tier. Vercel Functions default to iad1 in Washington, D.C., USA. No region override appears in the inspected configuration. The project setting still needs checking. Static website files may be served through Vercel’s global network.')
+h('Database and card storage')
+p('There is no server contact database in the inspected application. The backend handles images in memory for text extraction. However, submitting a reviewed contact saves its image, extracted text and contact details in the user’s browser database, called IndexedDB. This is persistent browser storage, not temporary localStorage.')
+h('How long information remains')
+p('Saved browser records have no automatic expiry. They can remain after the browser is closed. Images are not automatically deleted after extraction or review. Deleting a preview does not delete a saved record.')
+h('Google Cloud Vision and OCR.space')
+p('Google Cloud Vision is the primary OCR service. The backend calls it over HTTPS using a server API key. The code supports OCR.space as the fallback when Google fails. Production credentials and fallback settings still need confirmation. Backend calling alone does not establish that user access is secured.')
+h('Who may receive the information')
+p('Vercel handles the uploaded image and OCR response. Google Cloud Vision receives images for extraction. OCR.space, operated by a9t9 software GmbH, can receive the same image on fallback. Each image contains its visible card details. Provider processing locations, contracts and any support or backup recipients need confirmation.')
+h('Users and authentication')
+p('There is no application login or enforced user role system. Someone with access to the same browser profile can access saved records. Hiding details in the review queue does not remove them from storage. Hosting account and support access must be confirmed.')
+h('Backups logs and deletion')
+p('No working application backup process or user audit trail was found. A code function can delete a browser record, but the current screen has no complete deletion workflow. Hosting logs, device backups and their deletion periods still need checking.')
+h('Constant Contact')
+p('Constant Contact is not connected in the inspected application. No card images or contact fields are transferred to it. The current Export Contacts button has no working action.')
+h('Incident reporting and pilot closure')
+p('Incident contacts and response owners must be agreed before use. At pilot closure, remove Vision71 access to relevant accounts, revoke tokens, rotate shared keys and delete agreed local copies. No automatic closure process exists.')
+
+page('CardSnap Privacy Notice')
+p('First draft for review. Complete the contact details and confirm the final setup before publication.')
+h('Who is responsible')
+p('CardSnap is provided by Vision71. Aventure decides why its business contacts are collected and how they are used. Vision71 processes those contacts on Aventure’s instructions. The parties must confirm their full legal names, addresses and privacy contacts before this notice is published.')
+h('What information we process')
+p('We process the image supplied by the operator and the text extracted from it. This may include a person’s name, job title, company, email address, telephone number, website and address. Operators may add meeting details and notes. Saved records also contain a filename, record identifier, status and dates.')
+h('Why we process it')
+p('CardSnap helps operators read business cards, check suggested fields and review possible duplicates. Aventure must identify its lawful basis for collecting and using this information. Providing a card does not automatically give permission for marketing. The service does not send marketing messages.')
+h('Where the information goes')
+p('The uploaded image passes through the Vercel backend to Google Cloud Vision. If the Google request fails, the backend can send the image to OCR.space. A failed request may already have reached Google, so both services may receive the same image. Manual entry and the prepared demonstration bypass OCR.')
+p('The service has no server contact database. If an operator submits a reviewed contact, its image, extracted text and contact details are saved in IndexedDB on that browser. Closing the page does not remove this saved information. There is no working Constant Contact transfer.')
+h('Retention and deletion')
+p('The application does not write uploaded images to server file storage. It handles them in memory during processing. Saved browser records have no automatic expiry or deletion after extraction. The parties must agree a retention period and a tested removal process before real data is used.')
+p('Google states that online image processing takes place in memory and that request metadata is temporarily logged. OCR.space states that uploaded documents are deleted after processing and API access IP addresses are retained for one month. Provider terms and hosting logs must be checked separately. Deleting a browser record does not delete an original photograph or another copy held elsewhere.')
+h('Security and international processing')
+p('Provider requests use HTTPS and API keys are held by the backend. The current application has no user login or role restrictions. Use is limited to synthetic demonstration data until suitable access controls are confirmed.')
+p('Vercel Functions default to Washington, D.C., USA, but this project’s setting has not been verified. Static files may be served globally. Google and OCR.space processing locations and any required safeguards for international transfers must be confirmed before publication.')
+h('Your rights and contact details')
+p('Depending on applicable law, you may request access, correction, deletion or restriction, object to processing, or request a portable copy. Where consent is used, you may withdraw it. Contact Aventure about its contact records and Vision71 about its own processing. Aventure decides how requests about its records are handled, with assistance from Vision71.')
+p('Before publication, insert the monitored privacy and incident contacts, the relevant regulator and complaint route, the applicable legal bases and the final retention periods. Report suspected exposure through the agreed incident channel without attaching card images to an ordinary email.')
+
+page('CardSnap Terms of Use')
+p('First draft for review. Effective date and provider legal details must be completed before acceptance.')
+h('Purpose and permitted use')
+p('CardSnap helps authorised business users extract and review contact details from business cards. Until the pilot is approved in writing, use only synthetic demonstration information. Do not submit real Aventure cards or enter real contacts manually.')
+h('What the current service provides')
+p('The service can capture or accept an image, obtain OCR results and save reviewed information in the current browser. It does not provide a server contact database, separate manager approval, working contact export or Constant Contact integration. A verified status records an operator action and is not independent verification by Vision71.')
+h('Your responsibilities')
+p('Only submit information that you are entitled to collect and share with the approved service providers. Check extracted names, email addresses and other details before using them. Do not upload identity documents, payment details, sensitive personal information or unrelated private notes.')
+p('Use an approved device and browser profile. Do not assume that closing the browser removes saved information. Do not misuse the service, bypass access restrictions or send unlawful messages. Report accidental disclosure, lost devices and suspected misuse promptly to the agreed contact.')
+h('Accuracy and service availability')
+p('OCR can make mistakes or return incomplete results. Provider limits, failures and network problems can stop scanning. Vision71 will perform the agreed service with reasonable care and skill. Availability, support hours and recovery commitments apply only where agreed in writing.')
+h('Information and ownership')
+p('The customer retains its rights in the information it supplies. Vision71 may use it only to provide the agreed service and follow the customer’s lawful instructions. Vision71 retains its rights in CardSnap and its software. No permission is granted to sell contacts or use them for unrelated advertising or model training.')
+h('Other services and marketing')
+p('Images may be processed by Vercel, Google Cloud Vision and OCR.space as described in the Privacy Notice. Constant Contact is not connected. Any future transfer requires approval, a clear field mapping and appropriate permission for the intended communication. Possessing a business card does not automatically authorise marketing.')
+h('Pilot arrangements and ending access')
+p('The signed Aventure agreement will set the dates, fees, support arrangements and exit process. Vision71 may suspend affected processing when needed to contain an incident or prevent unlawful use. Data return and deletion must follow the signed agreement. Removing online access does not erase information stored on a device.')
+h('Liability and changes')
+p('Nothing in these terms excludes liability that cannot lawfully be excluded or removes a person’s statutory rights. The parties must agree any liability limits, governing law and dispute process before acceptance. Changes to processing must follow the signed agreement. Public terms cannot override the agreed Data Processing Schedule.')
+h('Items to complete before use')
+p('Confirm the provider’s legal identity, contact details, acceptance method and effective date. Confirm permitted commercial hosting for the pilot. Vercel’s free Hobby plan is intended for personal and noncommercial use, so this client pilot needs a suitable plan or written provider permission.')
+
+page('Aventure Data and Service Agreement')
+p('First draft for client and legal review. The obligations below are proposed contract terms. They are not confirmation that the current application already has these controls.')
+h('Parties and pilot scope')
+p('Client: Aventure [full legal name and address]. Service provider: Vision71 [full legal name and address]. Pilot dates: [start and end]. Approved users and devices: [details]. Fees, support hours and service commitments: [details]. Governing law and dispute process: [details].')
+p('Vision71 will provide business card capture, text extraction and contact review for Aventure’s approved pilot. No real data may be accepted until the technical facts are confirmed, the required controls are tested and Aventure has reviewed and signed the agreement.')
+h('Responsibilities')
+p('Aventure decides the purpose and lawful basis for processing its contacts and acts as controller. Vision71 acts as processor and follows Aventure’s documented instructions, including instructions about disclosure and international transfers. Vision71 will promptly flag an instruction it considers unlawful. Any legally required processing outside those instructions will be notified where the law permits.')
+p('Aventure will provide appropriate notices, approve operators, decide retention and establish permission for follow up or marketing. Vision71 will keep data confidential, restrict staff access to authorised work and bind relevant personnel to confidentiality. Vision71 will not sell the data, market independently to contacts or use it for model training.')
+h('Data Processing Schedule')
+p('The people concerned are business card holders, business contacts and any people identified in meeting notes. The information includes submitted images, filenames, extracted text, reviewed contact details, meeting notes, record identifiers, status and timestamps.')
+p('Processing includes receiving images, extracting text, displaying and correcting fields, checking duplicates and saving records in the browser. Return and deletion must use a tested process. Processing lasts for the agreed pilot and only the agreed period needed for return or deletion. Sensitive information and unrelated personal notes are outside the intended scope.')
+h('Hosting and service providers')
+p('Vercel hosts https://cardsnapbyv71.vercel.app/ on the owner confirmed free tier. The default function region is iad1 in Washington, D.C., USA. The actual project region, account ownership and deployed version must be verified. The website’s global delivery network does not establish where OCR processing takes place.')
+p('Google Cloud Vision is the intended primary OCR provider. OCR.space, operated by a9t9 software GmbH, is the intended fallback. Before use, record and approve each provider’s legal entity, service plan, processing countries, contract and any required transfer safeguards. Identify any other support, monitoring or backup recipients.')
+p('Vision71 needs Aventure’s written approval before adding or replacing a processor. Equivalent applicable data protection duties must apply to that processor. Vision71 remains responsible for the processor obligations it delegates. Constant Contact is excluded unless a separate change is approved.')
+h('Storage and security requirements')
+p('The inspected service has no server contact database. The backend processes images in memory, while submitted records persist in the browser’s IndexedDB database. Images and raw text remain with the contact. There is no automatic expiry. The parties must approve this arrangement or change the software before making a temporary storage promise.')
+p('Before launch, agree and test user authentication, permitted access, device protection, HTTPS, API key restrictions, request limits and a suitable activity record. Confirm log contents and retention. Agree a tested backup and recovery approach or explicitly accept the absence of a service backup. The current code does not establish these controls.')
+
+page('Aventure Data Processing and Pilot Closure')
+h('Retention return and deletion')
+p('Before launch, Aventure will approve the retention period and deletion trigger for images, raw text, reviewed details, logs, support copies, exports and any backups. Vision71 will implement or document a workable process for each. Hiding a record, closing a preview or archiving it is not deletion.')
+p('At the end of the service, Aventure may choose secure return followed by deletion, or deletion without return. The proposed completion period is 30 calendar days, subject to agreement. Copies required by law must be identified and protected until that requirement ends. Any backup exception must have a fixed expiry and restrictions on use. Restored data must remain subject to prior deletion instructions.')
+h('Constant Contact')
+p('No information is currently transferred to Constant Contact by the inspected application. Before any future connection, the parties must agree the connection method, account owner, fields, recipient list, contact permission evidence and deletion responsibilities. Images, raw OCR text and notes must not be transferred without a separate justified instruction. Test the process with synthetic data before live use.')
+h('Incident reporting')
+p('Vision71 will notify Aventure without undue delay after becoming aware of a personal data breach affecting Aventure. The proposed maximum period is 24 hours and must be accepted before the pilot. A full investigation is not required before the first notice. Provide known facts, likely effects, containment actions and the next update time.')
+p('The parties will appoint monitored incident contacts and an urgent telephone route before launch. Vision71 will preserve necessary evidence, contain the incident and assist Aventure. Aventure will decide regulator and individual notifications unless the law assigns a separate duty to Vision71. Applicable legal deadlines must be confirmed for the relevant countries.')
+h('Requests and assurance')
+p('Vision71 will promptly forward requests about Aventure data and help Aventure locate, correct, return or delete information as required. It will assist with security assessments, impact assessments and regulator consultation where applicable. It will provide compliance information and allow reasonable audits or inspections by Aventure or an agreed independent reviewer.')
+h('Removing Vision71 access')
+p('At pilot closure, stop new processing and identify all devices, accounts and copies used for the service. Remove Vision71’s access to relevant hosting, cloud, repository and support accounts. Revoke sessions and tokens, rotate shared credentials and transfer ownership where agreed. Any access needed for the exit must be limited and have an expiry date.')
+p('Delete the agreed browser records, original photographs, exports and support copies. Confirm the result and test that removed accounts can no longer access the service. Vision71 will provide a written record of return, deletion, access removal and any lawful retention exception. The current application has no automatic process for this work.')
+h('Agreement and approval')
+p('The parties must complete their legal details, privacy contacts, pilot dates, fees, support arrangements, retention periods, liability terms and governing law before signature. This Data Processing Schedule controls personal data matters if other service terms conflict. Mandatory law continues to apply. No live processing is authorised by this draft.')
+p('Vision71 authorised name and signature: [to complete]. Date: [to complete].')
+p('Aventure authorised name and signature: [to complete]. Date: [to complete].')
+p('Technical confirmation and client legal review: [to complete].')
+h('Supporting information')
+link('Vercel function regions and default location','https://vercel.com/docs/functions/configuring-functions/region')
+link('Vercel Hobby plan','https://vercel.com/docs/plans/hobby')
+link('Google Cloud Vision data usage','https://docs.cloud.google.com/vision/docs/data-usage')
+link('OCR.space privacy policy','https://ocr.space/privacypolicy')
+
+footer=sec.footer.paragraphs[0]
+footer.alignment=2
+run=footer.add_run()
+run.font.name='Aptos'; run.font.size=Pt(9); run.font.color.rgb=RGBColor(0,0,0)
+field=OxmlElement('w:fldSimple'); field.set(qn('w:instr'),'PAGE'); run._r.addnext(field)
+doc.core_properties.title='CardSnap Privacy and Pilot Documents'
+doc.core_properties.author='Vision71'
+doc.save(OUT)
+print(OUT)

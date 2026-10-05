@@ -41,11 +41,7 @@ export default function GoogleSignInButton({
       }
 
       // Delegate session creation and state update to AuthContext
-      const result = await googleSignIn({
-        email: googleUser.email,
-        displayName: googleUser.displayName,
-        photoURL: googleUser.photoURL,
-      });
+      const result = await googleSignIn(googleUser);
 
       onSuccess(result);
     } catch (err: any) {

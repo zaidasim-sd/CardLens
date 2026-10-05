@@ -1,3 +1,5 @@
+import { signInWithEmailAndPassword, signOut as firebaseSignOut, type User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { setApiCsrfToken } from "@/lib/api";
 
@@ -18,7 +20,7 @@ interface AuthValue {
   loading: boolean;
   csrfToken: string;
   signIn: (emailOrTenantId: string, passwordOrEmail: string, optionalPassword?: string) => Promise<void>;
-  googleSignIn: (googleUser: { email?: string | null; displayName?: string | null; photoURL?: string | null }) => Promise<{ status: "active" | "pending_approval"; message?: string }>;
+  googleSignIn: (googleUser: User) => Promise<{ status: "active" | "pending_approval"; message?: string }>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -71,19 +73,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password = passwordOrEmail;
     }
 
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    const idToken = await credential.user.getIdToken();
+    const registration = await json(await fetch("/api/auth?action=register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) }));
+    if (registration.status === "rejected") throw new Error("Your account request was rejected.");
+    if (registration.status !== "active") throw new Error("Your verified account is waiting for approval by Aventure.");
     const preauth = await json(await fetch("/api/auth?action=csrf", { credentials: "include" }));
     const body = await json(await fetch("/api/auth?action=sign_in", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json", "X-CSRF-Token": preauth.csrfToken },
-      body: JSON.stringify({ tenantId: tenantId || "vision71-internal", email, password }),
+      body: JSON.stringify({ tenantId: tenantId || "vision71-internal", idToken }),
     }));
     setUser(body.user);
     setCsrfToken(body.csrfToken);
     setApiCsrfToken(body.csrfToken);
   }, []);
 
-  const googleSignIn = useCallback(async (googleUser: { email?: string | null; displayName?: string | null; photoURL?: string | null }) => {
+  const googleSignIn = useCallback(async (googleUser: User) => {
+    const idToken = await googleUser.getIdToken();
     const preauth = await json(await fetch("/api/auth?action=csrf", { credentials: "include" }));
     const response = await fetch("/api/auth?action=google_auth", {
       method: "POST",
@@ -92,11 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Content-Type": "application/json",
         "X-CSRF-Token": preauth.csrfToken,
       },
-      body: JSON.stringify({
-        email: googleUser.email,
-        name: googleUser.displayName || (googleUser.email ? googleUser.email.split("@")[0] : ""),
-        photoUrl: googleUser.photoURL,
-      }),
+      body: JSON.stringify({ idToken }),
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -121,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Ignore network errors during sign out
     } finally {
+      await firebaseSignOut(auth);
       setUser(null);
       setCsrfToken("");
       setApiCsrfToken("");

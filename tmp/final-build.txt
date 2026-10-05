@@ -1,0 +1,59 @@
+
+> aventrue-ocr-platform@0.0.0 build
+> tsc -b && vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 2207 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                             0.80 kB │ gzip:   0.42 kB
+dist/assets/poppins-latin-ext-900-normal-DPEExWNF.woff2     5.38 kB
+dist/assets/poppins-latin-ext-700-normal-cby-RkWa.woff2     5.43 kB
+dist/assets/poppins-latin-ext-500-normal-CK-6C4Hw.woff2     5.48 kB
+dist/assets/poppins-latin-ext-800-normal-CDgOlX-1.woff2     5.49 kB
+dist/assets/poppins-latin-ext-300-normal-Cirz0Guu.woff2     5.52 kB
+dist/assets/poppins-latin-ext-600-normal-CAhIAdZj.woff2     5.52 kB
+dist/assets/poppins-latin-ext-400-normal-by3JarPu.woff2     5.64 kB
+dist/assets/poppins-latin-ext-900-normal-CddlvElL.woff      7.17 kB
+dist/assets/poppins-latin-ext-700-normal-DctTR6Tg.woff      7.32 kB
+dist/assets/poppins-latin-ext-800-normal-CIZaRbSk.woff      7.36 kB
+dist/assets/poppins-latin-ext-500-normal-CgAe2rWW.woff      7.37 kB
+dist/assets/poppins-latin-ext-300-normal-nf6F73WS.woff      7.39 kB
+dist/assets/poppins-latin-ext-600-normal-Df5ffKXP.woff      7.43 kB
+dist/assets/poppins-latin-ext-400-normal-DaBSavcJ.woff      7.46 kB
+dist/assets/poppins-latin-900-normal-BmL1zqjw.woff2         7.63 kB
+dist/assets/poppins-latin-500-normal-C8OXljZJ.woff2         7.74 kB
+dist/assets/poppins-latin-700-normal-Qrb0O0WB.woff2         7.81 kB
+dist/assets/poppins-latin-800-normal-Bd8-pIP1.woff2         7.82 kB
+dist/assets/poppins-latin-300-normal-Dku2WoCh.woff2         7.84 kB
+dist/assets/poppins-latin-400-normal-cpxAROuN.woff2         7.88 kB
+dist/assets/poppins-latin-600-normal-zEkxB9Mr.woff2         8.00 kB
+dist/assets/poppins-latin-900-normal-By5LX1Cr.woff         10.18 kB
+dist/assets/poppins-latin-500-normal-DGXqpDMm.woff         10.37 kB
+dist/assets/poppins-latin-700-normal-BVuQR_eA.woff         10.43 kB
+dist/assets/poppins-latin-800-normal-YoItoZZV.woff         10.43 kB
+dist/assets/poppins-latin-300-normal-DCNuMXUj.woff         10.49 kB
+dist/assets/poppins-latin-400-normal-BOb3E3N0.woff         10.53 kB
+dist/assets/poppins-latin-600-normal-BJdTmd5m.woff         10.60 kB
+dist/assets/poppins-devanagari-900-normal-DntvEK6c.woff2   38.19 kB
+dist/assets/poppins-devanagari-800-normal-ACzlZF75.woff2   38.94 kB
+dist/assets/poppins-devanagari-500-normal-BIdkeU1p.woff2   39.08 kB
+dist/assets/poppins-devanagari-700-normal-O-jipLrW.woff2   39.25 kB
+dist/assets/poppins-devanagari-600-normal-STEjXBNN.woff2   39.29 kB
+dist/assets/poppins-devanagari-300-normal-D7nrgzLr.woff2   39.41 kB
+dist/assets/poppins-devanagari-400-normal-CJDn6rn8.woff2   39.66 kB
+dist/assets/poppins-devanagari-900-normal-CcN7yKeD.woff    50.77 kB
+dist/assets/poppins-devanagari-800-normal-BLmXVokE.woff    51.85 kB
+dist/assets/poppins-devanagari-700-normal-fHs-vx92.woff    52.24 kB
+dist/assets/poppins-devanagari-500-normal-DMPDjHtT.woff    52.42 kB
+dist/assets/poppins-devanagari-600-normal-ClASKHrr.woff    52.56 kB
+dist/assets/poppins-devanagari-300-normal-5EpgE5P1.woff    52.90 kB
+dist/assets/poppins-devanagari-400-normal-CqVvlrh5.woff    52.98 kB
+dist/assets/index-_sXCcbH4.css                            111.09 kB │ gzip:  18.17 kB
+dist/assets/rolldown-runtime-CbXtAM7H.js                    0.58 kB │ gzip:   0.36 kB
+dist/assets/ui-vendor-CPOp88s9.js                          44.91 kB │ gzip:  13.57 kB
+dist/assets/react-vendor-D3MgmOsQ.js                      218.84 kB │ gzip:  68.27 kB
+dist/assets/index-DqA17tPi.js                             333.25 kB │ gzip: 102.79 kB
+
+✓ built in 1.68s

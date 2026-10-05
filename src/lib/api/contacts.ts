@@ -1,17 +1,9 @@
 import type { ContactRecord, OCRData } from "@/types";
 import { apiFetch } from "./client";
-import { compressCardImage } from "../imageCompression";
 
-async function toBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 8192) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
-  }
-  return btoa(binary);
-}
 
 export interface CreateContactInput {
+  submissionId: string;
   originalImage?: Blob;
   originalFileName?: string;
   rawOCRText: string;
@@ -27,19 +19,8 @@ export interface CreateContactInput {
  * Date/time captured and captured-by user are recorded automatically on the backend.
  */
 export async function submitContact(input: CreateContactInput): Promise<ContactRecord> {
-  const image = input.originalImage ? await compressCardImage(input.originalImage) : null;
-  const body = {
-    rawOCRText: input.rawOCRText,
-    ocrData: input.ocrData,
-    verifiedData: input.verifiedData,
-    originalFileName: input.originalFileName,
-    isDemo: input.isDemo,
-    source: input.source || "ocr",
-    status: "submitted",
-    allowDuplicate: input.allowDuplicate,
-    imageBase64: image ? await toBase64(image) : undefined,
-    imageMimeType: image?.type,
-  };
+  const body = { submissionId: input.submissionId, verifiedData: input.verifiedData,
+    isDemo: input.isDemo, source: input.source || "ocr", status: "submitted" };
 
   const response = await apiFetch("/api/cards", {
     method: "POST",
@@ -47,7 +28,7 @@ export async function submitContact(input: CreateContactInput): Promise<ContactR
     body: JSON.stringify(body),
   });
 
-  return { ...response.record, originalImage: image || undefined } as ContactRecord;
+  return response.record as ContactRecord;
 }
 
 /**

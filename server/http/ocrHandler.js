@@ -121,6 +121,7 @@ export function createOcrHandler(dependencies = {}) {
   const ensureIndexes = dependencies.ensureDatabaseIndexes || ensureDatabaseIndexes;
   const env = dependencies.env || process.env;
   return async function ocrHandler(req, res) {
+    let imageBody;
     try {
       if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
       verifyOrigin(req, env);
@@ -136,6 +137,7 @@ export function createOcrHandler(dependencies = {}) {
       await consumeLimit(db, `ocr:ip:${digest(ip)}:${hour}`, OCR_IP_LIMIT);
       await consumeMonthlyCap(db, signedIn.user.tenantId, env);
       const body = await readBody(req);
+      imageBody = body;
       const images = requestImages(body, String(req.headers["content-type"] || ""));
       const results = [];
       for (const image of images) results.push(await runOcr(image.data));
@@ -145,6 +147,10 @@ export function createOcrHandler(dependencies = {}) {
       return res.status(200).json({ rawText, parsed, provider: "google", success: true });
     } catch (caught) {
       return res.status(caught.status || 500).json({ code: caught.code || "OCR_FAILED", error: OCR_FAILURE_MESSAGE });
+    } finally {
+      if (Buffer.isBuffer(imageBody)) imageBody.fill(0);
+      if (Buffer.isBuffer(req.body)) req.body.fill(0);
+      req.body = undefined;
     }
   };
 }
