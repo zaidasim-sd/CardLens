@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import "./capture.css";
 import {
@@ -307,7 +306,6 @@ function CameraModal({
 
 // ─── Main ScanPage Component ──────────────────────────────────────────────────
 export default function ScanPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -321,18 +319,6 @@ export default function ScanPage() {
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (searchParams.get("camera") !== "1") return;
-    // Consume the request so another navbar click can reopen a closed camera.
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.delete("camera");
-    setSearchParams(nextParams, { replace: true });
-    if (isScanning) {
-      toast.info("Please wait for the current card to finish processing.");
-      return;
-    }
-    setIsCameraOpen(true);
-  }, [searchParams, setSearchParams, isScanning]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => () => {
