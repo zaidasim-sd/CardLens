@@ -107,6 +107,7 @@ export default function OCRReviewModal({
 }: Props) {
   const navigate = useNavigate();
   const submissionId = useRef(crypto.randomUUID());
+  const isSubmittingLock = useRef(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedRecord, setSavedRecord] = useState<ContactRecord | null>(null);
@@ -153,25 +154,33 @@ export default function OCRReviewModal({
   }, []);
 
   useEffect(() => {
-    if (isOpen && ocrData) {
+    if (isOpen) {
+      const defaultExhibition =
+        ocrData?.meetingContext?.metAtLocation ||
+        exhibitionOptions.find((o) => o.value)?.value ||
+        "";
+
       reset({
-        fullName: ocrData.fullName || "",
-        jobTitle: ocrData.jobTitle || "",
-        companyName: ocrData.companyName || "",
-        email: ocrData.email || "",
-        phone: ocrData.phone || "",
-        metAtLocation: ocrData.meetingContext?.metAtLocation || "",
-        whereMet: ocrData.meetingContext?.whereMet || "",
-        notes: ocrData.notes || "",
+        fullName: ocrData?.fullName || "",
+        jobTitle: ocrData?.jobTitle || "",
+        companyName: ocrData?.companyName || "",
+        email: ocrData?.email || "",
+        phone: ocrData?.phone || "",
+        metAtLocation: defaultExhibition,
+        whereMet: ocrData?.meetingContext?.whereMet || "",
+        notes: ocrData?.notes || "",
       });
       submissionId.current = crypto.randomUUID();
       setSavedRecord(null);
       setDuplicateMatch(null);
+      setIsSaving(false);
+      isSubmittingLock.current = false;
     }
-  }, [isOpen, ocrData, reset]);
+  }, [isOpen, ocrData, reset, exhibitionOptions]);
 
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
     setIsSaving(true);
+    isSubmittingLock.current = true;
     try {
       const isManual = !originalImage;
       const fileName = originalImage instanceof File ? originalImage.name : undefined;
@@ -186,6 +195,7 @@ export default function OCRReviewModal({
         allowDuplicate,
       });
       setSavedRecord(record);
+      submissionId.current = crypto.randomUUID();
       onDiscardImage();
       if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
         toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to the review register is pending; do not submit another copy."}`);
@@ -198,14 +208,18 @@ export default function OCRReviewModal({
         setIsDuplicateModalOpen(true);
         return;
       }
-      onDiscardImage();
       toast.error(error.message || "Failed to submit contact for review. Please try again.");
     } finally {
       setIsSaving(false);
+      isSubmittingLock.current = false;
     }
   };
 
   const onSubmit = async (data: FormData) => {
+    if (isSubmittingLock.current || isSaving) return;
+    isSubmittingLock.current = true;
+    setIsSaving(true);
+
     const verifiedData: OCRData = {
       fullName: data.fullName?.trim() || "",
       companyName: data.companyName?.trim() || "",
@@ -225,25 +239,44 @@ export default function OCRReviewModal({
       },
     };
 
-    // Duplicate Check
-    let dupResult;
-    try {
-      dupResult = await checkDuplicateContact(verifiedData);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Duplicate checking failed. Please try again before submitting.");
-      return;
-    }
-    if (dupResult.isDuplicate && dupResult.matchedRecord) {
-      setDuplicateMatch({
-        record: dupResult.matchedRecord,
-        reason: dupResult.matchReason || "Duplicate found",
-        pendingVerifiedData: verifiedData,
-      });
-      setIsDuplicateModalOpen(true);
-      return;
+    // Duplicate Check (only when not in submission-only pilot)
+    if (!pilot.submissionOnlyEnabled) {
+      let dupResult;
+      try {
+        dupResult = await checkDuplicateContact(verifiedData);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Duplicate checking failed. Please try again before submitting.");
+        setIsSaving(false);
+        isSubmittingLock.current = false;
+        return;
+      }
+      if (dupResult.isDuplicate && dupResult.matchedRecord) {
+        setDuplicateMatch({
+          record: dupResult.matchedRecord,
+          reason: dupResult.matchReason || "Duplicate found",
+          pendingVerifiedData: verifiedData,
+        });
+        setIsDuplicateModalOpen(true);
+        setIsSaving(false);
+        isSubmittingLock.current = false;
+        return;
+      }
     }
 
     await saveRecordToDB(verifiedData);
+  };
+
+  const onInvalid = (formErrors: any) => {
+    if (formErrors.metAtLocation) {
+      toast.error(formErrors.metAtLocation.message || "Please select an exhibition / source.");
+      document.getElementById("metAtLocation")?.focus();
+    } else if (formErrors.fullName || formErrors.companyName) {
+      toast.error(formErrors.fullName?.message || formErrors.companyName?.message || "Either Contact Name or Company Name is required.");
+    } else if (formErrors.email || formErrors.phone) {
+      toast.error(formErrors.email?.message || formErrors.phone?.message || "Either Email or Phone is required.");
+    } else {
+      toast.error("Please fill in the required fields before submitting.");
+    }
   };
 
   const shouldFlagForVerification = (name: keyof FormData, value: string | undefined): boolean => {
@@ -482,7 +515,7 @@ export default function OCRReviewModal({
                 <div className="min-w-0 shrink-0 bg-white p-4 sm:p-5 md:p-6 lg:flex-1 lg:shrink lg:overflow-y-auto dark:bg-slate-950">
                   <form
                     id="ocr-review-form"
-                    onSubmit={handleSubmit(onSubmit)}
+                    onSubmit={handleSubmit(onSubmit, onInvalid)}
                     className="space-y-4"
                     noValidate
                   >
@@ -568,11 +601,11 @@ export default function OCRReviewModal({
                   type="submit"
                   form="ocr-review-form"
                   disabled={isSaving}
-                  className="h-10 rounded-xl bg-blue-600 hover:bg-blue-700 px-5 text-xs font-semibold text-white shadow-sm cursor-pointer"
+                  className="h-10 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:opacity-60 disabled:cursor-not-allowed px-5 text-xs font-semibold text-white shadow-sm transition-all"
                 >
                   {isSaving ? (
                     <>
-                      <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" /> Submitting…
+                      <RefreshCw className="w-4 h-4 mr-1.5 animate-spin" /> Submitting for review…
                     </>
                   ) : (
                     <>

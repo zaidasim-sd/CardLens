@@ -7,7 +7,7 @@ export default function SiteFooter() {
     <div className="site-footer-inner">
       <div className="site-footer-main">
         <div className="site-footer-brand">
-          <Link to="/welcome" aria-label="Lead71 home" className="site-footer-logo"><img src="/Lead71_wnb.png" alt="Lead71 by Vision71" width="168" height="96" /></Link>
+          <Link to="/welcome" aria-label="Lead71 home" className="site-footer-logo"><img src="/Lead71_wnb.png" alt="Lead71 by Vision71" width="219" height="125" /></Link>
           <p>Capture thoughtfully.<br /><span>Connect confidently.</span></p>
         </div>
         <nav className="site-footer-nav" aria-label="Explore Lead71"><h2>Explore</h2><a href="/welcome#workflow">How it works <ArrowUpRight size={13} /></a><a href="/welcome#features">Why Lead71 <ArrowUpRight size={13} /></a><Link to="/sign-in">Sign in <ArrowRight size={13} /></Link></nav>

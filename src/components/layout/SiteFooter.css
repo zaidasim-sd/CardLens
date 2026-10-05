@@ -53,12 +53,12 @@
     background: transparent;
     padding: 0;
     border-radius: 0;
-    margin-left: -14px;
-    margin-bottom: -40px;
+    margin-left: -18px;
+    margin-bottom: -50px;
 }
 
 .site-footer-logo img {
-    height: 96px;
+    height: 125px;
     width: auto;
     filter: none;
     object-fit: contain;
@@ -218,12 +218,12 @@
     }
 
     .site-footer-logo {
-        margin-left: -12px;
-        margin-bottom: -8px;
+        margin-left: -15px;
+        margin-bottom: -38px;
     }
 
     .site-footer-logo img {
-        height: 84px;
+        height: 100px;
     }
 
     .site-footer-maker img {
@@ -247,12 +247,12 @@
     }
 
     .site-footer-logo {
-        margin-left: -10px;
-        margin-bottom: -6px;
+        margin-left: -12px;
+        margin-bottom: -30px;
     }
 
     .site-footer-logo img {
-        height: 68px;
+        height: 80px;
     }
 
     .site-footer-maker {
