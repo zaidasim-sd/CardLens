@@ -1,3 +1,4 @@
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { CheckCircle2, XCircle, AlertCircle, Loader2, ArrowRight, ShieldCheck, UserCheck } from "lucide-react";
@@ -51,6 +52,7 @@ export default function ApproveUserPage() {
         <Link to="/welcome" className="signin-brand" aria-label="Lead71 home">
           <img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="64" />
         </Link>
+        <ThemeToggle />
       </header>
 
       <main className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">

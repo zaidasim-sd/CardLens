@@ -467,13 +467,13 @@ export default function ScanPage() {
         onChange={handleFileChange}
       />
 
-      <div className="max-w-6xl mx-auto px-2 sm:px-6 pt-4 sm:pt-8 pb-2 space-y-8">
+      <div className="scan-page max-w-6xl mx-auto px-2 sm:px-6 pt-4 sm:pt-8 pb-2 space-y-8">
         {!selectedFile ? (
 
           <section onDrop={handleDrop} onDragOver={e => e.preventDefault()} className="capture-home">
             <div className="capture-intro">
               <h1>Capture exhibition contacts <span>quickly.</span></h1>
-              <p>Turn a business card into your next connection.<br />Scan, check the details, and submit for review.</p>
+              <p>Turn a business card into your next connection.<br />Scan a card, check the details, and submit it for review.</p>
               <div className="capture-actions">
                 <Button onClick={() => setIsCameraOpen(true)} className="capture-primary"><Camera size={18} />Scan a card</Button>
                 <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="capture-upload"><UploadCloud size={18} />Upload a card</Button>
@@ -619,7 +619,7 @@ export default function ScanPage() {
                       disabled={isScanning}
                       className="h-9 rounded-xl text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
                     >
-                      Change
+                      Replace image
                     </Button>
                     <Button
                       variant="outline"

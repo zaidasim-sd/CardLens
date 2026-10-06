@@ -1,4 +1,6 @@
 import { getDb, ensureDatabaseIndexes } from "../db.js";
+import { createHash } from "node:crypto";
+import { requestPasswordReset } from "../auth/passwordReset.js";
 import {
   authenticate,
   createPreauthSession,
@@ -61,6 +63,20 @@ export async function authHandler(req, res) {
       stage = "preauth_session";
       const created = await createPreauthSession(db);
       return send(res, 200, { csrfToken: created.csrfToken }, sessionCookie(created.sessionToken, 600));
+    }
+    if (req.method === "POST" && action === "password_reset") {
+      stage = "password_reset";
+      const tokenHash = createHash("sha256").update(requestToken(req) || "").digest("hex");
+      const session = await db.collection("sessions").findOne({ tokenHash });
+      if (!session || session.absoluteExpiresAt <= new Date()) {
+        return send(res, 403, { code: "CSRF_INVALID", error: "Please refresh the page and try again." });
+      }
+      verifyCsrf(session, csrf(req));
+      const result = await requestPasswordReset(db, {
+        email: req.body?.email,
+        ip: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown",
+      });
+      return send(res, 200, result);
     }
     if (req.method === "POST" && action === "sign_in") {
       stage = "sign_in";

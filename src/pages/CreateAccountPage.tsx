@@ -1,3 +1,4 @@
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { createUserWithEmailAndPassword, sendEmailVerification, updateProfile } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useState, type FormEvent } from "react";
@@ -75,6 +76,7 @@ export default function CreateAccountPage() {
         <Link to="/welcome" className="signin-brand" aria-label="Lead71 home">
           <img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="64" />
         </Link>
+        <ThemeToggle />
       </header>
 
       <main className="signin-main create-account-main">

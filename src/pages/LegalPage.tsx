@@ -1,4 +1,5 @@
 import SiteFooter from "@/components/layout/SiteFooter";
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowRight } from "lucide-react";
@@ -19,7 +20,7 @@ export default function LegalPage({ kind }: { kind: "privacy" | "terms" }) {
     <a className="landing-skip" href="#legal-content">Skip to content</a>
     <header className="landing-header"><div className="landing-nav">
       <Link to="/welcome" className="landing-logo" aria-label="Lead71 home"><img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="44" /></Link>
-      <Link to="/sign-in" className="landing-sign-in">Sign in <ArrowRight size={16} /></Link>
+      <div className="header-actions"><ThemeToggle /><Link to="/sign-in" className="landing-sign-in">Sign in <ArrowRight size={16} /></Link></div>
     </div></header>
     <main id="legal-content" className="legal-main">
       <Link to="/welcome" className="legal-back"><ArrowLeft size={14} />Back to Lead71</Link>

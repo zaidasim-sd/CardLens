@@ -13,10 +13,14 @@ import '@fontsource/poppins/800.css'
 import '@fontsource/poppins/900.css'
 import { Toaster } from "@/components/ui/sonner"
 import { AuthProvider } from "@/auth/AuthContext"
+import { ThemeProvider } from "next-themes"
+import './uiPolish.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider><App /></AuthProvider>
-    <Toaster position="top-right" />
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="lead71-theme" disableTransitionOnChange>
+      <AuthProvider><App /></AuthProvider>
+      <Toaster position="top-right" />
+    </ThemeProvider>
   </StrictMode>,
 )
