@@ -257,7 +257,7 @@ export async function sendOtpEmail({ toEmail, otpCode, name = "Team Member" }) {
       `Valid for : 10 minutes\n` +
       `============================================================\n`
     );
-  } catch {}
+  } catch { }
 
   const baseUrl = getAppPublicUrl();
 
@@ -275,7 +275,7 @@ export async function sendOtpEmail({ toEmail, otpCode, name = "Team Member" }) {
     </div>
 
     <p style="margin: 0 0 12px 0; font-size: 13px; line-height: 20px; color: #64748b;">
-      Once verified, your account request will be submitted to designated administrators (Hala and Osman) for authorization before access is activated.
+      Once verified, your account request will be submitted to an Administrator for authorization before access is activated.
     </p>
   `;
 

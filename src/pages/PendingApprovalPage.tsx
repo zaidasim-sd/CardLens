@@ -2,7 +2,7 @@ import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import { Clock, RefreshCw, CheckCircle2, ShieldAlert, LogOut, LoaderCircle, HelpCircle } from "lucide-react";
+import { Clock, RefreshCw, CheckCircle2, ShieldAlert, LogOut, LoaderCircle, HelpCircle, ArrowRight } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import "./signin.css";
 
@@ -98,54 +98,103 @@ export default function PendingApprovalPage() {
         <div className="w-full max-w-lg bg-white border border-slate-200/90 rounded-2xl shadow-xl p-7 sm:p-10 text-center dark:bg-slate-900 dark:border-slate-800 animate-in fade-in-50 duration-200">
 
           {/* Status Indicator Icon */}
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 flex items-center justify-center mb-5 border border-amber-200/80 shadow-xs">
-            <Clock className="w-8 h-8" />
+          <div className={`mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-5 border shadow-xs transition-colors ${statusType === "approved"
+              ? "bg-emerald-50 text-emerald-600 border-emerald-200/80 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-800"
+              : statusType === "rejected"
+                ? "bg-rose-50 text-rose-600 border-rose-200/80 dark:bg-rose-950/60 dark:text-rose-400 dark:border-rose-800"
+                : "bg-amber-50 text-amber-600 border-amber-200/80 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-800"
+            }`}>
+            {statusType === "approved" ? (
+              <CheckCircle2 className="w-8 h-8" />
+            ) : statusType === "rejected" ? (
+              <ShieldAlert className="w-8 h-8" />
+            ) : (
+              <Clock className="w-8 h-8" />
+            )}
           </div>
 
           <h1 id="pending-title" className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">
-            Awaiting Administrator Approval
+            {statusType === "approved"
+              ? "Account Approved"
+              : statusType === "rejected"
+                ? "Access Not Approved"
+                : "Awaiting Administrator Approval"}
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-6">
-            Account created successfully. Access to the exhibition workspace requires authorization from designated administrators.
+            {statusType === "approved"
+              ? "Your access has been authorized. You can now enter the exhibition workspace."
+              : statusType === "rejected"
+                ? "Your registration request could not be authorized at this time."
+                : "Account created successfully. Access to the exhibition workspace requires authorization from an Administrator."}
           </p>
 
-          {/* Email Verification Confirmation Box */}
-          <div className="rounded-xl bg-emerald-50/90 border border-emerald-200/90 p-4 mb-5 text-xs text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-900/60 dark:text-emerald-200 text-left">
-            <div className="font-semibold flex items-center gap-2 mb-1.5 text-emerald-800 dark:text-emerald-300">
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span>Email Verified Successfully</span>
+          {/* Unified Dynamic Status Card (Replaces Email Verified card) */}
+          <div className={`rounded-xl border p-4 mb-5 text-xs text-left transition-all ${statusType === "approved"
+              ? "bg-emerald-50/90 border-emerald-200/90 text-emerald-950 dark:bg-emerald-950/40 dark:border-emerald-900/60 dark:text-emerald-200"
+              : statusType === "rejected"
+                ? "bg-rose-50/90 border-rose-200/90 text-rose-950 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-200"
+                : "bg-amber-50/80 border-amber-200/90 text-amber-950 dark:bg-amber-950/40 dark:border-amber-900/60 dark:text-amber-200"
+            }`}>
+            <div className={`font-semibold flex items-center gap-2 mb-1.5 ${statusType === "approved"
+                ? "text-emerald-800 dark:text-emerald-300"
+                : statusType === "rejected"
+                  ? "text-rose-800 dark:text-rose-300"
+                  : "text-amber-800 dark:text-amber-300"
+              }`}>
+              {statusType === "approved" ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>Access Authorized &amp; Active</span>
+                </>
+              ) : statusType === "rejected" ? (
+                <>
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                  <span>Request Declined</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>Approval Status: Pending</span>
+                </>
+              )}
             </div>
             {emailParam && (
-              <p className="font-mono text-[11px] text-emerald-900 dark:text-emerald-200 mb-1 pl-6 break-all">
+              <p className="font-mono text-[11px] opacity-90 mb-1 pl-6 break-all">
                 {emailParam}
               </p>
             )}
-            <p className="leading-relaxed text-slate-700 dark:text-slate-300 pl-6">
-              Your identity has been confirmed. To safeguard exhibition contacts, all Exhibition Assistant accounts must be authorized prior to first login.
+            <p className="leading-relaxed pl-6 opacity-90">
+              {statusType === "approved"
+                ? "Your Exhibition User account is authorized. You can now scan business cards and submit contacts directly."
+                : statusType === "rejected"
+                  ? "Your request was not approved. Please contact an Administrator if you believe this is an error."
+                  : "Your registration has been queued. To safeguard exhibition contacts, all accounts must be approved by an Administrator prior to initial login."}
             </p>
           </div>
 
           {/* Clear Next Steps & Assurance */}
-          <div className="rounded-xl bg-slate-50 border border-slate-200/70 p-4 mb-6 text-left text-xs text-slate-600 dark:bg-slate-800/50 dark:border-slate-700/60 dark:text-slate-300 space-y-2">
-            <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span>What happens next:</span>
+          {statusType !== "approved" && (
+            <div className="rounded-xl bg-slate-50 border border-slate-200/70 p-4 mb-6 text-left text-xs text-slate-600 dark:bg-slate-800/50 dark:border-slate-700/60 dark:text-slate-300 space-y-2">
+              <div className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <span>What happens next:</span>
+              </div>
+              <ul className="list-disc pl-4 space-y-1.5 leading-relaxed">
+                <li>An access authorization request has been dispatched to an Administrator.</li>
+                <li>You will receive an email confirmation as soon as your access is approved.</li>
+                <li><strong>You do not need to create another account.</strong> Your request is saved in the queue.</li>
+              </ul>
             </div>
-            <ul className="list-disc pl-4 space-y-1.5 leading-relaxed">
-              <li>An access authorization request has been dispatched to administrators (Hala and Osman).</li>
-              <li>You will receive an email confirmation as soon as your access is approved.</li>
-              <li><strong>You do not need to create another account.</strong> Your request is saved in the queue.</li>
-            </ul>
-          </div>
+          )}
 
-          {/* Status Message Feedback */}
+          {/* Status Message Feedback Alert */}
           {statusMessage && (
             <div
               className={`p-3 rounded-xl border text-xs text-left mb-5 flex items-start gap-2 ${statusType === "approved"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                : statusType === "rejected"
-                  ? "bg-rose-50 border-rose-200 text-rose-900"
-                  : "bg-amber-50 border-amber-200 text-amber-900"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : statusType === "rejected"
+                    ? "bg-rose-50 border-rose-200 text-rose-900"
+                    : "bg-amber-50 border-amber-200 text-amber-900"
                 }`}
             >
               {statusType === "approved" ? (
@@ -161,15 +210,34 @@ export default function PendingApprovalPage() {
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            <button
-              type="button"
-              onClick={checkApprovalStatus}
-              disabled={isChecking || isSigningOut}
-              className="signin-submit w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-semibold text-sm cursor-pointer disabled:opacity-60 transition-all"
-            >
-              <RefreshCw size={16} className={isChecking ? "animate-spin" : ""} />
-              <span>{isChecking ? "Checking approval status…" : "Check Approval Status"}</span>
-            </button>
+            {statusType === "approved" ? (
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="signin-submit w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-semibold text-sm cursor-pointer transition-all bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <span>Enter Exhibition Workspace</span>
+                <ArrowRight size={16} />
+              </button>
+            ) : statusType === "rejected" ? (
+              <button
+                type="button"
+                onClick={() => navigate("/welcome")}
+                className="signin-submit w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-semibold text-sm cursor-pointer transition-all"
+              >
+                <span>Return to Homepage</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={checkApprovalStatus}
+                disabled={isChecking || isSigningOut}
+                className="signin-submit w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-semibold text-sm cursor-pointer disabled:opacity-60 transition-all"
+              >
+                <RefreshCw size={16} className={isChecking ? "animate-spin" : ""} />
+                <span>{isChecking ? "Checking approval status…" : "Check Approval Status"}</span>
+              </button>
+            )}
 
             <button
               type="button"
