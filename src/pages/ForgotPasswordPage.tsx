@@ -1,3 +1,4 @@
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { sendPasswordResetEmail } from "firebase/auth";
@@ -33,7 +34,21 @@ export default function ForgotPasswordPage() {
     setBusy(true);
 
     try {
-      await sendPasswordResetEmail(auth, trimmed);
+      const csrfResponse = await fetch("/api/auth?action=csrf", { credentials: "include" });
+      const preauth = await csrfResponse.json();
+      if (!csrfResponse.ok) throw new Error("We could not connect. Please try again shortly.");
+      const response = await fetch("/api/auth?action=password_reset", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": preauth.csrfToken },
+        body: JSON.stringify({ email: trimmed }),
+      });
+      const result = await response.json();
+      if (result.code === "FIREBASE_RESET_NOT_CONFIGURED") {
+        // Keep password recovery available until server-side email credentials are added.
+        await sendPasswordResetEmail(auth, trimmed);
+      } else if (!response.ok) {
+        throw new Error(result.error || "We could not send the reset email. Please try again.");
+      }
       setSubmittedEmail(trimmed);
     } catch (caught: any) {
       const formatted = formatAuthError(caught, "reset");
@@ -49,6 +64,7 @@ export default function ForgotPasswordPage() {
         <Link to="/welcome" className="signin-brand" aria-label="Lead71 home">
           <img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="64" />
         </Link>
+        <ThemeToggle />
       </header>
 
       <main className="flex-1 flex items-center justify-center py-10 px-4 sm:px-6">

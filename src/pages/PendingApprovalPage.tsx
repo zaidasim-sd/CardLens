@@ -1,7 +1,8 @@
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
-import { Clock, RefreshCw, CheckCircle2, ShieldAlert, LogOut, HelpCircle } from "lucide-react";
+import { Clock, RefreshCw, CheckCircle2, ShieldAlert, LogOut, LoaderCircle, HelpCircle } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import "./signin.css";
 
@@ -11,6 +12,7 @@ export default function PendingApprovalPage() {
   const emailParam = searchParams.get("email") || auth.currentUser?.email || "";
   const { signOut, refresh } = useAuth();
   const [isChecking, setIsChecking] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [statusType, setStatusType] = useState<"pending" | "approved" | "rejected" | null>(null);
 
@@ -71,6 +73,8 @@ export default function PendingApprovalPage() {
   }
 
   async function handleSignOut() {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
     try {
       await auth.signOut().catch(() => { });
       await signOut().catch(() => { });
@@ -87,6 +91,7 @@ export default function PendingApprovalPage() {
         <Link to="/welcome" className="signin-brand" aria-label="Lead71 home">
           <img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="64" />
         </Link>
+        <ThemeToggle />
       </header>
 
       <main className="flex-1 flex items-center justify-center py-10 px-4 sm:px-6">
@@ -159,7 +164,7 @@ export default function PendingApprovalPage() {
             <button
               type="button"
               onClick={checkApprovalStatus}
-              disabled={isChecking}
+              disabled={isChecking || isSigningOut}
               className="signin-submit w-full flex items-center justify-center gap-2 py-3 px-5 rounded-xl font-semibold text-sm cursor-pointer disabled:opacity-60 transition-all"
             >
               <RefreshCw size={16} className={isChecking ? "animate-spin" : ""} />
@@ -169,10 +174,16 @@ export default function PendingApprovalPage() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-xs dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
+              disabled={isSigningOut}
+              aria-busy={isSigningOut}
+              className="signout-action min-h-11 w-full flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-xs dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
             >
-              <LogOut size={13} />
-              <span>Sign out &amp; return to homepage</span>
+              <span className="signout-icon" aria-hidden="true">
+                {isSigningOut
+                  ? <LoaderCircle className="signout-spinner" size={16} />
+                  : <LogOut className="signout-door" size={16} />}
+              </span>
+              <span role="status">{isSigningOut ? "Signing out…" : "Sign out & return to homepage"}</span>
             </button>
           </div>
 

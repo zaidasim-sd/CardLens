@@ -1,3 +1,4 @@
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useState, useEffect, type FormEvent } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { verifyPasswordResetCode, confirmPasswordReset } from "firebase/auth";
@@ -95,6 +96,7 @@ export default function ResetPasswordPage() {
         <Link to="/welcome" className="signin-brand" aria-label="Lead71 home">
           <img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="64" />
         </Link>
+        <ThemeToggle />
       </header>
 
       <main className="flex-1 flex items-center justify-center py-10 px-4 sm:px-6">

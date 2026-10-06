@@ -7,13 +7,13 @@
   padding: 0 20px;
   border: 1px solid rgb(255 255 255 / 18%);
   border-radius: 12px;
-  background: linear-gradient(135deg, #269bb2, #147c92);
+  background: #39b3c8;
   background-size: 160% 100%;
   background-position: 0% 50%;
-  color: #fff;
+  color: #113b50;
   font-size: 12px;
   font-weight: 600;
-  box-shadow: 0 3px 8px rgb(18 62 80 / 20%), inset 0 1px 0 rgb(255 255 255 / 15%);
+  box-shadow: none;
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 220ms ease, background-position 350ms ease, background-color 220ms ease;
 }
@@ -40,9 +40,10 @@
 
 @media (hover: hover) {
   .review-submit:not(:disabled):hover {
+    background-color: #269bb2;
     background-position: 100% 50%;
     transform: translateY(-1px);
-    box-shadow: 0 5px 14px rgb(18 62 80 / 25%), inset 0 1px 0 rgb(255 255 255 / 20%);
+    box-shadow: none;
   }
   .review-submit:not(:disabled):hover::before { animation: review-submit-shine 650ms ease-out; }
   .review-submit:not(:disabled):hover .review-submit-icon { transform: translate(2px, -1px); }
@@ -51,12 +52,14 @@
 .review-submit:not(:disabled):active {
   transform: translateY(1px);
   background: #116777;
+  color: #fff;
   box-shadow: inset 0 2px 4px rgb(18 62 80 / 20%);
 }
 .review-submit:focus-visible { outline: 3px solid #81d3df; outline-offset: 3px; }
 .review-submit[data-slot="button"]:disabled { opacity: 1; cursor: wait; }
 .review-submit[data-slot="button"][aria-busy="true"] {
-  background: #123e50;
+  background: #147c92;
+  color: #fff;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 12%);
 }
 .review-submit[aria-busy="true"] .review-submit-content {

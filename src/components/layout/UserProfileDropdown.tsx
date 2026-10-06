@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut, ChevronDown, Mail } from "lucide-react";
+import { LogOut, LoaderCircle, ChevronDown, Mail } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth, type Role } from "@/auth/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,19 @@ interface UserProfileDropdownProps {
 export default function UserProfileDropdown({ className, isMobileCompact = false }: UserProfileDropdownProps) {
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  async function handleSignOut() {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      toast.error("Could not complete sign out. Please try again.");
+      setIsSigningOut(false);
+    }
+  }
 
   // Close when clicking outside
   useEffect(() => {
@@ -76,6 +89,7 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
+        disabled={isSigningOut}
         aria-expanded={open}
         aria-haspopup="true"
         className={cn(
@@ -157,14 +171,17 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
           {/* Logout Button */}
           <button
             type="button"
-            onClick={() => {
-              setOpen(false);
-              void signOut();
-            }}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 active:bg-red-100/80 dark:text-red-400 dark:hover:bg-red-950/40"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            aria-busy={isSigningOut}
+            className="signout-action flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 active:bg-red-100/80 dark:text-red-400 dark:hover:bg-red-950/40"
           >
-            <LogOut className="h-4 w-4" />
-            <span>Sign out of Lead71</span>
+            <span className="signout-icon" aria-hidden="true">
+              {isSigningOut
+                ? <LoaderCircle className="signout-spinner h-4 w-4" />
+                : <LogOut className="signout-door h-4 w-4" />}
+            </span>
+            <span role="status">{isSigningOut ? "Signing out…" : "Sign out of Lead71"}</span>
           </button>
         </div>
       )}

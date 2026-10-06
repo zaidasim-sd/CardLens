@@ -1,0 +1,166 @@
+/* Small readability adjustments shared across public pages and portal dialogs. */
+.header-actions { display: flex; align-items: center; gap: 12px; }
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 40px; height: 40px; border: 1px solid #dce7ed; border-radius: 10px;
+  background: transparent; color: #476775; cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.theme-toggle:hover { background: #eff9fb; border-color: #a8dce5; }
+.theme-toggle:focus-visible { outline: 2px solid #39b3c8; outline-offset: 3px; }
+.portal-scan-link[aria-current="page"] {
+  background: transparent; box-shadow: none; font-weight: 500; color: #476775;
+}
+.portal-scan-link svg { opacity: .75; }
+.text-xs { font-size: 13px; }
+.review-contact-modal [class~="text-[10px]"] { font-size: 11px; }
+input::placeholder, textarea::placeholder { color: #64748b; opacity: 1; }
+.lead71-landing { --muted: #586a7e; }
+.hero-description { font-size: 15px; }
+.landing-primary, .landing-secondary, .landing-sign-in { min-height: 44px; font-size: 13px; }
+.landing-primary { box-shadow: none; }
+.workspace-intro p, .workspace-window-bar, .workspace-source-caption,
+.workspace-detail-note, .workspace-sheet-confirm { font-size: 12px; color: #526f7d; }
+.workspace-label, .workspace-counter, .workspace-sheet-head { font-size: 11px; color: #526f7d; }
+.workspace-result-title h3 { font-size: 14px; }
+.workspace-detail>span { font-size: 12px; color: #526f7d; width: 66px; }
+.workspace-detail { min-height: 42px; }
+.workspace-sheet-bar strong, .workspace-steps strong { font-size: 12px; }
+.workspace-steps strong { color: #526f7d; }
+.workspace-steps button>span { font-size: 11px; color: #526f7d; }
+.workspace-sheet-bar>span { font-size: 11px; }
+.landing-features p { font-size: 14px; color: #586a7e; }
+.final-eyebrow { font-size: 11px; }
+.signin-intro, .signin-back, .signin-footer { font-size: 13px; color: #526f7d; }
+.signin-field label { font-size: 13px; }
+.signin-input-wrap { height: 44px; border-radius: 12px; }
+.signin-input-wrap input::placeholder { font-size: 14px; color: #64748b; }
+.signin-submit { min-height: 44px; border-radius: 12px; font-size: 14px; box-shadow: none; }
+.signin-submit:hover { box-shadow: none; }
+.signin-story-footer, .signin-story p { color: #526f7d; }
+.site-footer-nav h2 { font-size: 12px; }
+.site-footer-nav a, .site-footer-maker .site-footer-maker-link { font-size: 13px; }
+.site-footer-bottom { font-size: 12px; color: #c0d4df; }
+.capture-intro>p { font-size: 15px; color: #586a7e; }
+.capture-actions button { height: 44px; border-radius: 12px; box-shadow: none; }
+.capture-actions .capture-primary { color: #113b50; }
+.scan-page button.bg-blue-600, .review-contact-modal button.bg-blue-600 { color: #113b50; }
+.capture-stage-heading h2 { font-size: 14px; }
+.capture-stage>p { font-size: 13px; color: #586a7e; }
+.capture-form-title, .capture-ready>strong { font-size: 12px; }
+.capture-field, .capture-preview-caption, .capture-ready>span { font-size: 11px; color: #526f7d; }
+.capture-field>span { color: #526f7d; width: 58px; flex-shrink: 0; }
+.capture-vision-footer button, .capture-vision-credit { font-size: 12px; color: #526f7d; }
+.scan-page [data-slot="button"] { min-height: 44px; border-radius: 12px; }
+.review-contact-modal input, .review-contact-modal select, .review-contact-modal textarea { max-width: 100%; min-width: 0; }
+.review-contact-modal input { overflow: hidden; text-overflow: ellipsis; }
+.review-contact-modal form { min-width: 0; }
+.review-contact-modal select, .review-contact-modal textarea { border-color: #e2e8f0b3; }
+.review-success-summary :is(h4,p,span) { overflow-wrap: anywhere; min-width: 0; }
+.review-success-summary .truncate { white-space: normal; overflow: visible; text-overflow: clip; }
+.review-success-summary svg { flex-shrink: 0; }
+.review-success-summary [class*="items-center"] { align-items: flex-start; }
+.review-contact-modal [data-slot="button"] { min-height: 44px; }
+.admin-page>section>p { font-size: 13px; }
+.admin-member p { font-size: 12px; }
+.admin-page>section button { height: 44px; border-radius: 12px; }
+.legal-back, .legal-contents a, .legal-document-name, .legal-footer-links a { font-size: 13px; }
+.legal-eyebrow { font-size: 11px; color: #526f7d; }
+@media (min-width: 768px) {
+  .landing-hero { padding-top: 48px; padding-bottom: 36px; }
+  .workspace-card-preview .sample-business-card { width: 168px; height: 102px; }
+  .workspace-card-preview .scan-corners { width: 196px; left: calc(50% - 98px); }
+  .workspace-card-preview .scan-beam { width: 184px; left: calc(50% - 92px); }
+}
+
+/* The theme class lives on html, so portalled dialogs inherit it too. */
+.dark {
+  color-scheme: dark;
+  --background: #0f1b27; --foreground: #e7eef4;
+  --card: #142330; --card-foreground: #e7eef4;
+  --popover: #142330; --popover-foreground: #e7eef4;
+  --muted: #1b2d3d; --muted-foreground: #a7bbc9;
+  --secondary: #1b2d3d; --secondary-foreground: #e7eef4;
+  --accent: #1b2d3d; --accent-foreground: #e7eef4;
+  --border: #29404e; --input: #29404e; --ring: #81d3df;
+}
+.dark .theme-toggle { color: #c7dce7; border-color: #365363; }
+.dark .app-shell { background: #0f1b27; }
+.dark .theme-toggle:hover { background: #1b3441; border-color: #568391; }
+.dark :is(.landing-logo,.signin-brand,.portal-nav) img[src="/lead71-logo.svg"] { filter: brightness(0) invert(1); }
+.dark .lead71-landing { --ink: #e0edf3; --muted: #aec1cd; --border: #29404e; background: #0f1b27; }
+.dark .landing-header, .dark .signin-header { background: #142330; border-color: #29404e; }
+.dark .landing-nav nav a, .dark .landing-sign-in { background: #142330; border-color: #365363; color: #c7dce7; }
+.dark .landing-nav nav a:hover, .dark .landing-sign-in:hover { background: #1b3441; color: #81d3df; }
+.dark .landing-hero { background: #0f1b27; }
+.dark .landing-hero h1>span { color: #81d3df; }
+.dark .workspace-intro h2 { color: #e0edf3; }
+.dark .landing-final { background: #1b3441; }
+.dark :is(.workflow-panel,.workspace-window,.workspace-card-preview,.workspace-sheet,.workflow-node,.node-preview) { background: #142330; border-color: #29404e; box-shadow: none; }
+.dark :is(.workspace-window-bar,.workspace-sheet-bar,.workspace-new-row,.sheet-only-preview) { background: #1b3441; border-color: #29404e; }
+.dark :is(.workspace-intro p,.workspace-counter,.workspace-label,.workspace-source-caption,.workspace-detail>span,.workspace-detail-note,.workspace-sheet-head,.workspace-steps strong,.workspace-window-bar,.hero-description,.landing-features p) { color: #aec1cd; }
+.dark :is(.workspace-result-title h3,.workspace-sheet-bar strong,.sheet-only-preview>strong) { color: #e0edf3; }
+.dark :is(.workspace-detail,.workspace-sheet-head,.workspace-sheet-row,.landing-features,.landing-final) { border-color: #29404e; }
+.dark .workspace-steps button>span { background: #142330; border-color: #365363; color: #aec1cd; }
+.dark .workspace-steps :is(.is-current,.is-done), .dark .workspace-steps button:hover { background: #1b3441; border-color: #365363; }
+.dark .workspace-steps .is-current>span { background: #39b3c8; color: #102d3b; }
+.dark .workspace-steps .is-current strong, .dark .workspace-sheet-confirm { color: #81d3df; }
+.dark .workspace-sheet-row i, .dark .workspace-details-waiting .workspace-detail i { background: #365363; }
+.dark .workspace-detail i, .dark .workspace-new-row i { background: #568391; }
+.dark .landing-secondary { background: transparent; border-color: #365363; color: #c7dce7; }
+.dark .feature-icon { background: #1b3441; border-color: #365363; color: #81d3df; }
+.dark .final-eyebrow { color: #aec1cd; }
+.dark .lead71-signin { background: #0f1b27; color: #e0edf3; }
+.dark :is(.signin-story,.signin-input-wrap input) { color: #e0edf3; }
+.dark .signin-story h2>span, .dark .signin-password-toggle { color: #81d3df; }
+.dark .lead71-signin :is(.text-teal-700,.text-teal-900,.text-teal-600,.text-\[\#248da3\]) { color: #81d3df; }
+.dark :is(.signin-intro,.signin-back,.signin-footer,.signin-story-footer,.signin-story p) { color: #aec1cd; }
+.dark :is(.signin-input-wrap,.signin-demo-card,.signin-detail-card) { background: #142330; border-color: #365363; }
+.dark .signin-input-wrap:focus-within { background: #142330; border-color: #81d3df; }
+.dark .signin-input-wrap input::placeholder, .dark input::placeholder, .dark textarea::placeholder { color: #a7bbc9; }
+.dark .signin-password-toggle:hover { background: #1b3441; color: #81d3df; }
+.dark .signin-notice-icon { background: #1b3441; border-color: #365363; color: #81d3df; }
+.dark .signin-footer { border-color: #29404e; }
+.dark .lead71-signin .bg-white { background: #142330; border-color: #29404e; }
+.dark .lead71-signin :is(.text-slate-900,.text-slate-800,.text-slate-700) { color: #e0edf3; }
+.dark .lead71-signin :is(.text-slate-600,.text-slate-500) { color: #aec1cd; }
+.dark .lead71-signin .bg-slate-50 { background: #1b2d3d; }
+.dark .lead71-signin .signin-error { background: #361e27; color: #fecaca; border-color: #633744; }
+.dark .signin-demo-card .signin-card-identity i:first-child { background: #c7dce7; }
+.dark .signin-input-wrap input:is(:-webkit-autofill,:autofill) { box-shadow: 0 0 0 1000px #142330 inset; -webkit-text-fill-color: #e0edf3; caret-color: #e0edf3; }
+.dark :is(.capture-intro>p,.capture-stage>p,.capture-preview-caption,.capture-field>span,.capture-ready>span,.capture-vision-footer button,.capture-vision-credit) { color: #aec1cd; }
+.dark .capture-review, .dark .capture-ready { background: #142330; }
+.dark .capture-field { border-color: #29404e; }
+.dark .capture-form-title { color: #c7dce7; }
+.dark .capture-ready .capture-ready-pill { background: #1b3441; color: #81d3df; }
+.dark .portal-scan-link[aria-current="page"] { color: #aec1cd; background: transparent; }
+.dark .capturer-theme .bg-blue-50 { background: #142b35; }
+.dark .capturer-theme :is(.text-blue-600,.text-blue-700,.text-blue-500) { color: #81d3df; }
+.dark .admin-page :is(.bg-amber-50,.bg-emerald-50) { background: #142b35; color: #81d3df; }
+.dark .admin-page>section { border-color: #29404e; }
+.dark .admin-page>section>p { color: #aec1cd; }
+.dark .legal-main :is(p,li,a,.legal-eyebrow,.legal-document-name) { color: #aec1cd; }
+.dark .legal-main :is(.legal-intro,.legal-article section) { border-color: #29404e; }
+.dark .legal-contents a:hover { background: #1b3441; color: #81d3df; }
+.dark .review-contact-modal :is(select,textarea) { border-color: #365363; }
+.dark .review-card-preview { background: #142330; }
+@media (max-width: 639px) {
+  .header-actions { gap: 8px; }
+  .site-footer-bottom { font-size: 11px; }
+  .workspace-steps strong { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .theme-toggle { transition: none; } }
+
+/* Sign-out feedback follows the real request; no animation delays navigation. */
+.signout-action { transition: background-color 160ms ease, color 160ms ease; }
+.signout-action:focus-visible { outline: 2px solid #39b3c8; outline-offset: 2px; }
+.signout-action:disabled { cursor: wait; }
+.signout-icon { position: relative; display: inline-flex; width: 16px; height: 16px; flex-shrink: 0; }
+.signout-action[aria-busy="true"] { background-color: #f1f5f9; color: #476775; }
+.dark .signout-action[aria-busy="true"] { background-color: #1b3441; color: #c7dce7; }
+.signout-spinner { position: absolute; inset: 0; animation: signout-spin 900ms linear infinite; }
+@keyframes signout-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .signout-action { transition: none; }
+  .signout-spinner { animation: none; }
+}

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
 import UserProfileDropdown from "./UserProfileDropdown";
 import pilot from "@/config/pilot";
+import ThemeToggle from "./ThemeToggle";
 
 const navItems = [
   { name: "Scan Card", to: "/scan", icon: ScanLine, roles: ["exhibition_assistant", "vision71_administrator"] },
@@ -45,6 +46,7 @@ export default function Header() {
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
+                    item.to === "/scan" && "portal-scan-link",
                     "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all whitespace-nowrap",
                     isActive
                       ? "bg-white text-[#147c92] shadow-xs font-semibold dark:bg-slate-900 dark:text-blue-300"
@@ -61,6 +63,7 @@ export default function Header() {
 
       {/* Right Side: Profile & Avatar Dropdown (Desktop & Mobile) */}
       <div className="flex items-center justify-end shrink-0 gap-2">
+        <ThemeToggle />
         {user && (
           <>
             {/* Desktop Profile Trigger with user name */}

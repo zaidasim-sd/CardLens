@@ -1,3 +1,4 @@
+import ThemeToggle from "@/components/layout/ThemeToggle";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
@@ -59,6 +60,7 @@ export default function SignInPage() {
         <Link to="/welcome" className="signin-brand" aria-label="Lead71 home">
           <img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="64" />
         </Link>
+        <ThemeToggle />
       </header>
 
       <main className="signin-main">

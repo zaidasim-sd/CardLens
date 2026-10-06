@@ -99,6 +99,7 @@ function renderLead71Layout({
   secondaryHtml = "",
   footerNote = "",
   baseUrl = getAppPublicUrl(),
+  textLogo = false,
 }) {
   const currentYear = new Date().getFullYear();
   const logoUrl = `${baseUrl}/lead71-logo.svg`;
@@ -147,7 +148,7 @@ function renderLead71Layout({
             <td class="email-header" align="center" style="padding: 0 0 28px; text-align: center;">
               <a href="${baseUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; display: inline-block;">
                 <!-- Lead71 Logo Image with fallback -->
-                <img src="${logoUrl}" alt="Lead71 by Vision71" width="144" height="48" style="display: block; border: 0; margin: 0 auto 6px auto; max-width: 144px; height: auto;" />
+                ${textLogo ? `<span style="display: inline-block; font-family: Arial, Helvetica, sans-serif; font-size: 44px; line-height: 52px; font-weight: 400; letter-spacing: -2px; color: #0f172a;">Lead<span style="font-size: 20px; vertical-align: super; letter-spacing: 0; color: #39b3c8;">7<span style="color: #8bd269;">1</span></span></span>` : `<img src="${logoUrl}" alt="Lead71 by Vision71" width="144" height="48" style="display: block; border: 0; margin: 0 auto 6px auto; max-width: 144px; height: auto;" />`}
               </a>
               <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: #64748b; margin-top: 4px;">
                 Exhibition Capture Platform
@@ -547,51 +548,50 @@ export async function sendPendingApprovalEmail({ toEmail, name, statusUrl }) {
 // ============================================================================
 // 6. FORGOT PASSWORD / PASSWORD RESET REQUEST EMAIL
 // ============================================================================
-export async function sendPasswordResetEmailTemplate({ toEmail, name = "Team Member", resetUrl }) {
-  console.log("\n============================================================");
-  console.log("       [Lead71 Password Reset Email - Nodemailer]           ");
-  console.log(`User      : ${toEmail} (${name})`);
-  console.log(`Reset URL : ${resetUrl}`);
-  console.log("============================================================\n");
-
-  const baseUrl = getAppPublicUrl();
+export function renderPasswordResetEmail({ toEmail, name, resetUrl, baseUrl = getAppPublicUrl() }) {
 
   const bodyHtml = `
-    <p style="margin: 0 0 16px 0;">Hello <strong>${escapeHtml(name)}</strong>,</p>
+    <p style="margin: 0 0 16px 0;">${name ? `Hello <strong>${escapeHtml(name)}</strong>,` : "Hello,"}</p>
     <p style="margin: 0 0 20px 0;">
-      We received a request to reset the password associated with your Lead71 account (<strong>${escapeHtml(toEmail)}</strong>).
+      We received a request to reset your Lead71 password. Choose a new password to get back to capturing your next connection.
     </p>
     <p style="margin: 0 0 8px 0;">
-      Select the button below to choose a new password:
+      <strong style="color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: .6px;">Your account</strong><br />
+      <span style="color: #0f172a; overflow-wrap: anywhere;">${escapeHtml(toEmail)}</span>
     </p>
   `;
 
   const html = renderLead71Layout({
     title: "Reset your Lead71 password",
+    textLogo: true,
     preheader: "Choose a new password for your Lead71 account.",
     badgeText: "Password Reset",
-    badgeBg: "#f1f5f9",
-    badgeColor: "#334155",
-    badgeBorder: "#cbd5e1",
+    badgeBg: "#eff9fb",
+    badgeColor: "#147c92",
+    badgeBorder: "#c7e8ed",
     bodyHtml,
-    ctaText: "Reset Password",
-    ctaUrl: resetUrl,
-    footerNote: "This password reset link is valid for 1 hour. If you did not request a password reset, you can safely ignore this email — your password will remain unchanged.",
+    ctaText: "Reset my password",
+    ctaUrl: escapeHtml(resetUrl),
+    secondaryHtml: `<div style="padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 12px; line-height: 19px; color: #64748b;"><strong style="color: #334155;">Didn't request this?</strong><br />You can safely ignore this email. Your password will stay the same. Keep this link private and do not forward it.</div><p style="margin: 20px 0 6px; font-size: 12px; color: #64748b;">Button not working? Copy and paste this link into your browser:</p><p style="margin: 0; font-size: 11px; line-height: 18px; word-break: break-all;"><a href="${escapeHtml(resetUrl)}" style="color: #147c92; text-decoration: underline;">${escapeHtml(resetUrl)}</a></p>`,
+    footerNote: "For your security, this link can be used once and expires after 1 hour. If it expires, request a new link from the sign-in page.",
     baseUrl,
   });
 
-  const text = `Hello ${name},\n\nWe received a request to reset your Lead71 password.\n\nReset your password here:\n${resetUrl}\n\nThis link is valid for 1 hour. If you did not request this, please ignore this email.\n\nLead71 by Vision71`;
+  const text = `${name ? `Hello ${name},` : "Hello,"}\n\nWe received a request to reset your Lead71 password for ${toEmail}.\n\nReset your password here:\n${resetUrl}\n\nThis private link can be used once and expires after 1 hour. If you did not request this, ignore this email. Your password will stay the same.\n\nLead71 by Vision71`;
+  return { html, text, subject: "Reset your Lead71 password" };
+}
+
+export async function sendPasswordResetEmailTemplate(options) {
+  const message = renderPasswordResetEmail(options);
 
   try {
     return await sendLead71Email({
-      to: toEmail,
-      subject: "Reset your Lead71 Password",
-      text,
-      html,
+      to: options.toEmail,
+      ...message,
     });
-  } catch (err) {
-    console.error("Failed to send password reset email:", err.message);
-    return { success: false, error: err.message };
+  } catch {
+    console.error("Lead71 password reset email delivery failed.");
+    return { success: false };
   }
 }
 

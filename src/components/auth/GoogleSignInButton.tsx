@@ -64,7 +64,7 @@ export default function GoogleSignInButton({
       onClick={handleGoogleClick}
       disabled={disabled || loading}
       aria-label={`${text} for Exhibition Assistant`}
-      className="w-full flex items-center justify-center gap-3 px-4 py-2.5 min-h-[46px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 text-sm font-semibold transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#248da3] disabled:opacity-60 disabled:cursor-not-allowed dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
+      className="w-full flex items-center justify-center gap-3 px-4 py-2.5 min-h-[44px] rounded-xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 text-sm font-semibold transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#248da3] disabled:opacity-60 disabled:cursor-not-allowed dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:bg-slate-800"
     >
       {loading ? (
         <>
