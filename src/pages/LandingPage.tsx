@@ -1,5 +1,6 @@
 import SiteFooter from "@/components/layout/SiteFooter";
 import ThemeToggle from "@/components/layout/ThemeToggle";
+import LandingMobileMenu from "@/components/layout/LandingMobileMenu";
 import pilot from "@/config/pilot";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
@@ -115,7 +116,7 @@ export default function LandingPage() {
   const restartWorkflow = () => setWorkflowRun(run => run + 1);
   return <div className="lead71-landing">
     <a className="landing-skip" href="#main-content">Skip to content</a>
-    <header className="landing-header"><div className="landing-nav"><Link to="/" aria-label="Lead71 home" className="landing-logo"><img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="44" /></Link><nav aria-label="Main navigation"><a href="#workflow" onClick={restartWorkflow}>How it works</a><a href="#features">Why Lead71</a></nav><div className="header-actions"><ThemeToggle /><Link to="/sign-in" className="landing-sign-in">Sign in <ArrowRight size={14} /></Link></div></div></header>
+    <header className="landing-header"><div className="landing-nav"><Link to="/" aria-label="Lead71 home" className="landing-logo"><img src="/lead71-logo.svg" alt="Lead71 by Vision71" width="168" height="44" /></Link><nav aria-label="Main navigation"><a href="#workflow" onClick={restartWorkflow}>How it works</a><a href="#features">Why Lead71</a></nav><div className="header-actions"><div className="hidden md:flex items-center gap-3"><ThemeToggle /><Link to="/sign-in" className="landing-sign-in">Sign in <ArrowRight size={14} /></Link></div><LandingMobileMenu /></div></div></header>
     <main id="main-content">
       <section className="landing-hero" aria-labelledby="hero-title"><h1 id="hero-title">A business card.<br />A better <span>next step.</span></h1><p className="hero-description">Turn the cards you collect into contacts you can trust.<br className="desktop-break" /> Scan a card, check the details, and submit it for review.</p><div className="hero-actions"><Link to="/sign-in" className="landing-primary">Start capturing <ArrowRight size={16} /></Link><a href="#workflow" className="landing-secondary" onClick={restartWorkflow}>See the workflow <ArrowDown size={15} /></a></div></section>
       <div className="landing-content"><Workflow key={workflowRun} />

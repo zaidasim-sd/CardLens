@@ -28,6 +28,7 @@ import ViewCardModal from "@/components/verified/ViewCardModal";
 import type { OCRData, ContactRecord } from "@/types";
 import pilot from "@/config/pilot";
 import "./reviewSubmit.css";
+import { cardContactFields } from "@/lib/cardSides";
 
 /**
  * Approved Version 1 Fields Schema:
@@ -90,6 +91,8 @@ interface Props {
   rawText: string;
   originalImage: Blob | null;
   imageUrl: string;
+  backImageUrl?: string;
+  backData?: OCRData | null;
   isDemo?: boolean;
   onSuccess: () => void;
   onDiscardImage: () => void;
@@ -102,6 +105,8 @@ export default function OCRReviewModal({
   rawText,
   originalImage,
   imageUrl,
+  backImageUrl = "",
+  backData = null,
   isDemo = false,
   onSuccess,
   onDiscardImage,
@@ -109,6 +114,7 @@ export default function OCRReviewModal({
   const navigate = useNavigate();
   const submissionId = useRef(crypto.randomUUID());
   const isSubmittingLock = useRef(false);
+  const initializedData = useRef<OCRData | null | undefined>(undefined);
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedRecord, setSavedRecord] = useState<ContactRecord | null>(null);
@@ -124,6 +130,8 @@ export default function OCRReviewModal({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isExistingContactOpen, setIsExistingContactOpen] = useState(false);
   const [isZoomImageOpen, setIsZoomImageOpen] = useState(false);
+  const [previewSide, setPreviewSide] = useState<"front" | "back">("front");
+  const currentImageUrl = previewSide === "back" && backImageUrl ? backImageUrl : imageUrl;
 
   const {
     register,
@@ -131,6 +139,8 @@ export default function OCRReviewModal({
     formState: { errors, dirtyFields },
     reset,
     watch,
+    setValue,
+    getValues,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -155,6 +165,9 @@ export default function OCRReviewModal({
   }, []);
 
   useEffect(() => {
+    if (!isOpen) { initializedData.current = undefined; return; }
+    if (initializedData.current === ocrData) return;
+    initializedData.current = ocrData;
     if (isOpen) {
       const defaultExhibition =
         ocrData?.meetingContext?.metAtLocation ||
@@ -171,6 +184,7 @@ export default function OCRReviewModal({
         whereMet: ocrData?.meetingContext?.whereMet || "",
         notes: ocrData?.notes || "",
       });
+      setPreviewSide("front");
       submissionId.current = crypto.randomUUID();
       setSavedRecord(null);
       setDuplicateMatch(null);
@@ -178,6 +192,14 @@ export default function OCRReviewModal({
       isSubmittingLock.current = false;
     }
   }, [isOpen, ocrData, reset, exhibitionOptions]);
+
+  // Loading exhibition options must not reset details the user has already checked.
+  useEffect(() => {
+    const first = exhibitionOptions.find(option => option.value)?.value;
+    if (isOpen && first && !dirtyFields.metAtLocation && !getValues("metAtLocation")) {
+      setValue("metAtLocation", first);
+    }
+  }, [isOpen, exhibitionOptions, dirtyFields.metAtLocation, getValues, setValue]);
 
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
     setIsSaving(true);
@@ -486,7 +508,7 @@ export default function OCRReviewModal({
                     )}
                   </div>
                   <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-                    Check your contact details, then submit for review. Your contact will appear in the review register.
+                    Check all extracted details{backImageUrl ? " from both sides" : ""} before submitting. You are responsible for confirming the final form.
                   </DialogDescription>
                 </div>
               </DialogHeader>
@@ -495,21 +517,27 @@ export default function OCRReviewModal({
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-slate-50/40 lg:flex-row lg:overflow-hidden">
                 {/* Left: Card Preview Panel */}
                 {originalImage && imageUrl && (
-                  <div className="review-card-preview group relative h-[180px] min-h-[180px] shrink-0 overflow-hidden border-b border-slate-200 bg-slate-100/80 p-3 dark:bg-slate-900/40 dark:border-slate-800 sm:h-[220px] sm:min-h-[220px] sm:p-4 lg:h-auto lg:min-h-0 lg:w-5/12 lg:border-b-0 lg:border-r">
-                    <div className="absolute inset-3 flex items-center justify-center sm:inset-4 lg:inset-6">
-                      <img
-                        src={imageUrl}
-                        alt="Business Card Preview"
-                        className="h-full w-full rounded-xl border border-slate-200 object-contain shadow-xs bg-white dark:border-slate-800 dark:bg-slate-950"
-                      />
+                  <div className="review-card-preview flex h-[240px] min-h-[240px] shrink-0 flex-col gap-2 overflow-hidden border-b border-slate-200 bg-slate-100/80 p-3 dark:bg-slate-900/40 dark:border-slate-800 sm:h-[280px] sm:min-h-[280px] sm:p-4 lg:h-auto lg:min-h-0 lg:w-5/12 lg:border-b-0 lg:border-r">
+                    <div className="flex shrink-0 items-center justify-between gap-2">
+                      {backImageUrl ? (
+                        <div className="inline-flex shrink-0 rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900" role="group" aria-label="Card sides">
+                          {(["front", "back"] as const).map(side => (
+                            <button key={side} type="button" aria-pressed={previewSide === side} onClick={() => setPreviewSide(side)}
+                              className={"relative h-11 px-3 text-[11px] font-medium rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#39b3c8] before:absolute before:inset-1 before:rounded-md " + (previewSide === side ? "text-[#147c92] before:bg-[#e8f6f8] dark:text-[#81d3df] dark:before:bg-[#1b3441]" : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white")}>
+                              <span className="relative">{side === "front" ? "Front" : "Back"}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Front of card</span>}
+                      <button type="button" onClick={() => setIsZoomImageOpen(true)}
+                        className="inline-flex h-11 shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 cursor-pointer dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#39b3c8]">
+                        <ZoomIn className="w-3.5 h-3.5 text-blue-600" /> Full view
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsZoomImageOpen(true)}
-                      className="absolute right-4 top-4 flex items-center gap-1 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-700 shadow-xs backdrop-blur-xs hover:bg-white cursor-pointer dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5 text-blue-600" /> Full View
-                    </button>
+                    <div className="relative min-h-0 flex-1">
+                      <img src={currentImageUrl} alt={(previewSide === "back" ? "Back" : "Front") + " of business card"}
+                        className="absolute inset-0 h-full w-full rounded-xl border border-slate-200 object-contain bg-white dark:border-slate-800 dark:bg-slate-950" />
+                    </div>
                   </div>
 
                 )}
@@ -525,6 +553,7 @@ export default function OCRReviewModal({
                       <p className="font-semibold text-slate-900 dark:text-slate-100">Form requirement:</p>
                       <p className="mt-0.5">Enter either the contact name or company name, and at least one contact method: email or phone.</p>
                     </div>
+
                     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                       {/* 1. Exhibition Name (Approved Field) */}
                       <div className="space-y-1.5 sm:col-span-2">
@@ -583,6 +612,18 @@ export default function OCRReviewModal({
                         />
                       </div>
                     </div>
+                    {backData && <details className="rounded-xl border border-slate-200 p-3 text-xs dark:border-slate-700">
+                      <summary className="min-h-11 cursor-pointer content-center rounded-md font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#39b3c8]">Back-side extracted details</summary>
+                      <p className="mt-2 text-slate-600 dark:text-slate-300">Only empty fields were filled automatically. Front details were kept. Compare any alternatives below and choose a value only if it is correct.</p>
+                      <div className="mt-3 space-y-3">
+                        {cardContactFields.filter(field => backData[field]?.trim()).map(field => {
+                          const labels = { fullName: "Contact name", companyName: "Company name", jobTitle: "Job title", email: "Email", phone: "Phone", notes: "Notes" };
+                          const candidate = backData[field].trim();
+                          const different = candidate !== String(formValues[field] || "").trim();
+                          return <div key={field} className="min-w-0 border-t border-slate-100 pt-2 dark:border-slate-800"><p className="font-medium">{labels[field]}</p><p className="mt-1 break-words [overflow-wrap:anywhere] text-slate-600 dark:text-slate-300">{candidate}</p>{different && <Button type="button" variant="outline" disabled={isSaving} className="mt-2 h-11 text-xs" onClick={() => setValue(field, candidate, { shouldDirty: true, shouldValidate: true })}>Use this {labels[field].toLowerCase()}</Button>}</div>;
+                        })}
+                      </div>
+                    </details>}
                   </form>
                 </div>
               </div>
@@ -657,7 +698,7 @@ export default function OCRReviewModal({
         <DialogContent className="max-w-4xl p-2 bg-background border-slate-200 dark:border-slate-800">
           <div className="relative flex items-center justify-center max-h-[85vh] overflow-hidden">
             <img
-              src={imageUrl}
+              src={currentImageUrl}
               alt="Business card high res"
               className="max-h-[80vh] w-auto object-contain rounded-lg"
             />

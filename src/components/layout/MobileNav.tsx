@@ -24,6 +24,7 @@ export default function MobileNav() {
             <NavLink
               key={item.to}
               to={item.to}
+              state={item.to === "/scan" ? { openCamera: true } : undefined}
               className={({ isActive }) =>
                 cn(
                   "flex min-h-11 min-w-0 items-center justify-center gap-1.5 w-full px-2 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer",

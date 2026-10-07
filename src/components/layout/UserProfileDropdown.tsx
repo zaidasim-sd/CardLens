@@ -3,6 +3,7 @@ import { LogOut, LoaderCircle, ChevronDown, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth, type Role } from "@/auth/AuthContext";
 import { cn } from "@/lib/utils";
+import ThemeToggle from "./ThemeToggle";
 
 const roleLabels: Record<Role, { title: string; badgeClass: string }> = {
   exhibition_assistant: {
@@ -167,6 +168,8 @@ export default function UserProfileDropdown({ className, isMobileCompact = false
 
           {/* Section Divider */}
           <div className="my-2 border-t border-slate-100 dark:border-slate-800" />
+
+          <ThemeToggle inProfile disabled={isSigningOut} />
 
           {/* Logout Button */}
           <button
