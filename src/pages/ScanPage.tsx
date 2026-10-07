@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./capture.css";
 import {
   Camera,
@@ -33,6 +34,7 @@ import { SINGLE_DEMO_CARD } from "@/config/demoCards";
 import type { OCRData } from "@/types";
 import { cropBusinessCardImage } from "@/lib/imageCrop";
 import { ocrCard } from "@/lib/api/ocr";
+import { fillEmptyCardFields } from "@/lib/cardSides";
 
 const OCR_FAILURE_MESSAGE = "We couldn't read enough information from this card. Please retake the photo or enter the details manually.";
 
@@ -40,9 +42,11 @@ const OCR_FAILURE_MESSAGE = "We couldn't read enough information from this card.
 function CameraModal({
   onCapture,
   onClose,
+  side = "front",
 }: {
   onCapture: (file: File) => void;
   onClose: () => void;
+  side?: "front" | "back";
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const cardFrameRef = useRef<HTMLDivElement>(null);
@@ -288,14 +292,14 @@ function CameraModal({
       {status === "live" && (
         <div className="absolute bottom-0 inset-x-0 z-20 flex flex-col items-center gap-4 px-5 pt-4 pb-[max(env(safe-area-inset-bottom,0px),24px)] bg-gradient-to-t from-black/90 to-transparent">
           <p className="max-w-sm text-center text-xs sm:text-sm leading-relaxed text-white/90">
-            Position the business card within the frame and capture.
+            Position the {side} of the card within the frame and capture.
           </p>
           <button
             onClick={doCapture}
             className="flex min-h-13 w-full max-w-sm items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-900/40 transition-colors hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white cursor-pointer"
           >
             <Camera className="h-5 w-5" aria-hidden="true" />
-            Capture card
+            Capture {side} of card
           </button>
         </div>
       )}
@@ -306,26 +310,77 @@ function CameraModal({
 
 // ─── Main ScanPage Component ──────────────────────────────────────────────────
 export default function ScanPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const preparationVersion = useRef(0);
   const [scanProgress, setScanProgress] = useState(0);
 
-  const [ocrData, setOcrData] = useState<any>(null);
+  const [ocrData, setOcrData] = useState<OCRData | null>(null);
   const [rawText, setRawText] = useState("");
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [cameraSide, setCameraSide] = useState<"front" | "back">("front");
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const [backPreviewUrl, setBackPreviewUrl] = useState<string | null>(null);
+  const [backData, setBackData] = useState<OCRData | null>(null);
+  const [backError, setBackError] = useState("");
+  const captureSide = useRef<"front" | "back">("front");
+
+  useEffect(() => {
+    if (!location.state?.openCamera) return;
+    captureSide.current = "front";
+    setCameraSide("front");
+    setIsCameraOpen(true);
+    // Consume the explicit navigation action so reload/back never reopens the camera.
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [location.state, location.pathname, location.search, navigate]);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => () => {
     if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
+  useEffect(() => () => {
+    if (backPreviewUrl) URL.revokeObjectURL(backPreviewUrl);
+  }, [backPreviewUrl]);
+
+  const selectImage = (file: File, side = captureSide.current) => {
+    if (side === "back") {
+      setBackFile(file); setBackPreviewUrl(URL.createObjectURL(file));
+      setBackData(null); setBackError("");
+    } else {
+      setScanError(null); setIsDemoMode(false);
+      setSelectedFile(file); setPreviewUrl(URL.createObjectURL(file));
+      setOcrData(null); setRawText("");
+      setBackFile(null); setBackPreviewUrl(null); setBackData(null); setBackError("");
+    }
+  };
+
+  const chooseSide = (side: "front" | "back", camera: boolean) => {
+    captureSide.current = side;
+    setCameraSide(side);
+    if (camera) setIsCameraOpen(true);
+    else fileInputRef.current?.click();
+  };
+
+  const removeBack = () => {
+    setBackFile(null); setBackPreviewUrl(null); setBackData(null); setBackError("");
+  };
+
+  const reviewFront = () => {
+    if (!ocrData) return;
+    removeBack(); setIsReviewModalOpen(true);
+  };
 
   const processFile = async (file: File) => {
+    if (isScanning || isPreparing) return;
     const validTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!validTypes.includes(file.type)) {
       toast.error("Invalid file type. Please upload a JPG, PNG, or WEBP image.");
@@ -335,16 +390,15 @@ export default function ScanPage() {
       toast.error("File size must be less than 20 MB.");
       return;
     }
+    const side = captureSide.current;
+    const version = ++preparationVersion.current;
+    setIsPreparing(true);
     try {
       const croppedFile = await cropBusinessCardImage(file, file.name);
-      if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
-      setScanError(null);
-      setIsDemoMode(false);
-      setSelectedFile(croppedFile);
-      setPreviewUrl(URL.createObjectURL(croppedFile));
+      if (version === preparationVersion.current) selectImage(croppedFile, side);
     } catch {
       toast.error("We could not prepare this image. Please try another photo.");
-    }
+    } finally { if (version === preparationVersion.current) setIsPreparing(false); }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -354,11 +408,7 @@ export default function ScanPage() {
 
   const handleCameraCapture = (file: File) => {
     setIsCameraOpen(false);
-    setScanError(null);
-    setIsDemoMode(false);
-    if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
-    setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    selectImage(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -368,56 +418,42 @@ export default function ScanPage() {
   };
 
   const handleScan = async () => {
-    if (!selectedFile) return;
-    setScanError(null);
-    setIsReviewModalOpen(false);
-
-    // ── Demo card shortcut: skip OCR entirely, use pre-baked data ──
-    if (isDemoMode || selectedFile.name === "demo-card.svg") {
-      setIsScanning(true);
-      setScanProgress(40);
-      const timer = setInterval(() => setScanProgress((p) => (p < 90 ? p + 25 : p)), 150);
-      setTimeout(() => {
-        clearInterval(timer);
-        setScanProgress(100);
-        setIsScanning(false);
-        setOcrData(SINGLE_DEMO_CARD.preparedData);
-        setRawText(SINGLE_DEMO_CARD.rawOCRText);
-        setIsDemoMode(true);
-        setIsReviewModalOpen(true);
-        setTimeout(() => setScanProgress(0), 400);
-      }, 600);
-      return;
-    }
-
-    setIsScanning(true);
-    setScanProgress(15);
-
-    const interval = setInterval(() => {
-      setScanProgress((p) => (p < 90 ? p + 12 : p));
-    }, 350);
-
+    if (!selectedFile || isPreparing || isScanning) return;
+    setScanError(null); setBackError(""); setIsReviewModalOpen(false);
+    setIsScanning(true); setScanProgress(15);
+    const interval = setInterval(() => setScanProgress(p => Math.min(90, p + 12)), 350);
     try {
-      const data = await ocrCard(selectedFile);
-      clearInterval(interval);
-      setScanProgress(100);
-
-      setOcrData(data.parsed);
-      setRawText(data.rawText);
-      setIsReviewModalOpen(true);
-    } catch (error: any) {
-      clearInterval(interval);
-      const message = error.message || OCR_FAILURE_MESSAGE;
-      setScanError(message);
-      clearSelection();
-      toast.error(message);
+      // Read each side independently; the back never overrides front classification.
+      // Reuse a successful front read if only the back needs retrying.
+      const demo = isDemoMode || selectedFile.name === "demo-card.svg";
+      const [front, back] = await Promise.allSettled([
+        ocrData ? Promise.resolve({ parsed: ocrData, rawText })
+          : demo ? Promise.resolve({ parsed: SINGLE_DEMO_CARD.preparedData, rawText: SINGLE_DEMO_CARD.rawOCRText })
+          : ocrCard(selectedFile),
+        backFile ? ocrCard(backFile) : Promise.resolve(null),
+      ]);
+      if (front.status === "rejected") throw front.reason;
+      setOcrData(front.value.parsed); setRawText(front.value.rawText);
+      if (back.status === "rejected") {
+        setBackError(back.reason instanceof Error ? back.reason.message : OCR_FAILURE_MESSAGE);
+        return;
+      }
+      if (back.value) {
+        setBackData(back.value.parsed);
+        setOcrData(fillEmptyCardFields(front.value.parsed, back.value.parsed));
+        setRawText("FRONT OF CARD:\n" + front.value.rawText + "\n\nBACK OF CARD:\n" + back.value.rawText);
+      }
+      setScanProgress(100); setIsReviewModalOpen(true);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : OCR_FAILURE_MESSAGE;
+      setScanError(message); toast.error(message);
     } finally {
-      setIsScanning(false);
-      setTimeout(() => setScanProgress(0), 500);
+      clearInterval(interval); setIsScanning(false); setScanProgress(0);
     }
   };
 
   const handleManualEntry = () => {
+    clearSelection();
     setScanError(null);
     const blankData: OCRData = {
       fullName: "",
@@ -441,18 +477,24 @@ export default function ScanPage() {
   };
 
   const clearSelection = () => {
+    preparationVersion.current++;
+    setIsPreparing(false);
     setScanError(null);
     setSelectedFile(null);
     if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setIsDemoMode(false);
     setOcrData(null); setRawText("");
+
+    setBackFile(null); setBackPreviewUrl(null); setBackData(null); setBackError("");
+    captureSide.current = "front";
   };
 
   return (
     <>
       {isCameraOpen && (
         <CameraModal
+          side={cameraSide}
           onCapture={handleCameraCapture}
           onClose={() => setIsCameraOpen(false)}
         />
@@ -473,23 +515,23 @@ export default function ScanPage() {
           <section onDrop={handleDrop} onDragOver={e => e.preventDefault()} className="capture-home">
             <div className="capture-intro">
               <h1>Capture exhibition contacts <span>quickly.</span></h1>
-              <p>Turn a business card into your next connection.<br />Scan a card, check the details, and submit it for review.</p>
+              <p>Capture or upload the front, optionally add the back, then extract and review all details.</p>
               <div className="capture-actions">
-                <Button onClick={() => setIsCameraOpen(true)} className="capture-primary"><Camera size={18} />Scan a card</Button>
-                <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="capture-upload"><UploadCloud size={18} />Upload a card</Button>
+                <Button disabled={isPreparing} onClick={() => chooseSide("front", true)} className="capture-primary"><Camera size={18} />Scan a card</Button>
+                <Button disabled={isPreparing} variant="outline" onClick={() => chooseSide("front", false)} className="capture-upload"><UploadCloud size={18} />{isPreparing ? "Preparing image…" : "Upload a card"}</Button>
               </div>
               <div className="capture-manual-fallback">
                 <button type="button" onClick={handleManualEntry} className="capture-manual-link">Card unreadable? Enter details manually.</button>
               </div>
             </div>
-            <ol className="capture-flow" aria-label="From business card to review register">
+            <ol className="capture-flow" aria-label="Capture front, add back optionally, review all details, submit for review">
               <li className="capture-stage">
                 <div className="capture-stage-preview capture-scan" aria-hidden="true"><div className="capture-frame"><div className="capture-mini-card"><span className="capture-card-mark capture-card-mark-skeleton" /><div className="capture-card-skeleton"><b /><span /><i /><i /></div></div><span className="capture-beam" /></div><span className="capture-preview-caption">A clear card. A fresh connection.</span></div>
-                <div className="capture-stage-heading"><span>01</span><h2>Capture</h2><Camera size={17} /></div><p>Scan or upload a card. <br />We’ll read the details for you.</p><span className="capture-connector" aria-hidden="true"><i /></span>
+                <div className="capture-stage-heading"><span>01</span><h2>Capture front</h2><Camera size={17} /></div><p>Scan or upload the front. Optionally add the back before extraction.</p><span className="capture-connector" aria-hidden="true"><i /></span>
               </li>
               <li className="capture-stage">
                 <div className="capture-stage-preview capture-review" aria-hidden="true"><div className="capture-form-title"><CheckSquare size={14} />Contact details</div>{['Name', 'Company', 'Email'].map((label, index) => <div className="capture-field" key={label}><span>{label}</span><b className={"capture-field-skeleton capture-field-skeleton-" + index} /><CheckCircle2 size={12} /></div>)}<span className="capture-preview-caption">Your details, fully editable.</span></div>
-                <div className="capture-stage-heading"><span>02</span><h2>Review</h2><CheckSquare size={17} /></div><p>Check the extracted details. <br />Make any final edits.</p><span className="capture-connector" aria-hidden="true"><i /></span>
+                <div className="capture-stage-heading"><span>02</span><h2>Review all details</h2><CheckSquare size={17} /></div><p>Check the details from both sides. Make any final edits.</p><span className="capture-connector" aria-hidden="true"><i /></span>
               </li>
               <li className="capture-stage">
                 <div className="capture-stage-preview capture-ready" aria-hidden="true"><div className="capture-approval-icon"><ShieldCheck size={30} strokeWidth={1.5} /></div><strong>Ready for the next step</strong><span>Your contact will appear in the review register.</span><span className="capture-ready-pill"><CheckCircle2 size={12} />Ready to submit</span></div>
@@ -503,14 +545,11 @@ export default function ScanPage() {
           <div className="rounded-2xl border border-slate-200 bg-white shadow-md overflow-hidden dark:border-slate-800 dark:bg-slate-900">
             <div className="flex flex-col md:flex-row min-h-[300px]">
               {/* Card Image Preview with Scanning Animation */}
-              <div className="md:w-72 lg:w-80 bg-slate-100/90 dark:bg-slate-950/50 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex items-center justify-center p-5 min-h-[220px] md:min-h-0 shrink-0 relative overflow-hidden">
-                {previewUrl && (
-                  <img
-                    src={previewUrl}
-                    alt="Business Card Preview"
-                    className="max-h-full max-w-full object-contain rounded-xl shadow-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-                  />
-                )}
+              <div className="md:w-72 lg:w-80 bg-slate-100/90 dark:bg-slate-950/50 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex items-center justify-center p-4 min-h-[220px] md:min-h-0 shrink-0 relative overflow-hidden">
+                <div className={`grid w-full min-w-0 gap-3 ${backPreviewUrl ? "grid-cols-2 md:grid-cols-1" : "grid-cols-1"}`}>
+                  {previewUrl && <figure className="min-w-0"><figcaption className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">Front</figcaption><img src={previewUrl} alt="Front of business card" className={`${backPreviewUrl ? "h-36" : "max-h-64"} w-full object-contain rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900`} /></figure>}
+                  {backPreviewUrl && <figure className="min-w-0"><figcaption className="mb-2 text-xs font-medium text-slate-600 dark:text-slate-300">Back</figcaption><img src={backPreviewUrl} alt="Back of business card" className="h-36 w-full object-contain rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900" /></figure>}
+                </div>
                 {isScanning && <div className="animate-scanline opacity-90" />}
               </div>
 
@@ -524,7 +563,7 @@ export default function ScanPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">
-                          Card photo ready
+                          {backFile ? "Both sides ready" : "Front photo ready"}
                         </h3>
                         <p className="text-xs text-slate-500 truncate">{selectedFile.name}</p>
                       </div>
@@ -556,7 +595,7 @@ export default function ScanPage() {
                       <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                         {scanError || (
                           <>
-                            Select <strong className="text-slate-900 dark:text-white">Scan and extract</strong> to read this card. All details can be reviewed and edited before submission.
+                            Select <strong className="text-slate-900 dark:text-white">{backFile ? "Extract both sides" : "Scan and extract"}</strong> to read the selected images. You can optionally add the back first. Review all details before submission.
                           </>
                         )}
                       </p>
@@ -576,7 +615,7 @@ export default function ScanPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setIsCameraOpen(true)}
+                          onClick={() => chooseSide("front", true)}
                           className="h-8 text-xs font-medium border-amber-300 bg-white hover:bg-amber-50"
                         >
                           <Camera className="w-3.5 h-3.5 mr-1" /> Retake card
@@ -596,9 +635,19 @@ export default function ScanPage() {
 
                 {/* Primary CTA and Secondary Actions */}
                 <div className="flex flex-col gap-2.5 pt-2 w-full">
+                  <div className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700">
+                    <p className="text-xs font-medium text-slate-700 dark:text-slate-200">Back of card <span className="font-normal text-slate-500 dark:text-slate-400">(optional)</span></p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <Button variant="outline" disabled={isScanning || isPreparing} onClick={() => chooseSide("back", true)} className="h-11 whitespace-normal text-xs"><Camera size={16} />{backFile ? "Retake back side" : "Capture back side"}</Button>
+                      <Button variant="outline" disabled={isScanning || isPreparing} onClick={() => chooseSide("back", false)} className="h-11 whitespace-normal text-xs"><UploadCloud size={16} />{backFile ? "Upload back again" : "Upload back side"}</Button>
+                    </div>
+                    {backFile && <button type="button" onClick={removeBack} disabled={isScanning || isPreparing} className="min-h-11 text-xs text-slate-600 underline underline-offset-4 dark:text-slate-300">Remove back image</button>}
+                    {isPreparing && <p role="status" className="text-xs text-slate-600 dark:text-slate-300">Preparing image…</p>}
+                  </div>
+                  {backError && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"><p>{backError} Front details are preserved. Try extracting again or continue without the back.</p><Button variant="outline" onClick={reviewFront} disabled={isScanning || isPreparing} className="mt-2 w-full whitespace-normal text-xs">Review front details only</Button></div>}
                   <Button
                     onClick={handleScan}
-                    disabled={isScanning}
+                    disabled={isScanning || isPreparing}
                     className="w-full h-11 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                   >
                     {isScanning ? (
@@ -607,33 +656,33 @@ export default function ScanPage() {
                       </>
                     ) : (
                       <>
-                        <Scan className="w-4 h-4" /> Scan and extract
+                        <Scan className="w-4 h-4" /> {backFile ? "Extract both sides" : "Scan and extract"}
                       </>
                     )}
                   </Button>
 
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isScanning}
-                      className="h-9 rounded-xl text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
+                      onClick={() => chooseSide("front", false)}
+                      disabled={isScanning || isPreparing}
+                      className="h-auto min-h-11 whitespace-normal py-2 rounded-xl text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300"
                     >
-                      Replace image
+                      Upload front
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setIsCameraOpen(true)}
-                      disabled={isScanning}
-                      className="h-9 rounded-xl text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 flex items-center justify-center gap-1"
+                      onClick={() => chooseSide("front", true)}
+                      disabled={isScanning || isPreparing}
+                      className="h-auto min-h-11 whitespace-normal py-2 rounded-xl text-xs font-medium border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 flex items-center justify-center gap-1"
                     >
-                      <Camera className="w-3 h-3" /> Retake
+                      <Camera className="w-3 h-3" /> Retake front
                     </Button>
                     <Button
                       variant="outline"
                       onClick={clearSelection}
-                      disabled={isScanning}
-                      className="h-9 rounded-xl text-xs font-medium border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400"
+                      disabled={isScanning || isPreparing}
+                      className="h-auto min-h-11 whitespace-normal py-2 rounded-xl text-xs font-medium border-slate-200 text-slate-500 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-400 col-span-2 sm:col-span-1"
                     >
                       Cancel
                     </Button>
@@ -651,9 +700,12 @@ export default function ScanPage() {
         onDiscardImage={() => {
           if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
           setPreviewUrl(null); setSelectedFile(null); setRawText("");
+          setBackFile(null); setBackPreviewUrl(null); setBackData(null);
         }}
         ocrData={ocrData}
         rawText={rawText}
+        backData={backData}
+        backImageUrl={backPreviewUrl || ""}
         originalImage={selectedFile}
         imageUrl={previewUrl || ""}
         isDemo={isDemoMode}

@@ -44,6 +44,7 @@ export default function Header() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                state={item.to === "/scan" ? { openCamera: true } : undefined}
                 className={({ isActive }) =>
                   cn(
                     item.to === "/scan" && "portal-scan-link",
@@ -63,7 +64,7 @@ export default function Header() {
 
       {/* Right Side: Profile & Avatar Dropdown (Desktop & Mobile) */}
       <div className="flex items-center justify-end shrink-0 gap-2">
-        <ThemeToggle />
+        {!user && <ThemeToggle />}
         {user && (
           <>
             {/* Desktop Profile Trigger with user name */}

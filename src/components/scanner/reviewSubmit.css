@@ -38,6 +38,11 @@
 
 .review-submit-icon { transition: transform 180ms ease; }
 
+@media (max-width: 380px) {
+  .review-submit[data-slot="button"] { min-width: 0; padding: 0 10px; }
+  .review-submit-content { gap: 6px; }
+}
+
 @media (hover: hover) {
   .review-submit:not(:disabled):hover {
     background-color: #269bb2;
