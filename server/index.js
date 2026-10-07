@@ -4,6 +4,7 @@ import { validateOcrConfig } from "./services/ocrService.js";
 import { authHandler, usersHandler } from "./http/authHandlers.js";
 import { cardsHandler, storageHealthHandler } from "./http/cardHandlers.js";
 import supportHandler from "../api/support.js";
+import exhibitionsHandler from "../api/config/exhibitions.js";
 import { retentionSettingsHandler, sweepHandler } from "./http/retentionHandlers.js";
 import ocrHandler from "./http/ocrHandler.js";
 import exportHandler from "./http/exportHandler.js";
@@ -42,17 +43,7 @@ app.all("/api/cron/constant-contact", constantContactCron);
 // Routes
 app.all("/api/ocr", ocrHandler);
 
-app.get("/api/config/exhibitions", (req, res) => {
-  const confirmed = process.env.CONFIRMED_EXHIBITION?.trim();
-  const exhibitions = [
-    { label: "Select exhibition / source", value: "" },
-  ];
-  if (confirmed) {
-    exhibitions.push({ label: confirmed, value: confirmed });
-  }
-  exhibitions.push({ label: "Other / Source", value: "Other / Source" });
-  res.json({ exhibitions });
-});
+app.get("/api/config/exhibitions", exhibitionsHandler);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
