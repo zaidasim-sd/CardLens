@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
-import { createOcrHandler } from "./ocrHandler.js";
+import { createOcrHandler, classificationFailureMessage } from "./ocrHandler.js";
+import { parseOCRText } from "../services/cardParser.js";
 
 function response() {
   return {
@@ -11,6 +12,17 @@ function response() {
     json(value) { this.payload = value; return this; },
   };
 }
+
+test("classification failures report safe reasons without upstream details", () => {
+  assert.match(classificationFailureMessage({ code: "AI_KEY_MISSING" }), /key is missing/);
+  assert.match(classificationFailureMessage({ message: "Classification timeout" }), /time limit/);
+  assert.match(classificationFailureMessage({ upstreamStatus: 429 }), /quota/);
+  assert.match(classificationFailureMessage({ upstreamStatus: 403 }), /credentials/);
+  assert.match(classificationFailureMessage({ upstreamStatus: 503 }), /temporarily unavailable/);
+  assert.match(classificationFailureMessage({ upstreamStatus: 404 }), /configuration/);
+  assert.match(classificationFailureMessage({ message: "fetch failed" }), /connect/);
+  assert.equal(classificationFailureMessage({ message: "secret OCR and key details" }).includes("secret"), false);
+});
 
 function request(overrides = {}) {
   return {
@@ -78,4 +90,89 @@ for (const role of ["exhibition_assistant", "vision71_administrator"]) test(`aut
   assert.ok(image.every(byte => byte === 0));
   assert.equal(req.body, undefined);
   assert.equal(res.payload.provider, "google");
+});
+
+for (const scenario of ["manual", "ai", "fallback", "missing-key"]) test(`classification mode: ${scenario}`, async () => {
+  const rawText = "Fake Person\nfake@example.test";
+  const env = { ALLOWED_ORIGINS: "https://staging.example.test" };
+  let calls = 0;
+  const aiFields = { ...parseOCRText(rawText), fullName: "AI result" };
+  const handler = createOcrHandler({
+    env,
+    getDb: async () => ({ collection: () => ({ findOneAndUpdate: async () => ({ count: 1 }) }) }),
+    ensureDatabaseIndexes: async () => {},
+    authenticate: async () => ({
+      session: { csrfHash: createHash("sha256").update("fake-csrf").digest("hex") },
+      user: { id: "capturer-1", tenantId: "vision71", role: "exhibition_assistant" },
+    }),
+    performOCR: async () => ({ rawText }),
+    ...(scenario === "missing-key" ? {} : { classifyWithGemini: async (text, options) => {
+      calls++;
+      assert.equal(text, rawText);
+      assert.equal(options.env, env);
+      if (scenario === "fallback") throw new Error("Upstream unavailable");
+      return aiFields;
+    } }),
+  });
+  const req = request();
+  req.headers["x-classification-mode"] = scenario === "manual" ? "manual" : "ai";
+  const res = response();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(calls, scenario === "ai" || scenario === "fallback" ? 1 : 0);
+  assert.equal(res.payload.classificationUsed, scenario === "ai" ? "ai" : "manual");
+  assert.equal(res.payload.classificationFallback, ["fallback", "missing-key"].includes(scenario));
+  assert.deepEqual(res.payload.parsed, scenario === "ai" ? aiFields : parseOCRText(rawText));
+});
+
+test("invalid classification mode is rejected before OCR or database access", async () => {
+  const handler = createOcrHandler({
+    env: { ALLOWED_ORIGINS: "https://staging.example.test" },
+    getDb: async () => assert.fail("database must not be called"),
+    performOCR: async () => assert.fail("OCR must not be called"),
+  });
+  const req = request();
+  req.headers["x-classification-mode"] = "unknown";
+  const res = response();
+  await handler(req, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.payload.code, "CLASSIFICATION_MODE_INVALID");
+});
+
+for (const aiAvailable of [true, false]) test(`comparison shares OCR, reports independent timings, AI available: ${aiAvailable}`, async () => {
+  let ocrCalls = 0;
+  let aiCalls = 0;
+  const rawText = "Fake Person\nfake@example.test";
+  const aiFields = { ...parseOCRText(rawText), fullName: "AI result" };
+  const handler = createOcrHandler({
+    env: { ALLOWED_ORIGINS: "https://staging.example.test" },
+    getDb: async () => ({ collection: () => ({ findOneAndUpdate: async () => ({ count: 1 }) }) }),
+    ensureDatabaseIndexes: async () => {},
+    authenticate: async () => ({
+      session: { csrfHash: createHash("sha256").update("fake-csrf").digest("hex") },
+      user: { id: "capturer-1", tenantId: "vision71", role: "exhibition_assistant" },
+    }),
+    performOCR: async () => { ocrCalls++; return { rawText }; },
+    classifyWithGemini: async text => {
+      aiCalls++;
+      assert.equal(text, rawText);
+      if (!aiAvailable) throw new Error("Unavailable");
+      return aiFields;
+    },
+  });
+  const req = request();
+  req.headers["x-classification-mode"] = "compare";
+  const res = response();
+  await handler(req, res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(ocrCalls, 1);
+  assert.equal(aiCalls, 1);
+  const comparison = res.payload.comparison;
+  assert.deepEqual(comparison.manual, parseOCRText(rawText));
+  assert.deepEqual(comparison.ai, aiAvailable ? aiFields : null);
+  assert.equal(comparison.manualTotalMs, comparison.ocrMs + comparison.manualClassificationMs);
+  assert.equal(comparison.aiTotalMs, comparison.ocrMs + comparison.aiClassificationMs);
+  for (const key of ["ocrMs", "manualClassificationMs", "aiClassificationMs", "manualTotalMs", "aiTotalMs"]) {
+    assert.ok(Number.isFinite(comparison[key]) && comparison[key] >= 0);
+  }
 });

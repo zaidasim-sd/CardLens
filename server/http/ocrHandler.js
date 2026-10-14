@@ -5,9 +5,24 @@ import { requireAction } from "../auth/permissions.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
 import { hasReadableContact } from "../../shared/contactValidation.mjs";
 import { parseOCRText } from "../services/cardParser.js";
+import { classifyWithGemini } from "../services/cardClassification.js";
 import { OCR_FAILURE_MESSAGE, performOCR } from "../services/ocrService.js";
 
 export const OCR_MAX_BYTES = 20 * 1024 * 1024;
+
+// Only fixed messages are returned; upstream responses, OCR text and keys stay private.
+export function classificationFailureMessage(caught) {
+  if (caught?.code === "AI_KEY_MISSING") return "The server's Gemini API key is missing.";
+  if (caught?.code === "AI_INPUT_INVALID") return "The card text is empty or too long for AI classification.";
+  if (caught?.message === "Classification timeout" || caught?.name === "AbortError") return "AI classification exceeded the configured time limit.";
+  if (caught?.upstreamStatus === 429) return "Gemini's rate limit or quota was reached. Try again later.";
+  if ([401, 403].includes(caught?.upstreamStatus)) return "Gemini rejected the server's API credentials or permissions.";
+  if ([400, 404].includes(caught?.upstreamStatus)) return "Gemini rejected the model or request configuration.";
+  if (caught?.upstreamStatus >= 500) return "Gemini is temporarily unavailable. Try again later.";
+  if (caught?.message === "fetch failed") return "The server could not connect to Gemini. Try again.";
+  if (caught?.message === "Invalid model") return "The configured Gemini model is invalid.";
+  return "AI returned an incomplete or invalid result that could not be safely used.";
+}
 const OCR_USER_LIMIT = 30;
 const OCR_IP_LIMIT = 60;
 
@@ -117,6 +132,7 @@ async function consumeMonthlyCap(db, tenantId, env, now = new Date()) {
 export function createOcrHandler(dependencies = {}) {
   const database = dependencies.getDb || getDb;
   const runOcr = dependencies.performOCR || performOCR;
+  const classify = dependencies.classifyWithGemini || classifyWithGemini;
   const auth = dependencies.authenticate || authenticate;
   const ensureIndexes = dependencies.ensureDatabaseIndexes || ensureDatabaseIndexes;
   const env = dependencies.env || process.env;
@@ -125,6 +141,8 @@ export function createOcrHandler(dependencies = {}) {
     try {
       if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
       verifyOrigin(req, env);
+      const classificationMode = req.headers["x-classification-mode"] || "manual";
+      if (!["manual", "ai", "compare"].includes(classificationMode)) throw error("CLASSIFICATION_MODE_INVALID", 400, "Invalid classification mode.");
       const db = await database();
       await ensureIndexes(db);
       const sessionToken = parseCookies(req.headers.cookie || "")[SESSION_COOKIE];
@@ -140,11 +158,41 @@ export function createOcrHandler(dependencies = {}) {
       imageBody = body;
       const images = requestImages(body, String(req.headers["content-type"] || ""));
       const results = [];
+      const ocrStarted = performance.now();
       for (const image of images) results.push(await runOcr(image.data));
+      const ocrMs = performance.now() - ocrStarted;
       const rawText = results.map((result) => result.rawText || "").filter(Boolean).join("\n\n");
-      const parsed = parseOCRText(rawText);
+      if (classificationMode === "compare") {
+        const manualStarted = performance.now();
+        const manual = parseOCRText(rawText);
+        const manualClassificationMs = performance.now() - manualStarted;
+        const aiStarted = performance.now();
+        let ai = null;
+        let aiError = null;
+        try { ai = await classify(rawText, { env }); } catch (caught) { aiError = classificationFailureMessage(caught); }
+        const aiClassificationMs = performance.now() - aiStarted;
+        if (!hasReadableContact(rawText, manual) && (!ai || !hasReadableContact(rawText, ai))) throw error("NO_CONTACT_DETECTED", 422);
+        return res.status(200).json({ rawText, parsed: ai || manual, provider: "google", success: true,
+          classificationUsed: ai ? "ai" : "manual", classificationFallback: !ai,
+          comparison: { manual, ai, aiError, ocrMs, manualClassificationMs, aiClassificationMs,
+            manualTotalMs: ocrMs + manualClassificationMs, aiTotalMs: ocrMs + aiClassificationMs } });
+      }
+      let parsed;
+      let classificationUsed = "manual";
+      let classificationFallback = false;
+      if (classificationMode === "ai") {
+        try {
+          parsed = await classify(rawText, { env });
+          classificationUsed = "ai";
+        } catch {
+          classificationFallback = true;
+          parsed = parseOCRText(rawText);
+        }
+      } else {
+        parsed = parseOCRText(rawText);
+      }
       if (!hasReadableContact(rawText, parsed)) throw error("NO_CONTACT_DETECTED", 422);
-      return res.status(200).json({ rawText, parsed, provider: "google", success: true });
+      return res.status(200).json({ rawText, parsed, provider: "google", success: true, classificationUsed, classificationFallback });
     } catch (caught) {
       return res.status(caught.status || 500).json({ code: caught.code || "OCR_FAILED", error: OCR_FAILURE_MESSAGE });
     } finally {

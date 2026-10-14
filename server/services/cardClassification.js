@@ -98,7 +98,8 @@ export function validateClassification(value, rawText) {
 // deadline. Never log OCR text, keys or raw upstream errors.
 export async function classifyWithGemini(rawText, { env = process.env, fetcher = fetch, timeoutMs } = {}) {
   const key = env.GEMINI_API_KEY?.trim();
-  if (!key || typeof rawText !== 'string' || !rawText.trim() || rawText.length > 60000) throw new Error('Classification unavailable');
+  if (!key) throw Object.assign(new Error('Classification unavailable'), { code: 'AI_KEY_MISSING' });
+  if (typeof rawText !== 'string' || !rawText.trim() || rawText.length > 60000) throw Object.assign(new Error('Classification unavailable'), { code: 'AI_INPUT_INVALID' });
   const model = env.GEMINI_CLASSIFICATION_MODEL?.trim() || DEFAULT_CLASSIFICATION_MODEL;
   if (!/^gemini-[a-z0-9.-]+$/.test(model)) throw new Error('Invalid model');
   const duration = Math.min(15000, Math.max(100, Number(timeoutMs ?? env.GEMINI_CLASSIFICATION_TIMEOUT_MS) || 8000));
@@ -113,7 +114,7 @@ export async function classifyWithGemini(rawText, { env = process.env, fetcher =
         body:JSON.stringify({ systemInstruction:{parts:[{text:instructions}]}, contents:[{role:'user',parts:[{text:rawText}]}],
           generationConfig:{temperature:0, maxOutputTokens:2048, responseMimeType:'application/json', responseJsonSchema:schema} }),
       });
-      if (!response.ok) throw new Error('Classification request failed');
+      if (!response.ok) throw Object.assign(new Error('Classification request failed'), { code: 'AI_HTTP_ERROR', upstreamStatus: response.status });
       const body = await response.json();
       const candidate = body.candidates?.[0];
       if (candidate?.finishReason !== 'STOP') throw new Error('Incomplete classification');
