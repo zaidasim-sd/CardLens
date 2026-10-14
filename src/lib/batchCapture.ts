@@ -234,23 +234,6 @@ function overlapRatio(a: BatchRegion, b: BatchRegion): number {
   return smallerArea ? intersection / smallerArea : 0;
 }
 
-function averageCornerColor(data: Uint8ClampedArray, width: number, height: number): [number, number, number] {
-  const samples: [number, number][] = [
-    [4, 4],
-    [width - 5, 4],
-    [4, height - 5],
-    [width - 5, height - 5],
-  ];
-  const total = samples.reduce(
-    (sum, [x, y]) => {
-      const index = (y * width + x) * 4;
-      return [sum[0] + data[index], sum[1] + data[index + 1], sum[2] + data[index + 2]];
-    },
-    [0, 0, 0]
-  );
-  return [total[0] / samples.length, total[1] / samples.length, total[2] / samples.length];
-}
-
 /**
  * Apply morphological erosion to an active-pixel mask.
  * Any pixel whose neighbourhood (within `radius`) contains a background pixel
@@ -526,8 +509,6 @@ function detectCardRegions(decoded: DecodedImage): BatchRegion[] {
   const queue = new Int32Array(width * height);
   const minArea = Math.max(400, width * height * 0.004);
   const maxArea = width * height * 0.85;
-  // Expected area for a single business card in the downscaled image
-  const expectedSingleCard = width * height * 0.18;
 
   for (let start = 0; start < active.length; start += 1) {
     if (!active[start] || visited[start]) continue;
@@ -773,10 +754,18 @@ export function getSimulatedOcr(index: number): { parsed: OCRData; rawText: stri
 
 export function validateContact(data: OCRData): Partial<Record<keyof OCRData, string>> {
   const errors: Partial<Record<keyof OCRData, string>> = {};
-  if (!data.fullName.trim()) errors.fullName = "Enter a contact name or mark the card skipped.";
-  if (!data.companyName.trim()) errors.companyName = "Enter the company name if visible on the card.";
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) errors.email = "Enter a valid email address.";
-  if (!data.email.trim() && !data.phone.trim()) errors.phone = "Enter an email or phone number if one is visible.";
+  const hasNameOrCompany = Boolean(data.fullName?.trim() || data.companyName?.trim());
+  const hasContact = Boolean(data.email?.trim() || data.phone?.trim());
+
+  if (!hasNameOrCompany) {
+    errors.fullName = "Full Name or Company Name is required.";
+  }
+  if (!hasContact) {
+    errors.phone = "Phone Number or Email Address is required.";
+  }
+  if (data.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+    errors.email = "Enter a valid email address.";
+  }
   return errors;
 }
 

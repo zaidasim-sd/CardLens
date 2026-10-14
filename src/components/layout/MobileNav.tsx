@@ -7,7 +7,7 @@ import { isBatchCaptureEnabled } from "@/config/features";
 
 const navItems = [
   { name: "Scan Card", to: "/scan", icon: ScanLine, roles: ["exhibition_assistant", "vision71_administrator"] },
-  { name: "Batch", to: "/scan/batch", icon: Images, roles: ["exhibition_assistant", "vision71_administrator"], feature: "batch" },
+  { name: "Batch ", to: "/scan/batch", icon: Images, roles: ["exhibition_assistant", "vision71_administrator"], feature: "batch" },
   { name: "Review Queue", to: "/submissions", icon: ClipboardList, roles: ["exhibition_assistant", "aventure_reviewer"] },
   { name: "Users", to: "/users", icon: Users, roles: ["vision71_administrator"] },
 ];

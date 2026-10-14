@@ -18,6 +18,7 @@ import { pilot } from "./pilot.js";
 // Load environment variables
 dotenv.config();
 console.log(`[Lead71 Server] Approvers: HALA=${process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com"}, OSMAN=${process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com"}`);
+console.log(`[Lead71 Server] Gemini key configured: ${Boolean(process.env.GEMINI_API_KEY)}`);
 
 // Validate OCR configuration
 validateOcrConfig();

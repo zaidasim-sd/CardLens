@@ -5,9 +5,8 @@ import {
   ArrowRight,
   Camera,
   CheckCircle2,
-  ClipboardCheck,
-  Eye,
   FileEdit,
+  FileSpreadsheet,
   ImagePlus,
   Loader2,
   Move,
@@ -16,19 +15,20 @@ import {
   RotateCcw,
   ScanLine,
   ShieldAlert,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { useAuth } from "@/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getBatchApiBaseLabel, isBatchCaptureEnabled, isStagingBatchOcrAllowed } from "@/config/features";
 import { ocrCard } from "@/lib/api/ocr";
+import { submitContact } from "@/lib/api/contacts";
+import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
 import { apiFetch } from "@/lib/api/client";
-import { CameraModal } from "@/components/scanner/CameraModal";
 import { BatchCameraModal, type BatchCaptureResult } from "@/components/scanner/BatchCameraModal";
 import {
   MAX_BATCH_CARDS,
@@ -80,17 +80,12 @@ interface BatchCardRecord {
 }
 
 const FIELD_LABELS: Array<{ key: ContactField; label: string; multiline?: boolean }> = [
-  { key: "fullName", label: "Full name" },
-  { key: "jobTitle", label: "Job title" },
-  { key: "companyName", label: "Company" },
-  { key: "email", label: "Email" },
-  { key: "phone", label: "Phone" },
-  { key: "alternatePhone", label: "Alternate phone" },
-  { key: "website", label: "Website" },
-  { key: "city", label: "City" },
-  { key: "country", label: "Country" },
-  { key: "address", label: "Address", multiline: true },
-  { key: "notes", label: "Notes", multiline: true },
+  { key: "fullName", label: "Full Name" },
+  { key: "jobTitle", label: "Job Title" },
+  { key: "companyName", label: "Company Name" },
+  { key: "phone", label: "Phone Number" },
+  { key: "email", label: "Email Address" },
+  { key: "notes", label: "Short Notes", multiline: true },
 ];
 
 function formatBytes(bytes: number): string {
@@ -341,7 +336,6 @@ function RegionEditor({
 }
 
 export default function BatchCapturePage() {
-  const { user } = useAuth();
   const [step, setStep] = useState<BatchStep>("landing");
   const [source, setSource] = useState<SourceImageState | null>(null);
   const [regions, setRegions] = useState<BatchRegion[]>([]);
@@ -354,12 +348,26 @@ export default function BatchCapturePage() {
   const [ocrMode, setOcrMode] = useState<BatchOcrMode>("staging");
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [simulateFailure, setSimulateFailure] = useState(false);
+  const [exhibitionOptions, setExhibitionOptions] = useState<ExhibitionOption[]>([]);
+  const [selectedExhibition, setSelectedExhibition] = useState("Morocco Airshow 2026");
+  const [isSubmittingToSheet, setIsSubmittingToSheet] = useState(false);
+  const [isReclassifying, setIsReclassifying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processingRun = useRef(0);
   const sourceRef = useRef<SourceImageState | null>(null);
   const recordsRef = useRef<BatchCardRecord[]>([]);
   const stagingOcrAllowed = isStagingBatchOcrAllowed();
   const batchEnabled = isBatchCaptureEnabled();
+
+  // Load exhibition options on mount
+  useEffect(() => {
+    void getExhibitions().then((options) => {
+      if (options && options.length > 0) {
+        setExhibitionOptions(options);
+        setSelectedExhibition(options[0]?.value || "Morocco Airshow 2026");
+      }
+    });
+  }, []);
 
   const cleanupRecords = useCallback((items: BatchCardRecord[]) => {
     for (const item of items) URL.revokeObjectURL(item.cropUrl);
@@ -460,10 +468,17 @@ export default function BatchCapturePage() {
 
       setRegions(activeRegions);
       setSelectedRegionId(activeRegions[0]?.id || null);
-      setStep("regions");
-      if (!activeRegions.length) {
-        toast.info("No clear card regions were detected. Add regions manually by dragging on the image.");
+
+      // Skip Step 1 — go directly to processing if we have regions
+      if (activeRegions.length > 0) {
+        setIsPreparing(false);
+        await startProcessing(nextSource, activeRegions);
+        return;
       }
+
+      // Fallback: no regions detected, show region editor
+      setStep("regions");
+      toast.info("No clear card regions were detected. Add regions manually by dragging on the image.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to prepare this image.");
     } finally {
@@ -495,10 +510,17 @@ export default function BatchCapturePage() {
       const userRegions = result.regions.length > 0 ? result.regions : prepared.autoRegions;
       setRegions(userRegions);
       setSelectedRegionId(userRegions[0]?.id || null);
-      setStep("regions");
-      if (!userRegions.length) {
-        toast.info("No card regions detected. Add them manually by dragging on the image.");
+
+      // Skip Step 1 — go directly to processing if we have regions
+      if (userRegions.length > 0) {
+        setIsPreparing(false);
+        await startProcessing(nextSource, userRegions);
+        return;
       }
+
+      // Fallback: no regions detected, show region editor
+      setStep("regions");
+      toast.info("No card regions detected. Add them manually by dragging on the image.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to prepare this image.");
     } finally {
@@ -548,14 +570,14 @@ export default function BatchCapturePage() {
       }
 
       if (ocrMode === "staging") {
-        const result = await ocrCard(record.cropFile);
+        const result = await ocrCard(record.cropFile, "ai");
         const parsed = copyOcrData(result.parsed);
         return {
           ...record,
           status: "needs_review",
           data: parsed,
           rawText: result.rawText,
-          provider: result.provider || "staging-ocr",
+          provider: result.provider || "gemini-ai",
           extractedFields: getExtractedFields(parsed),
           errors: validateContact(parsed),
           failureMessage: "",
@@ -581,8 +603,10 @@ export default function BatchCapturePage() {
     [ocrMode]
   );
 
-  const startProcessing = async () => {
-    if (!source || !canProcess) return;
+  const startProcessing = async (targetSource?: SourceImageState | null, targetRegions?: BatchRegion[]) => {
+    const useSource = targetSource || source;
+    const useRegions = targetRegions || regions;
+    if (!useSource || useRegions.length === 0 || useRegions.length > MAX_BATCH_CARDS) return;
     const runId = processingRun.current + 1;
     processingRun.current = runId;
     setProcessingStartedAt(performance.now());
@@ -591,8 +615,8 @@ export default function BatchCapturePage() {
 
     try {
       const cropped = await Promise.all(
-        regions.map(async (region, index) => {
-          const crop = await cropRegionToFile(source.file, region);
+        useRegions.map(async (region, index) => {
+          const crop = await cropRegionToFile(useSource.file, region);
           return {
             id: `card-${region.id}`,
             number: index + 1,
@@ -608,7 +632,7 @@ export default function BatchCapturePage() {
             errors: {},
             retryCount: 0,
             failureMessage: "",
-            forcedFailure: simulateFailure && index === regions.length - 1,
+            forcedFailure: simulateFailure && index === useRegions.length - 1,
           };
         })
       );
@@ -667,6 +691,37 @@ export default function BatchCapturePage() {
     }
   };
 
+  const reclassifyWithGemini = async (recordId: string) => {
+    const target = records.find((r) => r.id === recordId);
+    if (!target) return;
+    setIsReclassifying(true);
+    try {
+      const result = await ocrCard(target.cropFile, "ai");
+      const parsed = copyOcrData(result.parsed);
+      setRecords((items) =>
+        items.map((item) =>
+          item.id === recordId
+            ? {
+              ...item,
+              data: parsed,
+              rawText: result.rawText,
+              provider: result.provider || "gemini-ai",
+              extractedFields: getExtractedFields(parsed),
+              errors: validateContact(parsed),
+              status: "needs_review",
+              failureMessage: "",
+            }
+            : item
+        )
+      );
+      toast.success(`Card ${target.number} re-classified with Gemini AI.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gemini classification failed.");
+    } finally {
+      setIsReclassifying(false);
+    }
+  };
+
   const updateRecordField = (recordId: string, field: ContactField, value: string) => {
     if (!isContactField(field)) return;
     setRecords((items) =>
@@ -685,9 +740,62 @@ export default function BatchCapturePage() {
     );
   };
 
-  const finishMockReview = () => {
-    setStep("complete");
-    toast.success("Batch moved to mock review complete. No external submission was made.");
+  const handleSubmitAllToSheet = async () => {
+    // Validate all active (non-skipped, non-failed) records
+    const activeRecords = records.filter((r) => r.status !== "failed" && r.status !== "skipped");
+    if (activeRecords.length === 0) {
+      toast.error("No valid records to submit.");
+      return;
+    }
+
+    // Check validation on each record
+    for (const record of activeRecords) {
+      const errors = validateContact(record.data);
+      if (Object.keys(errors).length > 0) {
+        setSelectedRecordId(record.id);
+        toast.error(`Card ${record.number} has validation errors: ${Object.values(errors).join(", ")}`);
+        return;
+      }
+    }
+
+    setIsSubmittingToSheet(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const record of activeRecords) {
+      try {
+        await submitContact({
+          submissionId: crypto.randomUUID(),
+          rawOCRText: record.rawText,
+          ocrData: record.data,
+          verifiedData: {
+            ...record.data,
+            meetingContext: { metAtLocation: selectedExhibition },
+          },
+          source: "ocr",
+        });
+        successCount++;
+        setRecords((items) =>
+          items.map((item) => (item.id === record.id ? { ...item, status: "reviewed" as BatchCardStatus } : item))
+        );
+      } catch (error) {
+        failCount++;
+        const message = error instanceof Error ? error.message : "Submission failed";
+        toast.error(`Card ${record.number}: ${message}`);
+        setRecords((items) =>
+          items.map((item) => (item.id === record.id ? { ...item, failureMessage: message } : item))
+        );
+      }
+    }
+
+    setIsSubmittingToSheet(false);
+
+    if (failCount === 0) {
+      toast.success(`All ${successCount} records submitted to Google Sheets successfully!`);
+      setStep("complete");
+    } else {
+      toast.warning(`${successCount} submitted, ${failCount} failed. Review errors and retry.`);
+    }
   };
 
   if (!batchEnabled) return <BatchFeatureDisabled />;
@@ -738,15 +846,16 @@ export default function BatchCapturePage() {
                 variant="outline"
                 disabled={isPreparing}
                 onClick={() => fileInputRef.current?.click()}
+                className="batch-secondary-btn"
               >
                 <ImagePlus className="h-4 w-4" />
                 Upload Image
               </Button>
             </div>
-            <div className="batch-safe-note">
+            {/* <div className="batch-safe-note">
               <ShieldAlert className="h-4 w-4" aria-hidden="true" />
               Default mode is simulated. No Google Sheet write, email, deployment, or Constant Contact action occurs in this workflow.
-            </div>
+            </div> */}
           </div>
           <div className="batch-guidance-panel">
             <h2>Photo guidance</h2>
@@ -865,9 +974,14 @@ export default function BatchCapturePage() {
 
       {step === "processing" && (
         <section className="batch-processing">
-          <Loader2 className="h-10 w-10 animate-spin text-blue-600" aria-hidden="true" />
-          <h1>Processing batch</h1>
-          <p>{summary.complete} of {summary.total} card crops have finished. Concurrency is limited to 2 cards at a time.</p>
+          <div className="batch-processing-header">
+            {/* <span className="batch-pill-processing">
+              <Sparkles className="h-3.5 w-3.5 animate-pulse text-teal-600 dark:text-teal-400" />
+              Gemini AI Processing
+            </span> */}
+            <h1>Processing batch</h1>
+            <p>{summary.complete} of {summary.total} card crops have finished. Concurrency is limited to 2 cards at a time.</p>
+          </div>
           <div className="batch-progress-bar"><span style={{ width: `${progressValue}%` }} /></div>
           <div className="batch-processing-grid">
             {records.map((record) => (
@@ -928,6 +1042,26 @@ export default function BatchCapturePage() {
                 <span className={`batch-status-badge ${selectedRecord.status}`}>{readableStatus(selectedRecord.status)}</span>
               </div>
 
+              <div className="batch-card-header-bar">
+                <div className="batch-card-title-group">
+                  <h3>Card {selectedRecord.number} of {records.length}</h3>
+                  {/* <span className="batch-ai-badge">
+                    <Sparkles className="h-3 w-3 text-teal-600 dark:text-teal-400" />
+                    Gemini AI
+                  </span> */}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void reclassifyWithGemini(selectedRecord.id)}
+                  disabled={isReclassifying || selectedRecord.status === "processing"}
+                  className="batch-reclassify-btn"
+                >
+                  {isReclassifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-amber-500" />}
+                  {isReclassifying ? "Classifying..." : "Re-classify with Gemini"}
+                </Button>
+              </div>
+
               {selectedRecord.status === "failed" ? (
                 <div className="batch-failure-panel">
                   <AlertTriangle className="h-7 w-7" />
@@ -983,12 +1117,6 @@ export default function BatchCapturePage() {
                   <ArrowLeft className="h-4 w-4" /> Previous
                 </Button>
                 <Button
-                  onClick={() => setRecordStatus(selectedRecord.id, "reviewed")}
-                  disabled={Object.keys(selectedRecord.errors).length > 0 || selectedRecord.status === "failed"}
-                >
-                  <CheckCircle2 className="h-4 w-4" /> Mark reviewed
-                </Button>
-                <Button
                   variant="outline"
                   onClick={() => {
                     const index = records.findIndex((record) => record.id === selectedRecord.id);
@@ -1001,13 +1129,34 @@ export default function BatchCapturePage() {
             </article>
           </div>
 
-          <div className="batch-footer-bar">
-            <p>
-              {ocrMode === "mock" ? "Simulated OCR only. " : "Staging OCR mode. "}
-              No Google Sheet submission or notification is performed by this batch workflow.
-            </p>
-            <Button onClick={finishMockReview}>
-              <ClipboardCheck className="h-4 w-4" /> Continue to mock review
+          <div className="batch-exhibition-bar">
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}>
+              Exhibition:
+              <select
+                value={selectedExhibition}
+                onChange={(e) => setSelectedExhibition(e.target.value)}
+                style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
+              >
+                {exhibitionOptions.length > 0 ? (
+                  exhibitionOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))
+                ) : (
+                  <option value="Morocco Airshow 2026">Morocco Airshow 2026</option>
+                )}
+              </select>
+            </label>
+            <Button
+              onClick={() => void handleSubmitAllToSheet()}
+              disabled={isSubmittingToSheet || records.filter((r) => r.status !== "failed" && r.status !== "skipped").length === 0}
+              className="batch-submit-sheet-btn"
+            >
+              {isSubmittingToSheet ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4" />
+              )}
+              {isSubmittingToSheet ? "Submitting..." : `Submit all ${records.filter((r) => r.status !== "failed" && r.status !== "skipped").length} records to Google Sheets`}
             </Button>
           </div>
         </section>
@@ -1016,15 +1165,13 @@ export default function BatchCapturePage() {
       {step === "complete" && (
         <section className="batch-complete">
           <CheckCircle2 className="h-12 w-12 text-emerald-600" aria-hidden="true" />
-          <span className="batch-pill">Step 3 of 3</span>
-          <h1>Mock review complete</h1>
-          <p>No records were submitted to Google Sheets, no emails were sent, and no campaign service was triggered.</p>
+          <h1>Batch submitted to Google Sheets</h1>
+          <p>All valid records have been submitted to the staging Google Sheet.</p>
           <div className="batch-summary-strip">
             <span>Total <b>{summary.total}</b></span>
-            <span>Processed <b>{summary.total - summary.failed}</b></span>
-            <span>Reviewed <b>{summary.reviewed}</b></span>
-            <span>Needs correction <b>{summary.needsReview}</b></span>
-            <span>Failed/skipped <b>{summary.failed + summary.skipped}</b></span>
+            <span>Submitted <b>{summary.reviewed}</b></span>
+            <span>Failed <b>{summary.failed}</b></span>
+            <span>Skipped <b>{summary.skipped}</b></span>
           </div>
           <div className="batch-complete-list">
             {records.map((record) => (
@@ -1034,20 +1181,17 @@ export default function BatchCapturePage() {
                   <strong>Card {record.number}: {record.data.fullName || "Unnamed contact"}</strong>
                   <span>{record.data.companyName || "Company not entered"} - {readableStatus(record.status)}</span>
                 </div>
-                <Button variant="outline" onClick={() => { setStep("review"); setSelectedRecordId(record.id); }}>
-                  <Eye className="h-4 w-4" /> Review
-                </Button>
               </article>
             ))}
           </div>
           <div className="batch-metrics">
-            <span>OCR provider: {ocrMode === "mock" ? "Simulated deterministic data" : "Configured staging OCR endpoint"}</span>
-            <span>OCR call count: {ocrMode === "mock" ? 0 : records.filter((record) => record.provider).length}</span>
+            <span>OCR provider: {ocrMode === "mock" ? "Simulated" : "Gemini AI Classification"}</span>
+            <span>OCR call count: {records.filter((record) => record.provider).length}</span>
             <span>
               Processing time:{" "}
               {processingStartedAt && processingFinishedAt ? `${Math.round(processingFinishedAt - processingStartedAt)} ms` : "not measured"}
             </span>
-            <span>Signed-in role: {user?.role || "unknown"}</span>
+            <span>Exhibition: {selectedExhibition}</span>
           </div>
           <Button onClick={resetBatch} className="batch-primary">
             <RotateCcw className="h-4 w-4" /> Start another batch

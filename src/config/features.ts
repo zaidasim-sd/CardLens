@@ -1,16 +1,11 @@
 export function isBatchCaptureEnabled(): boolean {
-  const envEnabled = import.meta.env.VITE_ENABLE_BATCH_CAPTURE === "true";
-  if (envEnabled) return true;
-
-  try {
-    return window.localStorage.getItem("lead71.batchCapture") === "enabled";
-  } catch {
-    return false;
-  }
+  if (import.meta.env.VITE_ENABLE_BATCH_CAPTURE === "false") return false;
+  return true;
 }
 
 export function isStagingBatchOcrAllowed(): boolean {
-  return import.meta.env.VITE_BATCH_CAPTURE_ALLOW_STAGING_OCR === "true";
+  if (import.meta.env.VITE_BATCH_CAPTURE_ALLOW_STAGING_OCR === "false") return false;
+  return true;
 }
 
 export function getBatchApiBaseLabel(): string {

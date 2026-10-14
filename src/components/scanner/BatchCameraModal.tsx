@@ -142,14 +142,11 @@ export function BatchCameraModal({
 
   const [phase,       setPhase]       = useState<Phase>("loading");
   const [errorMsg,    setErrorMsg]    = useState("");
-  const [videoW,      setVideoW]      = useState(1920);
-  const [videoH,      setVideoH]      = useState(1080);
   const [approxCount, setApproxCount] = useState(0);   // live composition guide
   const [detectMsg,   setDetectMsg]   = useState("");  // detecting phase status
   const [stillUrl,    setStillUrl]    = useState<string | null>(null);
   const [stillW,      setStillW]      = useState(0);
   const [stillH,      setStillH]      = useState(0);
-  const [stillFile,   setStillFile]   = useState<File | null>(null);
   const stillFileRef  = useRef<File | null>(null);
   const [boxes,       setBoxes]       = useState<AdjBox[]>([]);
   const [selId,       setSelId]       = useState<string | null>(null);
@@ -190,9 +187,6 @@ export function BatchCameraModal({
       video.addEventListener("loadedmetadata", fn);
     });
     try { await video.play(); } catch { /* unmount race */ }
-
-    setVideoW(video.videoWidth  || 1920);
-    setVideoH(video.videoHeight || 1080);
     setPhase("live");
   }, []);
 
@@ -252,7 +246,6 @@ export function BatchCameraModal({
       const res  = await fetch(dataUrl);
       const blob = await res.blob();
       imageFile  = new File([blob], `batch-${Date.now()}.jpg`, { type: "image/jpeg" });
-      setStillFile(imageFile);
       stillFileRef.current = imageFile;
     } catch {
       setDetectMsg("Image preparation failed. Please retake.");
@@ -313,7 +306,7 @@ export function BatchCameraModal({
       const res  = await fetch(stillUrl);
       const blob = await res.blob();
       file = new File([blob], `batch-${Date.now()}.jpg`, { type: "image/jpeg" });
-      setStillFile(file); stillFileRef.current = file;
+      stillFileRef.current = file;
     }
     if (!file) return;
     const clean = boxes.map(({ _drag: _d, _resize: _r, ...b }) => b);
@@ -631,7 +624,7 @@ export function BatchCameraModal({
               }}
             >
               <Check size={18} />
-              Use {boxes.length} card{boxes.length !== 1 ? "s" : ""}
+              Crop and process {boxes.length} card{boxes.length !== 1 ? "s" : ""}
             </button>
           </div>
         </>
