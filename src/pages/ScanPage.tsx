@@ -33,8 +33,8 @@ import OCRReviewModal from "@/components/scanner/OCRReviewModal";
 import { SINGLE_DEMO_CARD } from "@/config/demoCards";
 import type { OCRData } from "@/types";
 import { cropBusinessCardImage } from "@/lib/imageCrop";
-import { ocrCard } from "@/lib/api/ocr";
-import { fillEmptyCardFields } from "@/lib/cardSides";
+import { ocrCard, type ClassificationComparison as Comparison } from "@/lib/api/ocr";
+import ClassificationComparison from "@/components/scanner/ClassificationComparison";
 
 const OCR_FAILURE_MESSAGE = "We couldn't read enough information from this card. Please retake the photo or enter the details manually.";
 
@@ -315,6 +315,7 @@ export default function ScanPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [comparison, setComparison] = useState<Comparison | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const preparationVersion = useRef(0);
   const [scanProgress, setScanProgress] = useState(0);
@@ -419,31 +420,24 @@ export default function ScanPage() {
 
   const handleScan = async () => {
     if (!selectedFile || isPreparing || isScanning) return;
-    setScanError(null); setBackError(""); setIsReviewModalOpen(false);
+    setScanError(null); setBackError(""); setIsReviewModalOpen(false); setComparison(null);
     setIsScanning(true); setScanProgress(15);
     const interval = setInterval(() => setScanProgress(p => Math.min(90, p + 12)), 350);
     try {
-      // Read each side independently; the back never overrides front classification.
-      // Reuse a successful front read if only the back needs retrying.
       const demo = isDemoMode || selectedFile.name === "demo-card.svg";
-      const [front, back] = await Promise.allSettled([
-        ocrData ? Promise.resolve({ parsed: ocrData, rawText })
-          : demo ? Promise.resolve({ parsed: SINGLE_DEMO_CARD.preparedData, rawText: SINGLE_DEMO_CARD.rawOCRText })
-          : ocrCard(selectedFile),
-        backFile ? ocrCard(backFile) : Promise.resolve(null),
-      ]);
-      if (front.status === "rejected") throw front.reason;
-      setOcrData(front.value.parsed); setRawText(front.value.rawText);
-      if (back.status === "rejected") {
-        setBackError(back.reason instanceof Error ? back.reason.message : OCR_FAILURE_MESSAGE);
-        return;
+      if (demo) {
+        setOcrData(SINGLE_DEMO_CARD.preparedData);
+        setRawText(SINGLE_DEMO_CARD.rawOCRText);
+        setIsReviewModalOpen(true);
+      } else {
+        // OCR reads each image once; both methods classify the combined text.
+        const result = await ocrCard(selectedFile, "compare", backFile);
+        if (!result.comparison) throw new Error("Comparison was unavailable. Please restart the backend and try again.");
+        setRawText(result.rawText);
+        setComparison(result.comparison);
+        setBackData(null);
       }
-      if (back.value) {
-        setBackData(back.value.parsed);
-        setOcrData(fillEmptyCardFields(front.value.parsed, back.value.parsed));
-        setRawText("FRONT OF CARD:\n" + front.value.rawText + "\n\nBACK OF CARD:\n" + back.value.rawText);
-      }
-      setScanProgress(100); setIsReviewModalOpen(true);
+      setScanProgress(100);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : OCR_FAILURE_MESSAGE;
       setScanError(message); toast.error(message);
@@ -477,6 +471,7 @@ export default function ScanPage() {
   };
 
   const clearSelection = () => {
+    setComparison(null);
     preparationVersion.current++;
     setIsPreparing(false);
     setScanError(null);
@@ -587,7 +582,7 @@ export default function ScanPage() {
                       </div>
                       <Progress value={scanProgress} className="h-1.5 bg-slate-200 dark:bg-slate-800" />
                       <p className="text-[11px] text-slate-500">
-                        Extracting contact details with Google Cloud Vision.
+                        Reading the card and preparing manual and AI classification results.
                       </p>
                     </div>
                   ) : (
@@ -694,9 +689,23 @@ export default function ScanPage() {
         )}
       </div>
 
+      {comparison && <ClassificationComparison
+        comparison={comparison}
+        onCancel={() => { setComparison(null); setOcrData(null); setRawText(""); setBackData(null); }}
+        onChoose={data => { setOcrData(data); setComparison(null); setIsReviewModalOpen(true); }}
+      />}
+
       <OCRReviewModal
         isOpen={isReviewModalOpen}
-        setIsOpen={(open) => { setIsReviewModalOpen(open); if (!open) clearSelection(); }}
+        setIsOpen={(open) => {
+          setIsReviewModalOpen(open);
+          if (!open) {
+            // Keep the selected images so the user can compare classification modes.
+            // Clear extraction results so the next scan always processes the card again.
+            setOcrData(null); setRawText(""); setBackData(null);
+            setScanError(null); setBackError("");
+          }
+        }}
         onDiscardImage={() => {
           if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
           setPreviewUrl(null); setSelectedFile(null); setRawText("");
