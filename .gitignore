@@ -13,6 +13,7 @@ dist-ssr
 *.local
 
 # Environment / secrets
+env (*)
 *service-account*.json
 cardsnap-*-*.json
 .env
