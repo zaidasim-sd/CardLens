@@ -1,11 +1,13 @@
 import { NavLink } from "react-router-dom";
-import { ScanLine, ClipboardList, Users } from "lucide-react";
+import { ScanLine, ClipboardList, Users, Images } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/auth/AuthContext";
 import pilot from "@/config/pilot";
+import { isBatchCaptureEnabled } from "@/config/features";
 
 const navItems = [
   { name: "Scan Card", to: "/scan", icon: ScanLine, roles: ["exhibition_assistant", "vision71_administrator"] },
+  { name: "Batch", to: "/scan/batch", icon: Images, roles: ["exhibition_assistant", "vision71_administrator"], feature: "batch" },
   { name: "Review Queue", to: "/submissions", icon: ClipboardList, roles: ["exhibition_assistant", "aventure_reviewer"] },
   { name: "Users", to: "/users", icon: Users, roles: ["vision71_administrator"] },
 ];
@@ -17,7 +19,7 @@ export default function MobileNav() {
     <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(3.75rem+env(safe-area-inset-bottom,0px))] shrink-0 items-center justify-around border-t border-slate-200/90 bg-white/95 px-3 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-md md:hidden dark:bg-slate-900/95 dark:border-slate-800">
       {navItems
         // SUBMISSION-ONLY PILOT: queue navigation is paused, not deleted.
-        .filter((item) => user && item.roles.includes(user.role) && (!pilot.submissionOnlyEnabled || item.to !== "/submissions") && (pilot.internalReviewEnabled || user.role !== "aventure_reviewer"))
+        .filter((item) => user && item.roles.includes(user.role) && (!("feature" in item) || item.feature !== "batch" || isBatchCaptureEnabled()) && (!pilot.submissionOnlyEnabled || item.to !== "/submissions") && (pilot.internalReviewEnabled || user.role !== "aventure_reviewer"))
         .map((item) => {
           const Icon = item.icon;
           return (

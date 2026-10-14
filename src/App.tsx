@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "./components/layout/AppLayout";
 import HomePage from "./pages/HomePage";
 import ScanPage from "./pages/ScanPage";
+import BatchCapturePage from "./pages/BatchCapturePage";
 import VerifiedQueuePage from "./pages/VerifiedQueuePage";
 import SignInPage from "./pages/SignInPage";
 import CreateAccountPage from "./pages/CreateAccountPage";
@@ -16,6 +17,7 @@ import LandingPage from "./pages/LandingPage";
 import LegalPage from "./pages/LegalPage";
 import { useAuth } from "./auth/AuthContext";
 import pilot from "./config/pilot";
+import { isBatchCaptureEnabled } from "./config/features";
 
 function SubmissionQueueRoute() {
   const { user } = useAuth();
@@ -33,6 +35,14 @@ function CaptureRoute() {
   const { user } = useAuth();
   return user?.role === "exhibition_assistant" || user?.role === "vision71_administrator"
     ? <ScanPage />
+    : <Navigate to="/" replace />;
+}
+
+function BatchCaptureRoute() {
+  const { user } = useAuth();
+  if (!isBatchCaptureEnabled()) return <BatchCapturePage />;
+  return user?.role === "exhibition_assistant" || user?.role === "vision71_administrator"
+    ? <BatchCapturePage />
     : <Navigate to="/" replace />;
 }
 
@@ -56,6 +66,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/scan" element={<CaptureRoute />} />
+            <Route path="/scan/batch" element={<BatchCaptureRoute />} />
             <Route path="/submissions" element={<SubmissionQueueRoute />} />
             <Route path="/users" element={<UserAdminPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -7,6 +7,7 @@ import supportHandler from "../api/support.js";
 import exhibitionsHandler from "../api/config/exhibitions.js";
 import { retentionSettingsHandler, sweepHandler } from "./http/retentionHandlers.js";
 import ocrHandler from "./http/ocrHandler.js";
+import detectCardsHandler from "./http/detectCardsHandler.js";
 import exportHandler from "./http/exportHandler.js";
 import constantContactHandler from "./http/constantContactHandler.js";
 import constantContactCron from "./http/constantContactCron.js";
@@ -42,6 +43,7 @@ app.all("/api/cron/constant-contact", constantContactCron);
 
 // Routes
 app.all("/api/ocr", ocrHandler);
+app.post("/api/detect-cards", detectCardsHandler);
 
 app.get("/api/config/exhibitions", exhibitionsHandler);
 

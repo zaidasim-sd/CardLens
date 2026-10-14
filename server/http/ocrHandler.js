@@ -23,20 +23,33 @@ function allowedOrigins(env) {
   const configured = String(env.ALLOWED_ORIGINS || env.APP_BASE_URL || env.APP_ORIGIN || "")
     .split(",").map((value) => value.trim()).filter(Boolean);
   if (env.APP_ENV === "development" || env.NODE_ENV !== "production") {
-    return [
-      ...configured,
-      "https://localhost:5173",
-      "http://localhost:5173",
-      "https://127.0.0.1:5173",
-      "http://127.0.0.1:5173",
+    const extras = [
+      // localhost on all common Vite ports
+      "https://localhost:5173", "http://localhost:5173",
+      "https://localhost:5174", "http://localhost:5174",
+      "https://localhost:5175", "http://localhost:5175",
+      "https://127.0.0.1:5173", "http://127.0.0.1:5173",
+      "https://127.0.0.1:5174", "http://127.0.0.1:5174",
     ];
+    // Explicit LAN origin override from .env (no VITE_ prefix so Express can read it)
+    if (env.DEV_NETWORK_ORIGIN) extras.push(env.DEV_NETWORK_ORIGIN.trim());
+    return [...new Set([...configured, ...extras])];
   }
   return configured;
 }
 
+/** Returns true when the origin looks like a private LAN address (dev only). */
+function isLanOrigin(origin) {
+  return /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin);
+}
+
 function verifyOrigin(req, env) {
   const origin = String(req.headers.origin || "");
-  if (!origin || !allowedOrigins(env).includes(origin)) throw error("ORIGIN_DENIED", 403);
+  if (!origin) throw error("ORIGIN_DENIED", 403);
+  // In dev mode, also allow any private-network LAN origin (for phone testing).
+  const isDev = env.APP_ENV === "development" || env.NODE_ENV !== "production";
+  if (isDev && isLanOrigin(origin)) return;
+  if (!allowedOrigins(env).includes(origin)) throw error("ORIGIN_DENIED", 403);
 }
 
 async function readBody(req) {

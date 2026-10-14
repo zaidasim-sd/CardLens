@@ -7,7 +7,7 @@ import "../../pages/capture.css";
 export default function AppLayout() {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  const captureTheme = user?.role === "exhibition_assistant" || (user?.role === "vision71_administrator" && pathname === "/scan");
+  const captureTheme = user?.role === "exhibition_assistant" || (user?.role === "vision71_administrator" && pathname.startsWith("/scan"));
   return (
     <div className={`app-shell flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-50/40 text-foreground ${captureTheme ? "capturer-theme" : ""}`}>
       <Header />
