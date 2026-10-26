@@ -44,3 +44,10 @@ Captures go to the reviewer portal and Google Sheet. Constant Contact receives a
 See [setup](docs/SETUP.md) and [integration details](docs/CONSTANT_CONTACT.md). Existing Constant Contact records are preserved. Transfer status reflects provider confirmation, and uncertain creates require reconciliation before another write.
 
 Run `node --test server/integrations/constantContact.test.mjs` for mocked provider tests.
+## Environment Setup
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+2. Populate `.env` with your actual local configuration values.
+3. **NEVER commit `.env`** or any files containing credentials to version control.
