@@ -38,3 +38,10 @@ artifacts/qa/
 *.traineddata*
 .vercel
 .env*
+# Security & Secrets
+!.env.example
+*.pem
+*.key
+*serviceAccount*.json
+firebase-adminsdk*.json
+google-credentials*.json
