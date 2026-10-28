@@ -8,7 +8,59 @@ import {
   sendAccountApprovedEmail,
   sendAccountRejectedEmail,
   sendPendingApprovalEmail,
+  isStagingEnvironment,
 } from "../notifications/emailService.js";
+
+// ─── Staging isolation ────────────────────────────────────────────────────────
+// On staging (VERCEL_ENV=preview or APP_ENV=staging) we block any sign-in or
+// registration attempt from external client domains BEFORE Firebase is called
+// and before any OTP or notification email is generated or sent.
+// Only addresses whose domain appears in STAGING_ALLOWED_DOMAINS (comma-
+// separated, server-only env var) may proceed. This is separate from
+// STAGING_EMAIL_ALLOWLIST which guards the SMTP transport layer.
+const EXTERNAL_CLIENT_DOMAINS_ALWAYS_BLOCKED_ON_STAGING = [
+  "aventureaviation.com",
+];
+
+function getStagingAllowedDomains() {
+  const raw = process.env.STAGING_ALLOWED_DOMAINS || "";
+  const explicit = raw.split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
+  // vision71tech.com and example.test are always permitted on staging for internal testing
+  return new Set([...explicit, "vision71tech.com", "example.test"]);
+}
+
+/**
+ * Throws a hard 403 when a staging deployment receives a request for an
+ * external client email address. Call this before any Firebase lookup so
+ * that no token exchange, OTP generation, or email dispatch can occur.
+ */
+function assertStagingSignInPermitted(email) {
+  if (!isStagingEnvironment()) return; // production — unrestricted
+  const emailLower = String(email || "").trim().toLowerCase();
+  const domain = emailLower.split("@")[1] || "";
+
+  // Hard block: known client domains are never permitted on staging
+  if (EXTERNAL_CLIENT_DOMAINS_ALWAYS_BLOCKED_ON_STAGING.includes(domain)) {
+    console.warn(`[STAGING BLOCK] Sign-in attempt for <${emailLower}> refused — external client domain on staging.`);
+    throw authError(
+      "STAGING_RESTRICTED",
+      403,
+      "This is an internal staging environment. Client accounts are not permitted here. Please use https://lead71.com.",
+    );
+  }
+
+  // Additional domain check against the allowlist
+  const allowed = getStagingAllowedDomains();
+  if (!allowed.has(domain)) {
+    console.warn(`[STAGING BLOCK] Sign-in attempt for <${emailLower}> refused — domain not in STAGING_ALLOWED_DOMAINS.`);
+    throw authError(
+      "STAGING_RESTRICTED",
+      403,
+      "This is an internal staging environment. Client accounts are not permitted here. Please use https://lead71.com.",
+    );
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 const SESSION_ABSOLUTE_MS = 8 * 60 * 60 * 1000;
 const SESSION_IDLE_MS = 30 * 60 * 1000;
@@ -61,9 +113,12 @@ export function getAdministratorEmails() {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 
+  // Built-in Vision71 internal admins are always present on all environments.
+  // Aventure client addresses (hala@, osman@) are NOT hardcoded here — they
+  // are provided via HALA_APPROVAL_EMAIL / OSMAN_APPROVAL_EMAIL in Vercel
+  // Production environment variables only. This prevents staging from ever
+  // granting administrator access to client accounts.
   const builtInAdmins = [
-    "hala@aventureaviation.com",
-    "osman@aventureaviation.com",
     "hmirza.sd@vision71tech.com",
     "iamalik2005@gmail.com",
     "zaid.sd@vision71tech.com",
@@ -85,14 +140,18 @@ export function getAppPublicUrl() {
   const explicit = process.env.APPROVAL_BASE_URL || process.env.PUBLIC_APP_URL || process.env.APP_BASE_URL;
   if (explicit && explicit.trim()) {
     const trimmed = explicit.trim().replace(/\/+$/, "");
-    if (trimmed.includes("lead71.com")) return trimmed;
+    // Accept lead71.com (production) and lead71-staging.vercel.app (staging)
+    if (trimmed.includes("lead71.com") || trimmed.includes("lead71-staging.vercel.app")) return trimmed;
   }
   return "https://lead71.com";
 }
 
+// Default approved emails for fresh deployments with no DB settings document.
+// Aventure client addresses are intentionally NOT in this list — they must be
+// configured via HALA_APPROVAL_EMAIL / OSMAN_APPROVAL_EMAIL env vars so that
+// staging deployments (which should never have those vars set to Aventure
+// addresses) do not automatically grant access to client accounts.
 const DEFAULT_APPROVED_EMAILS = [
-  "hala@aventureaviation.com",
-  "osman@aventureaviation.com",
   "hmirza.sd@vision71tech.com",
   "iamalik2005@gmail.com",
   "zaid.sd@vision71tech.com",
@@ -207,6 +266,10 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
   // Identity and credentials are authenticated strictly through Firebase
   const identity = await firebaseIdentity(idToken);
   const emailLower = identity.email;
+
+  // Staging isolation: reject external client addresses before any DB or email work
+  assertStagingSignInPermitted(emailLower);
+
   const effectiveTenantId = tenantId || process.env.AVENTURE_TENANT_ID || "vision71-internal";
 
   try {
@@ -416,6 +479,9 @@ export async function seedAdministrator() {
 export async function registerUser(db, { idToken, now = new Date() }, { notify = sendApprovalRequestEmail } = {}) {
   const identity = await firebaseIdentity(idToken);
   const emailLower = identity.email;
+
+  // Staging isolation: block external client domains before any DB write or email
+  assertStagingSignInPermitted(emailLower);
 
   if (!isAllowedAventureEmail(emailLower)) {
     const domainMsg = "Please use an authorized corporate work email.";

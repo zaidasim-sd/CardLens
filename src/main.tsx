@@ -15,9 +15,17 @@ import { Toaster } from "@/components/ui/sonner"
 import { AuthProvider } from "@/auth/AuthContext"
 import { ThemeProvider } from "next-themes"
 import './uiPolish.css'
+import StagingBanner, { STAGING_BANNER_HEIGHT } from "@/components/StagingBanner"
+
+// Apply banner offset as a CSS variable so all layouts can respond
+if (STAGING_BANNER_HEIGHT > 0) {
+  document.documentElement.style.setProperty("--staging-banner-height", `${STAGING_BANNER_HEIGHT}px`);
+  document.documentElement.style.paddingTop = `${STAGING_BANNER_HEIGHT}px`;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <StagingBanner />
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="lead71-theme" disableTransitionOnChange>
       <AuthProvider><App /></AuthProvider>
       <Toaster position="top-right" />

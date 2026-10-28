@@ -57,10 +57,64 @@ function escapeHtml(str) {
 }
 
 /**
+ * Returns true when the current deployment is a staging/preview environment.
+ * Matches Vercel Preview deployments (VERCEL_ENV=preview) and any explicit
+ * APP_ENV=staging override. Production (VERCEL_ENV=production) is never staging.
+ */
+export function isStagingEnvironment() {
+  const vercelEnv = (process.env.VERCEL_ENV || "").toLowerCase();
+  const appEnv = (process.env.APP_ENV || "").toLowerCase();
+  if (vercelEnv === "production") return false;
+  if (vercelEnv === "preview") return true;
+  return appEnv === "staging";
+}
+
+/**
+ * Returns the set of email addresses that are permitted to receive emails on
+ * staging. Sourced from STAGING_EMAIL_ALLOWLIST (comma-separated). Falls back
+ * to an empty set, which means NO emails leave staging unless configured.
+ */
+export function getStagingAllowlist() {
+  const raw = process.env.STAGING_EMAIL_ALLOWLIST || "";
+  return new Set(
+    raw.split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+/**
+ * Enforces the staging email guard. Throws a hard error if the recipient is
+ * not on the internal allowlist so the caller cannot accidentally send to a
+ * real client address from staging.
+ */
+function assertStagingEmailPermitted(to) {
+  if (!isStagingEnvironment()) return; // production — no restriction here
+  const allowlist = getStagingAllowlist();
+  const recipient = String(to || "").trim().toLowerCase();
+  if (allowlist.size === 0) {
+    const msg = `[STAGING BLOCK] Email to <${recipient}> suppressed. STAGING_EMAIL_ALLOWLIST is empty — set it to permit internal test addresses.`;
+    console.warn(msg);
+    throw Object.assign(new Error(msg), { code: "STAGING_EMAIL_BLOCKED", status: 403 });
+  }
+  if (!allowlist.has(recipient)) {
+    const msg = `[STAGING BLOCK] Email to <${recipient}> suppressed. Address is not in STAGING_EMAIL_ALLOWLIST.`;
+    console.warn(msg);
+    throw Object.assign(new Error(msg), { code: "STAGING_EMAIL_BLOCKED", status: 403 });
+  }
+  console.log(`[STAGING] Email to <${recipient}> permitted by STAGING_EMAIL_ALLOWLIST.`);
+}
+
+/**
  * Centralized email sending function for all Lead71 communications.
  * Enforces dynamic from and replyTo addresses from environment variables.
+ * On staging, all recipients must be in STAGING_EMAIL_ALLOWLIST or the send
+ * is blocked before SMTP is even contacted.
  */
 export async function sendLead71Email({ to, subject, html, text }) {
+  // Staging guard: hard block before SMTP transport is created
+  assertStagingEmailPermitted(to);
+
   const transporter = getTransporter();
   const from = getFromAddress();
   const replyTo = getReplyToAddress();
