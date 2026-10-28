@@ -61,9 +61,12 @@ export function getAdministratorEmails() {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 
+  // Built-in Vision71 internal admins are always present on all environments.
+  // Aventure client addresses (hala@, osman@) are NOT hardcoded here — they
+  // are provided via HALA_APPROVAL_EMAIL / OSMAN_APPROVAL_EMAIL in Vercel
+  // Production environment variables only. This prevents staging from ever
+  // granting administrator access to client accounts.
   const builtInAdmins = [
-    "hala@aventureaviation.com",
-    "osman@aventureaviation.com",
     "hmirza.sd@vision71tech.com",
     "iamalik2005@gmail.com",
     "zaid.sd@vision71tech.com",
@@ -85,14 +88,18 @@ export function getAppPublicUrl() {
   const explicit = process.env.APPROVAL_BASE_URL || process.env.PUBLIC_APP_URL || process.env.APP_BASE_URL;
   if (explicit && explicit.trim()) {
     const trimmed = explicit.trim().replace(/\/+$/, "");
-    if (trimmed.includes("lead71.com")) return trimmed;
+    // Accept lead71.com (production) and lead71-staging.vercel.app (staging)
+    if (trimmed.includes("lead71.com") || trimmed.includes("lead71-staging.vercel.app")) return trimmed;
   }
   return "https://lead71.com";
 }
 
+// Default approved emails for fresh deployments with no DB settings document.
+// Aventure client addresses are intentionally NOT in this list — they must be
+// configured via HALA_APPROVAL_EMAIL / OSMAN_APPROVAL_EMAIL env vars so that
+// staging deployments (which should never have those vars set to Aventure
+// addresses) do not automatically grant access to client accounts.
 const DEFAULT_APPROVED_EMAILS = [
-  "hala@aventureaviation.com",
-  "osman@aventureaviation.com",
   "hmirza.sd@vision71tech.com",
   "iamalik2005@gmail.com",
   "zaid.sd@vision71tech.com",
@@ -207,6 +214,7 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
   // Identity and credentials are authenticated strictly through Firebase
   const identity = await firebaseIdentity(idToken);
   const emailLower = identity.email;
+
   const effectiveTenantId = tenantId || process.env.AVENTURE_TENANT_ID || "vision71-internal";
 
   try {

@@ -102,6 +102,19 @@ export function formatAuthError(
     };
   }
 
+  // 7a. Staging environment restriction — show a clear redirect message
+  if (
+    rawLower.includes("staging_restricted") ||
+    rawLower.includes("internal staging environment") ||
+    rawLower.includes("staging environment")
+  ) {
+    return {
+      message:
+        "This is an internal staging environment. Client accounts are not permitted here. " +
+        "Please sign in at lead71.com.",
+    };
+  }
+
   // 8. Sign-up specific errors
   if (context === "signup") {
     if (code === "auth/email-already-in-use" || rawLower.includes("email-already-in-use") || rawLower.includes("account_exists")) {

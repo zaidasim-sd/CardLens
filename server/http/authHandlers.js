@@ -35,9 +35,15 @@ function errorResponse(res, error, context = {}) {
       code: safeValue(String(error.code || "SERVER_ERROR")),
       syscall: safeValue(error.syscall),
       causeCode: safeValue(String(error.cause?.code || "")),
+      // Config presence flags — values are never logged, only whether they exist
       mongodbUriConfigured: Boolean(process.env.MONGODB_URI),
+      mongodbDbConfigured: Boolean(process.env.MONGODB_DB),
+      firebaseApiKeyConfigured: Boolean(process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY),
+      smtpConfigured: Boolean(process.env.SMTP_USER && process.env.SMTP_PASS),
       customDnsConfigured: Boolean(process.env.MONGODB_DNS_SERVERS?.trim()),
       hostedOnVercel: Boolean(process.env.VERCEL),
+      vercelEnv: safeValue(process.env.VERCEL_ENV),
+      appEnv: safeValue(process.env.APP_ENV),
     });
   }
   return send(res, error.status || 500, { code: error.code || "SERVER_ERROR", error: error.status ? error.message : "The request could not be completed." });
