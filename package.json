@@ -19,6 +19,7 @@
     "test:step5": "node --test scripts/lib/*.test.mjs",
     "seed:admin": "node scripts/seed-admin.mjs",
     "seed:internal": "node scripts/seed-internal-users.mjs",
+    "seed:staging": "node scripts/seed-staging.mjs",
     "configure:sheet": "node scripts/configure-sheet.mjs",
     "backup": "node scripts/backup.mjs",
     "restore": "node scripts/restore.mjs"
