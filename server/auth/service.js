@@ -295,7 +295,13 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
       await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "rejected", now });
       throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
     }
-    if (!approvals.approvedEmails.includes(emailLower)) {
+    // On staging, any domain that passes assertStagingSignInPermitted (i.e. @vision71tech.com
+    // and @example.test) is auto-approved without requiring a DB entry. This avoids blocking
+    // internal testers who are not individually seeded into the approvals document.
+    const stagingAutoApproved = isStagingEnvironment() && (
+      emailLower.endsWith("@vision71tech.com") || emailLower.endsWith("@example.test")
+    );
+    if (!stagingAutoApproved && !approvals.approvedEmails.includes(emailLower)) {
       throw authError("PENDING_APPROVAL", 403, "Your email is verified, but your account is waiting for approval by an administrator.");
     }
   }
