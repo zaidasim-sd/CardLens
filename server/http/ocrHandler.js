@@ -23,8 +23,12 @@ export function classificationFailureMessage(caught) {
   if (caught?.message === "Invalid model") return "The configured Gemini model is invalid.";
   return "AI returned an incomplete or invalid result that could not be safely used.";
 }
-const OCR_USER_LIMIT = 30;
-const OCR_IP_LIMIT = 60;
+// Rate limits — tuned for real exhibition Road Warrior volume.
+// A single user scanning cards continuously at a live show can easily hit 30/hr.
+// These are server-side guards against abuse, not workflow throttles.
+// Override via OCR_USER_HOURLY_LIMIT / OCR_IP_HOURLY_LIMIT env vars.
+const OCR_USER_LIMIT = Number(process.env.OCR_USER_HOURLY_LIMIT) || 120;
+const OCR_IP_LIMIT  = Number(process.env.OCR_IP_HOURLY_LIMIT)   || 240;
 
 function error(code, status, message = OCR_FAILURE_MESSAGE) {
   return Object.assign(new Error(message), { code, status });
@@ -142,7 +146,36 @@ async function consumeMonthlyCap(db, tenantId, env, now = new Date()) {
   if (result.count > cap) throw error("OCR_MONTHLY_CAP_REACHED", 429);
 }
 
-export function createOcrHandler(dependencies = {}) {
+// ─── AI fallback monitoring ───────────────────────────────────────────────────
+// Emits a structured log event when Gemini classification fails and the
+// fallback rule-based parser is used. No OCR text, card data, keys or upstream
+// response bodies are ever logged.
+function logAiFallback(caught, tenantId, env) {
+  const safeCode = (v) => typeof v === "string" && /^[A-Z0-9_]{1,40}$/.test(v) ? v : "UNKNOWN";
+  const reason = caught?.code
+    ? safeCode(caught.code)
+    : caught?.message === "Classification timeout" || caught?.name === "AbortError"
+      ? "TIMEOUT"
+      : caught?.upstreamStatus === 429
+        ? "RATE_LIMITED_UPSTREAM"
+        : caught?.upstreamStatus >= 500
+          ? "UPSTREAM_UNAVAILABLE"
+          : caught?.upstreamStatus
+            ? `HTTP_${caught.upstreamStatus}`
+            : "VALIDATION_FAILED";
+  // Structured log — safe for Vercel Function logs. Never includes card data.
+  console.warn(JSON.stringify({
+    event: "ai_classification_fallback",
+    reason,
+    tenantId: tenantId || "unknown",
+    model: env.GEMINI_CLASSIFICATION_MODEL || "gemini-3.5-flash-lite",
+    ts: new Date().toISOString(),
+  }));
+  return reason;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+
   const database = dependencies.getDb || getDb;
   const runOcr = dependencies.performOCR || performOCR;
   const classify = dependencies.classifyWithGemini || classifyWithGemini;
@@ -182,7 +215,7 @@ export function createOcrHandler(dependencies = {}) {
         const aiStarted = performance.now();
         let ai = null;
         let aiError = null;
-        try { ai = await classify(rawText, { env }); } catch (caught) { aiError = classificationFailureMessage(caught); }
+        try { ai = await classify(rawText, { env }); } catch (caught) { aiError = classificationFailureMessage(caught); logAiFallback(caught, signedIn.user.tenantId, env); }
         const aiClassificationMs = performance.now() - aiStarted;
         if (!hasReadableContact(rawText, manual) && (!ai || !hasReadableContact(rawText, ai))) throw error("NO_CONTACT_DETECTED", 422);
         return res.status(200).json({ rawText, parsed: ai || manual, provider: "google", success: true,
@@ -193,19 +226,21 @@ export function createOcrHandler(dependencies = {}) {
       let parsed;
       let classificationUsed = "manual";
       let classificationFallback = false;
+      let classificationFallbackReason = null;
       if (classificationMode === "ai") {
         try {
           parsed = await classify(rawText, { env });
           classificationUsed = "ai";
-        } catch {
+        } catch (caught) {
           classificationFallback = true;
+          classificationFallbackReason = logAiFallback(caught, signedIn.user.tenantId, env);
           parsed = parseOCRText(rawText);
         }
       } else {
         parsed = parseOCRText(rawText);
       }
       if (!hasReadableContact(rawText, parsed)) throw error("NO_CONTACT_DETECTED", 422);
-      return res.status(200).json({ rawText, parsed, provider: "google", success: true, classificationUsed, classificationFallback });
+      return res.status(200).json({ rawText, parsed, provider: "google", success: true, classificationUsed, classificationFallback, classificationFallbackReason });
     } catch (caught) {
       return res.status(caught.status || 500).json({ code: caught.code || "OCR_FAILED", error: OCR_FAILURE_MESSAGE });
     } finally {

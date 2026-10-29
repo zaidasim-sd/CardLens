@@ -22,6 +22,8 @@ export interface ScanResult {
   success: boolean;
   classificationUsed: ClassificationMode;
   classificationFallback: boolean;
+  /** Safe sanitised error code — no OCR text or upstream data. e.g. TIMEOUT, RATE_LIMITED_UPSTREAM */
+  classificationFallbackReason?: string | null;
   comparison?: ClassificationComparison;
 }
 
@@ -30,7 +32,7 @@ export interface ScanResult {
  * Backend processes the card with Google Cloud Vision as the sole approved OCR provider.
  * If processing fails, this throws a friendly error instructing the user to retake or enter manually.
  */
-export async function ocrCard(file: File, classificationMode: ClassificationMode = "compare", backFile?: File | null): Promise<ScanResult> {
+export async function ocrCard(file: File, classificationMode: ClassificationMode = "ai", backFile?: File | null): Promise<ScanResult> {
   const formData = new FormData();
   formData.append("image", file);
   if (backFile) formData.append("imageBack", backFile);
