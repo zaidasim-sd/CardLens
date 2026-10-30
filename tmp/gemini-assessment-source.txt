@@ -1,0 +1,88 @@
+Lead71 Gemini AI Mapping — Revised Assessment & Production Readiness Report
+To: Executive Management (Ali Bhai)From: Haroon Mirza & IbrahimDate: 29 October 2026Subject: Revised Response to Executive Review — Technical Verification, Spend Controls, Data Retention Position, Proposed Configuration, Staging Isolation, and Controlled Readiness Status.
+Executive Summary & Status Update
+Following the latest review feedback from AzZ / Ali Bhai, we have completely revised this assessment. We explicitly remove any claim that all conditions are fully satisfied or that final production sign-off has been achieved. AI mapping remains approved STRICTLY FOR CONTROLLED STAGING WORK ONLY and is NOT enabled on live Aventure production data.
+1. PII Redaction: Data Cleanup & Redaction: Real business-card test records have been purged from staging databases, test Sheets, and logs. Evidence formatting in this report has been updated.
+2. Verification: Implementation Status Clarification: Items such as monitoring, fallback UI banners, API keys, and rate limits are clearly marked by their actual technical status (Configured in Staging / Proposed Configuration / Pending Production PR) with code snippet references.
+3. Financial Controls: Exact Spend-Cap & Budgeting Procedure: Detailed GCP hard-budget / spend-cap procedures and application-level caps are explicitly defined beyond standard billing alerts.
+4. Data Privacy: Data Retention Correction: Absolute claims of 30-day data purging have been removed. We state the verified Google Cloud paid-tier non-training privacy policy and account-specific retention configuration.
+5. Traffic Limits: Proposed Operational Limits: The limits (120/user/hr, 250/IP/hr, 15,000/month) are formally designated as 'Proposed Configuration' awaiting load testing under concurrent exhibition traffic.
+6. Deployment Runbook: Staging-to-Production Runbook: A formal runbook authored with Zaid defines exact step-by-step deployment and instant environment-variable rollback procedures.
+7. Data Isolation: Environment Isolation: Strict policy enforced that no synthetic or test contact may ever touch Aventure's production Google Sheet, database, or client-facing tools.
+8. Disclosure Draft: Draft Client Disclosure: The Aventure client disclosure section is formally framed as a 'Draft Proposal for Ali Bhai's Approval' rather than an enacted clause.
+1. Staging Test Evidence & Comparison Analysis
+True end-to-end tests were conducted on the staging environment (cardsnap-vision71-staging.vercel.app) using sample cards scanned via mobile/browser camera following the complete pipeline: browser capture → Google Vision OCR → Gemini AI mapping → editable review screen → confirmation and save.
+Test Case A: Mobile Scanner Capture & Entity Extraction
+Staging verification of entity classification comparing standard rule-based parsing against Gemini AI classification.
+Figure 1: Mobile camera scanner interface on staging environment.
+Manual Method: Baseline Extraction (0.323 s): Demonstrates rule-based parser failure where 'tel' was incorrectly assigned as Contact Name due to line ordering.
+Figure 2: Staging manual extraction result showing rule-based parsing limitation.
+AI Classification: AI Classification Result (1.363 s): Successfully correctly identified Contact Name, Company Name, Job Title, Email, and Phone number.
+Figure 3: Staging AI classification result showing structured field mapping.
+Test Case B: Corporate Brand vs Representative Disambiguation (ICICI Prudential)
+Manual Method: Baseline Extraction (0.574 s): Took 'ICICI PRUDENTIAL' as Contact name and dumped corporate title into Company name.
+AI Classification: AI Extraction (5.102 s total): Correctly extracted Contact name ('Sushilkumar Shinde'), Company name ('ICICI Prudential Life Insurance Co. Ltd.'), and Job title.
+Figure 4: Side-by-side comparison modal on desktop staging comparing manual vs AI classification.
+Test Case C: Company Title Above Person Name (Internauts Infotech)
+AI Classification: AI Extraction (2.901 s total): Matched Contact name ('MITESH POKAR'), Company name ('INTERNAUTS INFOTECH'), and Job title ('OPERATION MANAGER').
+Figure 5: Side-by-side comparison modal on desktop staging for Internauts Infotech card.
+2. Verification of Implementation Claims & Code References
+A. Fallback UX Banner
+Currently in staging both AI and manual classification are implemented. A fallback could be easily implemented, its implemented locally on zaid bhai’s laptop not in production or staging.
+B. Privacy-Safe Monitoring & Counters
+Status: Configured in staging handler (ocrHandler.js). Server logs structured JSON events without logging OCR text or PII.
+Code Logic: logger.info({ event: 'ai_fallback', reason: sanitisedCode, tenantId }); (Never logs rawText, user details, or API keys).
+C. Separate API Keys
+Status: Configured in Vercel Preview. Note: Ibrahim's personal API key was used strictly during initial evaluation. Staging is now configured with a dedicated staging project key. Production will use an isolated, highly restricted enterprise key upon deployment approval.
+3. Exact Gemini / API Spend-Cap & Budgeting Procedure
+A standard billing alert is a passive notification and NOT a spending cap. To enforce hard cost protection, we define a two-tier spend control architecture:
+Tier 1: GCP Quotas & Hard Spending Caps
+Step 1: 1. Navigate to Google Cloud Console → IAM & Admin → Quotas & System Limits.
+Step 2: 2. Select 'Generative Language API' (Gemini API).
+Step 3: 3. Set hard limit on 'Requests per day' (RPD) and 'Tokens per minute' (TPM). Reducing daily quota to match max budget acts as a hard operational cap—once reached, Google rejects further API calls with HTTP 429.
+Step 4: 4. Configure GCP Programmatic Budget Notifications linked to a Pub/Sub topic and Cloud Function that programmatically disables the API key if spend reaches 100% of the allocated monthly limit ($50.00).
+Tier 2: Application-Level Rate & Cost Caps
+App Cap 1: 1. Enforce OCR_MONTHLY_CAP in Lead71 backend environment configuration (hard limit on monthly classification requests per tenant).
+App Cap 2: 2. Circuit Breaker: If Gemini returns 5 consecutive HTTP 429 or timeout errors within 5 minutes, Lead71 automatically disables AI calls for 1 hour and routes all traffic to the manual parser.
+4. Data Retention & Privacy Position (Paid Tier)
+We remove any absolute claim of a universal 30-day data purge. The precise data handling position based on Google Cloud Paid Tier documentation is as follows:
+Model Training: On Google Cloud Paid Tier / Enterprise Gemini API agreements, input data (OCR text sent to Gemini) is NOT used to train or improve Google models.
+Data Retention: Data is processed transiently in memory to generate the classification response. Account-specific retention depends on whether Cloud Logging / Cloud Audit Logs are enabled in our GCP project. In our default configuration, upstream request bodies are suppressed and NOT saved to GCP log storage.
+Data Transmitted: No card images, user session tokens, or stored database records are ever transmitted to Gemini. Only extracted raw text is sent.
+5. Proposed Operational Limits & Exhibition Load Testing Plan
+The updated limits are explicitly designated as PROPOSED CONFIGURATION and will NOT be declared final until load-tested under simulated concurrent exhibition traffic:
+Proposed User Limit: 120 scans per user per hour (2 scans/minute sustained).
+Proposed IP Limit: 250 scans per IP per hour (for shared venue Wi-Fi routers).
+Proposed Monthly Cap: 15,000 requests per tenant per month.
+Validation Required: A staging load-test using k6 / Artillery scripts simulating 20 concurrent Road Warriors scanning cards over a 15-minute window will be run before production sign-off.
+6. Staging-to-Production Deployment & Rollback Runbook (With Zaid)
+Author: Zaid & Haroon Mirza | Version 1.0
+Phase A: Pre-Deployment Verification
+Step 1: 1. Confirm all staging tests pass and Ibrahim's personal key is removed.
+Step 2: 2. Verify separate Production GEMINI_API_KEY in Vercel Production Environment Variables.
+Step 3: 3. Set ENABLE_AI_MAPPING=false in Production initially.
+Phase B: Deployment Steps
+Step 1: 1. Deploy tested build from staging branch to Vercel Production.
+Step 2: 2. Execute post-deployment health check on /api/health.
+Step 3: 3. Set ENABLE_AI_MAPPING=true in Vercel Production to activate AI classification.
+Phase C: Instant Emergency Rollback Runbook
+Step 1: 1. If any anomaly, error spike, or client issue occurs, open Vercel Dashboard → Lead71 Project → Environment Variables.
+Step 2: 2. Change ENABLE_AI_MAPPING from true to false.
+Step 3: 3. Click Save & Redeploy (or trigger instant edge config toggle if using Vercel Edge Config).
+Rollback Effect: Result: 100% of Lead71 card scanning immediately falls back to the stable rule-based parser server-side without requiring code changes or git reverts. Zero downtime.
+7. Strict Environment Isolation Policy
+To eliminate any risk to client production data:
+Policy Rule: No synthetic, test, or sample contact data may EVER be submitted into Aventure's real Google Sheet, production MongoDB database, or live environment.
+Enforcement: All testing must use staging database instances and dedicated internal test Google Sheets isolated from client accounts.
+8. Draft Client Disclosure Clause (For Ali Bhai's Approval)
+Note: The following text is a DRAFT PROPOSAL prepared for Ali Bhai's review. It has NOT been added to any client agreement and will only be issued upon Ali Bhai's personal approval.
+> DRAFT CLIENT DISCLOSURE CLAUSE:> 'Lead71 utilizes enterprise Google Cloud Gemini API services to assist in classifying and mapping text extracted from scanned business cards into structured contact fields. All card text processed via AI is handled under enterprise paid-tier terms where customer data is strictly confidential, transit-encrypted, and explicitly NOT used by Google to train or improve AI models. No card images or personal account identifiers are transmitted.'
+9. Revised Risk Assessment: Gemini Outage Position
+In accordance with CEO feedback, we revise our risk assessment regarding Gemini API failures:
+Position Statement: Gemini / API Outage (Revised): Likelihood: Low. Impact: Controlled. Because the rule-based fallback parser executes synchronously within milliseconds, failure of Gemini does not crash Lead71 or block Road Warriors. However, reliance cannot be claimed as 'zero impact' because Road Warriors receive standard rule-based parsing rather than intelligent entity mapping. The risk is successfully reduced and managed through fallback architecture, not eliminated.
+10. Updated Readiness Status & Next Steps
+Checklist Item | Current Status | Next Action Required----------------------------------------------------------------------------------------------------1. Data Cleanup & Redaction                   | COMPLETED      | Associated staging test records purged2. Implementation Verification & Code Proof   | DOCUMENTED     | PR review with Zaid3. Exact GCP Spend-Cap & Budget Procedure     | DEFINED        | Set daily RPD quotas in GCP Console4. Data Retention Verification                | VERIFIED       | Paid-tier non-training terms confirmed5. Operational Limits Load Testing            | PROPOSED       | Schedule k6 concurrent load test on staging6. Deployment & Rollback Runbook              | FINALIZED      | Signed off with Zaid7. Client Environment Isolation               | ENFORCED       | Staging/production DB separation verified8. Draft Client Disclosure Clause             | DRAFT PREPARED | Awaiting Ali Bhai's personal approval
+Status: Approved for Controlled Staging Work Only
+AI mapping remains approved strictly for controlled staging work. Production deployment will only occur after completing the concurrent load test, setting GCP daily hard quotas, and receiving final written approval from Ali Bhai.Submitted by: Haroon Mirza & Ibrahim — 29 October 2026
+
+Images: 5

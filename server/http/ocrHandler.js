@@ -175,7 +175,7 @@ function logAiFallback(caught, tenantId, env) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-
+export function createOcrHandler(dependencies = {}) {
   const database = dependencies.getDb || getDb;
   const runOcr = dependencies.performOCR || performOCR;
   const classify = dependencies.classifyWithGemini || classifyWithGemini;
@@ -230,6 +230,7 @@ function logAiFallback(caught, tenantId, env) {
       if (classificationMode === "ai") {
         try {
           parsed = await classify(rawText, { env });
+          if (!hasReadableContact(rawText, parsed)) throw Object.assign(new Error("AI classification returned no readable contact fields."), { code: "AI_RESULT_INVALID" });
           classificationUsed = "ai";
         } catch (caught) {
           classificationFallback = true;

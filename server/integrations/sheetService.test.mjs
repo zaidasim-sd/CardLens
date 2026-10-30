@@ -112,12 +112,12 @@ test("Hala Sheet status updates the sender record and writes a reference only au
   assert.equal(JSON.stringify(audits[0]).includes("Reviewed with fake data"), false);
 });
 
-test("the required register fields and automatic metadata map to all nineteen columns", () => {
+test("the contact register maps review and sales qualification fields alongside automatic metadata", () => {
   const enhanced = { ...card, capturedByName: "System Capturer", updatedAt: "2026-10-01T09:00:00Z", obtainedAt: "2026-09-29T10:00:00Z", lastConfirmedAt: "2026-10-01T09:00:00Z", verifiedData: { ...card.verifiedData, meetingContext: { metAtLocation: "Event B", whereMet: "Hall 2" } }, duplicateReview: { state: "pending", reason: "Matching email address" } };
   const row = sheetRow(enhanced);
   const read = field => row[mapping.columns.findIndex(column => column.field === field)];
-  assert.equal(row.length, 19);
-  assert.equal(mapping.columns.filter(column => !column.hidden).length, 16);
+  assert.equal(row.length, 29);
+  assert.equal(mapping.columns.filter(column => !column.hidden).length, 26);
   assert.equal(read("whereMet"), "Hall 2");
   assert.equal(read("capturedByName"), "System Capturer");
   assert.equal(read("capturedAt"), "2026-09-30T10:00:00.000Z");
@@ -126,7 +126,20 @@ test("the required register fields and automatic metadata map to all nineteen co
   assert.match(read("duplicateFlag"), /Possible duplicate/);
   assert.equal(read("transferStatus"), "Not transferred");
   assert.equal(read("status"), "Pending Review");
-  assert.equal(columnLetter(mapping.columns.length), "S");
+  const salesData = { ...enhanced, verifiedData: { ...enhanced.verifiedData, meetingContext: { ...enhanced.verifiedData.meetingContext, companyType: "Manufacturer", contactType: "Customer / Prospect", followUpRequired: "Yes", nextAction: "Call", followUpDate: "2026-11-10", productInterest: ["R&D", "Schedule Demo"], aircraftPlatform: "Commercial", aviationSector: "Airline", leadPriority: "High", additionalMeetingNotes: "Fictional meeting notes" } } };
+  const salesRow = sheetRow(salesData);
+  const salesRead = field => salesRow[mapping.columns.findIndex(column => column.field === field)];
+  assert.equal(salesRead("companyType"), "Manufacturer");
+  assert.equal(salesRead("contactType"), "Customer / Prospect");
+  assert.equal(salesRead("followUpRequired"), "Yes");
+  assert.equal(salesRead("nextAction"), "Call");
+  assert.equal(salesRead("followUpDate"), "2026-11-10");
+  assert.equal(salesRead("productInterest"), "R&D, Schedule Demo");
+  assert.equal(salesRead("aircraftPlatform"), "Commercial");
+  assert.equal(salesRead("aviationSector"), "Airline");
+  assert.equal(salesRead("leadPriority"), "High");
+  assert.equal(salesRead("additionalMeetingNotes"), "Fictional meeting notes");
+  assert.equal(columnLetter(mapping.columns.length), "AC");
   assert.equal(columnLetter(27), "AA");
 });
 

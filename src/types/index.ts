@@ -2,10 +2,17 @@ export interface MeetingContext {
   metAtLocation?: string;
   whereMet?: string;
   contactType?: "Prospect" | "Customer" | "Supplier" | "Partner" | "Other" | string;
-  productInterest?: string;
+  companyType?: string;
+  followUpRequired?: "Yes" | "No";
+  nextAction?: string;
+  followUpDate?: string;
+  productInterest?: string | string[];
+  aircraftPlatform?: string;
+  aviationSector?: string;
+  leadPriority?: string;
+  additionalMeetingNotes?: string;
   relationshipOwner?: string;
   notes?: string;
-  followUpDate?: string;
 }
 
 export interface OCRData {

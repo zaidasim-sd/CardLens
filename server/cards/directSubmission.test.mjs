@@ -55,6 +55,16 @@ test("missing Sheet configuration is an error, never success", async () => {
   assert.equal(f.writes.length, 0);
 });
 
+test("follow-up is conditional: No permits blank fields and Yes requires both values", async () => {
+  const f = fixture();
+  const noFollowUp = { ...input, verifiedData: { ...input.verifiedData, meetingContext: { ...input.verifiedData.meetingContext, followUpRequired: "No", nextAction: "", followUpDate: "" } } };
+  const saved = await submitDirect(f.db, user, noFollowUp, new Date(), { sheet: { gateway: f.gateway } });
+  assert.equal(saved.sheetStatus, "submitted");
+  const followUpMissing = { ...input, submissionId: "00000000-0000-4000-8000-000000000002", verifiedData: { ...input.verifiedData, meetingContext: { ...input.verifiedData.meetingContext, followUpRequired: "Yes", nextAction: "", followUpDate: "" } } };
+  await assert.rejects(submitDirect(f.db, user, followUpMissing, new Date(), { sheet: { gateway: f.gateway } }), { code: "CONTACT_INVALID" });
+  assert.equal(f.docs.has(`submission:${user.tenantId}:${user.id}:${followUpMissing.submissionId}`), false, "Invalid follow-up data must not create a submission receipt");
+});
+
 test("administrator uses the same submission flow and retains capturer attribution", async () => {
   const f = fixture();
   const admin = { ...user, email: "hala@aventureaviation.com", role: "vision71_administrator", name: "Hala" };

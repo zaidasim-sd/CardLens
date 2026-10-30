@@ -34,6 +34,46 @@
       "field": "notes"
     },
     {
+      "header": "Company Type",
+      "field": "companyType"
+    },
+    {
+      "header": "Contact Type",
+      "field": "contactType"
+    },
+    {
+      "header": "Follow-up Required",
+      "field": "followUpRequired"
+    },
+    {
+      "header": "Next Action",
+      "field": "nextAction"
+    },
+    {
+      "header": "Follow-up Due Date",
+      "field": "followUpDate"
+    },
+    {
+      "header": "Product Interest",
+      "field": "productInterest"
+    },
+    {
+      "header": "Aircraft Platform",
+      "field": "aircraftPlatform"
+    },
+    {
+      "header": "Aviation Sector",
+      "field": "aviationSector"
+    },
+    {
+      "header": "Lead Priority",
+      "field": "leadPriority"
+    },
+    {
+      "header": "Additional Meeting Notes",
+      "field": "additionalMeetingNotes"
+    },
+    {
       "header": "Date Captured",
       "field": "capturedAt",
       "automatic": true

@@ -76,7 +76,7 @@ test("pilot configuration keeps reordered legacy data, hides old fields, and add
   t.mock.method(GoogleAuth.prototype, "getAccessToken", async () => "fake-test-token");
   const fixture = sheetFixture([["Reviewer Comment", "Where Met / Location", "CardSnap record ID", "Record Status"], ["Keep this feedback", "Keep old location", "legacy-id", "Approved"]]);
   const result = await fixture.gateway.configure();
-  assert.equal(result.visibleColumns, 12);
+  assert.equal(result.visibleColumns, 22);
   assert.equal(fixture.rows()[1][1], "Keep old location");
   assert.equal(fixture.rows()[0][2], "CardSnap record ID");
   const config = fixture.calls.find(call => call.url.endsWith(":batchUpdate") && !call.url.includes("/values"));

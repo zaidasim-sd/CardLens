@@ -14,6 +14,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  ChevronDown,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import type { OCRData, ContactRecord } from "@/types";
 import pilot from "@/config/pilot";
 import "./reviewSubmit.css";
 import { cardContactFields } from "@/lib/cardSides";
+import { followUpIssues } from "../../../shared/reviewValidation.mjs";
 
 /**
  * Approved Version 1 Fields Schema:
@@ -65,6 +67,16 @@ const schema = z.object({
   metAtLocation: z.string().trim().min(1, "Please select an exhibition / source."),
   whereMet: z.string().optional(),
   notes: z.string().optional(),
+  companyType: z.string().trim().min(1, "Please select a company type."),
+  contactType: z.string().trim().min(1, "Please select a contact type."),
+  followUpRequired: z.enum(["Yes", "No"], { error: "Please select whether follow-up is required." }),
+  nextAction: z.string().optional(),
+  followUpDate: z.string().optional(),
+  productInterest: z.string().optional(),
+  aircraftPlatform: z.string().optional(),
+  aviationSector: z.string().optional(),
+  leadPriority: z.string().optional(),
+  additionalMeetingNotes: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (!data.fullName?.trim() && !data.companyName?.trim()) {
     ctx.addIssue({
@@ -80,6 +92,7 @@ const schema = z.object({
       path: ["email"],
     });
   }
+  for (const issue of followUpIssues(data)) ctx.addIssue({ code: "custom", message: issue.message, path: [issue.field] });
 });
 
 type FormData = z.infer<typeof schema>;
@@ -94,6 +107,7 @@ interface Props {
   backImageUrl?: string;
   backData?: OCRData | null;
   isDemo?: boolean;
+  classificationFallback?: boolean;
   onSuccess: () => void;
   onDiscardImage: () => void;
 }
@@ -108,6 +122,7 @@ export default function OCRReviewModal({
   backImageUrl = "",
   backData = null,
   isDemo = false,
+  classificationFallback = false,
   onSuccess,
   onDiscardImage,
 }: Props) {
@@ -130,6 +145,7 @@ export default function OCRReviewModal({
   const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
   const [isExistingContactOpen, setIsExistingContactOpen] = useState(false);
   const [isZoomImageOpen, setIsZoomImageOpen] = useState(false);
+  const [salesDetailsOpen, setSalesDetailsOpen] = useState(false);
   const [previewSide, setPreviewSide] = useState<"front" | "back">("front");
   const currentImageUrl = previewSide === "back" && backImageUrl ? backImageUrl : imageUrl;
 
@@ -152,6 +168,16 @@ export default function OCRReviewModal({
       metAtLocation: ocrData?.meetingContext?.metAtLocation || "",
       whereMet: ocrData?.meetingContext?.whereMet || "",
       notes: ocrData?.notes || "",
+      companyType: "",
+      contactType: "",
+      followUpRequired: undefined,
+      nextAction: "",
+      followUpDate: "",
+      productInterest: "",
+      aircraftPlatform: "",
+      aviationSector: "",
+      leadPriority: "",
+      additionalMeetingNotes: "",
     },
   });
 
@@ -183,7 +209,18 @@ export default function OCRReviewModal({
         metAtLocation: defaultExhibition,
         whereMet: ocrData?.meetingContext?.whereMet || "",
         notes: ocrData?.notes || "",
+        companyType: "",
+        contactType: "",
+        followUpRequired: undefined,
+        nextAction: "",
+        followUpDate: "",
+        productInterest: "",
+        aircraftPlatform: "",
+        aviationSector: "",
+        leadPriority: "",
+        additionalMeetingNotes: "",
       });
+      setSalesDetailsOpen(false);
       setPreviewSide("front");
       submissionId.current = crypto.randomUUID();
       setSavedRecord(null);
@@ -259,6 +296,16 @@ export default function OCRReviewModal({
         metAtLocation: data.metAtLocation?.trim() || "",
         whereMet: pilot.historicFieldsEnabled ? data.whereMet?.trim() || "" : ocrData?.meetingContext?.whereMet || "",
         notes: data.notes?.trim() || "",
+        companyType: data.companyType,
+        contactType: data.contactType,
+        followUpRequired: data.followUpRequired,
+        nextAction: data.followUpRequired === "Yes" ? data.nextAction?.trim() || "" : "",
+        followUpDate: data.followUpRequired === "Yes" ? data.followUpDate || "" : "",
+        productInterest: data.productInterest || [],
+        aircraftPlatform: data.aircraftPlatform || "",
+        aviationSector: data.aviationSector || "",
+        leadPriority: data.leadPriority || "",
+        additionalMeetingNotes: data.additionalMeetingNotes?.trim() || "",
       },
     };
 
@@ -293,6 +340,10 @@ export default function OCRReviewModal({
     if (formErrors.metAtLocation) {
       toast.error(formErrors.metAtLocation.message || "Please select an exhibition / source.");
       document.getElementById("metAtLocation")?.focus();
+    } else if (formErrors.companyType || formErrors.contactType || formErrors.followUpRequired || formErrors.nextAction || formErrors.followUpDate) {
+      const target = formErrors.companyType ? "companyType" : formErrors.contactType ? "contactType" : formErrors.followUpRequired ? "followUpRequired" : formErrors.nextAction ? "nextAction" : "followUpDate";
+      toast.error(formErrors[target]?.message || "Complete the required review fields.");
+      document.getElementById(target)?.focus();
     } else if (formErrors.fullName || formErrors.companyName) {
       toast.error(formErrors.fullName?.message || formErrors.companyName?.message || "Either Contact Name or Company Name is required.");
     } else if (formErrors.email || formErrors.phone) {
@@ -499,16 +550,17 @@ export default function OCRReviewModal({
                 <div className="pr-8 flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
                     <DialogTitle className="text-lg md:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-                      Review Contact
+                      Fast Review
                     </DialogTitle>
+                    {classificationFallback && <span className="inline-flex min-h-7 items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">Manual classification fallback</span>}
                     {isDemo && (
                       <span className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                         Demo
                       </span>
                     )}
                   </div>
-                  <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-                    Check all extracted details{backImageUrl ? " from both sides" : ""} before submitting. You are responsible for confirming the final form.
+                    <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
+                    Check extracted details{backImageUrl ? " from both sides" : ""}, choose the essential follow-up details, then save. Marketing permission is managed separately.
                   </DialogDescription>
                 </div>
               </DialogHeader>
@@ -550,8 +602,8 @@ export default function OCRReviewModal({
                     noValidate
                   >
                     <div className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
-                      <p className="font-semibold text-slate-900 dark:text-slate-100">Form requirement:</p>
-                      <p className="mt-0.5">Enter either the contact name or company name, and at least one contact method: email or phone.</p>
+                      <p className="font-semibold text-slate-900 dark:text-slate-100">Fast Review</p>
+                      <p className="mt-0.5">Enter a name or company and at least one contact method. Sales details are optional.</p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
@@ -598,7 +650,38 @@ export default function OCRReviewModal({
                         {renderField("Phone number", "phone", "tel", "")}
                       </div>
 
-                      {/* 7. Short Notes */}
+                      {/* 7. Company and contact qualification */}
+                      <div className="min-w-0 space-y-1.5">
+                        <Label htmlFor="companyType" className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">Company Type <span className="text-red-600" aria-hidden="true">*</span></Label>
+                        <Input id="companyType" {...register("companyType")} aria-invalid={Boolean(errors.companyType)} placeholder="Enter company type or Not sure" className="h-11 w-full min-w-0 text-base sm:text-sm" />
+                        {errors.companyType && <p role="alert" className="text-xs text-red-600">{errors.companyType.message}</p>}
+                      </div>
+                      <div className="min-w-0 space-y-1.5">
+                        <Label htmlFor="contactType" className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">Contact Type <span className="text-red-600" aria-hidden="true">*</span></Label>
+                        <select id="contactType" {...register("contactType")} aria-invalid={Boolean(errors.contactType)} className="h-11 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm dark:border-slate-800 dark:bg-slate-900">
+                          <option value="">Select type</option>{["Prospect", "Customer", "Supplier", "Partner", "Other", "Not sure"].map(value => <option key={value}>{value}</option>)}
+                        </select>{errors.contactType && <p role="alert" className="text-xs text-red-600">{errors.contactType.message}</p>}
+                      </div>
+                      <fieldset className="min-w-0 space-y-2 sm:col-span-2">
+                        <legend className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">Follow-up Required <span className="text-red-600" aria-hidden="true">*</span></legend>
+                        <div className="grid grid-cols-2 gap-2">
+                          {["Yes", "No"].map(value => <label key={value} className={`flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold ${formValues.followUpRequired === value ? "border-blue-600 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-200" : "border-slate-200 dark:border-slate-700"}`}><input type="radio" value={value} {...register("followUpRequired")} className="size-4 accent-blue-600" />{value}</label>)}
+                        </div>{errors.followUpRequired && <p role="alert" className="text-xs text-red-600">{errors.followUpRequired.message}</p>}
+                      </fieldset>
+                      {formValues.followUpRequired === "Yes" && <>
+                        <div className="min-w-0 space-y-1.5">
+                          <Label htmlFor="nextAction" className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">Next Action <span className="text-red-600" aria-hidden="true">*</span></Label>
+                          <Input id="nextAction" {...register("nextAction")} aria-invalid={Boolean(errors.nextAction)} placeholder="Enter the next action" className="h-11 w-full min-w-0 text-base sm:text-sm" />
+                          {errors.nextAction && <p role="alert" className="text-xs text-red-600">{errors.nextAction.message}</p>}
+                        </div>
+                        <div className="min-w-0 space-y-1.5">
+                          <Label htmlFor="followUpDate" className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">Follow-up Due Date <span className="text-red-600" aria-hidden="true">*</span></Label>
+                          <Input id="followUpDate" type="date" min={new Date().toISOString().slice(0, 10)} {...register("followUpDate")} aria-invalid={Boolean(errors.followUpDate)} className="h-11 w-full min-w-0 text-base sm:text-sm" />
+                          {errors.followUpDate && <p role="alert" className="text-xs text-red-600">{errors.followUpDate.message}</p>}
+                        </div>
+                      </>}
+
+                      {/* 8. Short Notes */}
                       <div className="space-y-1.5 sm:col-span-2">
                         <Label htmlFor="notes" className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
                           Short notes
@@ -612,6 +695,26 @@ export default function OCRReviewModal({
                         />
                       </div>
                     </div>
+                    <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">
+                      <button type="button" aria-expanded={salesDetailsOpen} onClick={() => setSalesDetailsOpen(open => !open)} className="flex min-h-12 w-full items-center justify-between gap-3 px-3 text-left text-sm font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-[#39b3c8] dark:text-slate-100">
+                        <span><span className="block">Add Sales Details</span><span className="mt-0.5 block text-xs font-normal text-slate-500">Optional. Skip any fields you do not know.</span></span><ChevronDown className={`size-4 shrink-0 transition-transform ${salesDetailsOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {salesDetailsOpen && <div className="grid grid-cols-1 gap-3 border-t border-slate-200 bg-slate-50/60 p-3 sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-900/40">
+                        <div className="min-w-0 space-y-1.5 sm:col-span-2">
+                          <Label className="font-semibold text-xs sm:text-sm" htmlFor="productInterest">Product Interest <span className="font-normal text-slate-500">(optional)</span></Label>
+                          <Input id="productInterest" {...register("productInterest")} placeholder="Optional product or service interest" className="h-11 w-full min-w-0 text-base sm:text-sm" />
+                        </div>
+                        {([ ["aircraftPlatform", "Aircraft Platform"], ["aviationSector", "Aviation Sector"], ["leadPriority", "Lead Priority"] ] as const).map(([name, label]) => <div key={name} className="min-w-0 space-y-1.5">
+                          <Label htmlFor={name} className="font-semibold text-xs sm:text-sm">{label} <span className="font-normal text-slate-500">(optional)</span></Label>
+                          <Input id={name} {...register(name)} placeholder={`Optional ${label.toLowerCase()}`} className="h-11 w-full min-w-0 text-base sm:text-sm" />
+                        </div>)}
+                        <div className="min-w-0 space-y-1.5 sm:col-span-2">
+                          <Label htmlFor="additionalMeetingNotes" className="font-semibold text-xs sm:text-sm">Additional Meeting Notes <span className="font-normal text-slate-500">(optional)</span></Label>
+                          <textarea id="additionalMeetingNotes" {...register("additionalMeetingNotes")} rows={2} className="min-h-20 w-full min-w-0 resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm dark:border-slate-800 dark:bg-slate-900" />
+                        </div>
+                      </div>}
+                    </section>
+                    <p className="text-xs text-slate-500">Saving a contact does not subscribe them to marketing.</p>
                     {backData && <details className="rounded-xl border border-slate-200 p-3 text-xs dark:border-slate-700">
                       <summary className="min-h-11 cursor-pointer content-center rounded-md font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#39b3c8]">Back-side extracted details</summary>
                       <p className="mt-2 text-slate-600 dark:text-slate-300">Only empty fields were filled automatically. Front details were kept. Compare any alternatives below and choose a value only if it is correct.</p>
@@ -645,11 +748,11 @@ export default function OCRReviewModal({
                   form="ocr-review-form"
                   disabled={isSaving}
                   aria-busy={isSaving}
-                  className="review-submit"
+                  className="review-submit min-w-0 flex-1 sm:flex-none"
                 >
                   <span className="review-submit-content">
                     {isSaving ? <LoaderCircle className="review-submit-spinner" aria-hidden="true" /> : <Send className="review-submit-icon" aria-hidden="true" />}
-                    <span role="status" aria-live="polite">{isSaving ? "Submitting…" : "Submit for review"}</span>
+                    <span role="status" aria-live="polite">{isSaving ? "Saving…" : "Save Contact"}</span>
                   </span>
                   {isSaving && <span className="review-submit-progress" aria-hidden="true" />}
                 </Button>

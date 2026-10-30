@@ -33,8 +33,7 @@ import OCRReviewModal from "@/components/scanner/OCRReviewModal";
 import { SINGLE_DEMO_CARD } from "@/config/demoCards";
 import type { OCRData } from "@/types";
 import { cropBusinessCardImage } from "@/lib/imageCrop";
-import { ocrCard, type ClassificationComparison as Comparison } from "@/lib/api/ocr";
-import ClassificationComparison from "@/components/scanner/ClassificationComparison";
+import { ocrCard } from "@/lib/api/ocr";
 
 const OCR_FAILURE_MESSAGE = "We couldn't read enough information from this card. Please retake the photo or enter the details manually.";
 
@@ -315,12 +314,12 @@ export default function ScanPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [comparison, setComparison] = useState<Comparison | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
   const preparationVersion = useRef(0);
   const [scanProgress, setScanProgress] = useState(0);
 
   const [ocrData, setOcrData] = useState<OCRData | null>(null);
+  const [classificationFallback, setClassificationFallback] = useState(false);
   const [rawText, setRawText] = useState("");
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -420,7 +419,7 @@ export default function ScanPage() {
 
   const handleScan = async () => {
     if (!selectedFile || isPreparing || isScanning) return;
-    setScanError(null); setBackError(""); setIsReviewModalOpen(false); setComparison(null);
+    setScanError(null); setBackError(""); setIsReviewModalOpen(false); setClassificationFallback(false);
     setIsScanning(true); setScanProgress(15);
     const interval = setInterval(() => setScanProgress(p => Math.min(90, p + 12)), 350);
     try {
@@ -430,12 +429,13 @@ export default function ScanPage() {
         setRawText(SINGLE_DEMO_CARD.rawOCRText);
         setIsReviewModalOpen(true);
       } else {
-        // OCR reads each image once; both methods classify the combined text.
-        const result = await ocrCard(selectedFile, "compare", backFile);
-        if (!result.comparison) throw new Error("Comparison was unavailable. Please restart the backend and try again.");
+        // AI classification is the primary path; the API returns the manual parse on any AI failure.
+        const result = await ocrCard(selectedFile, "ai", backFile);
         setRawText(result.rawText);
-        setComparison(result.comparison);
+        setOcrData(result.parsed);
+        setClassificationFallback(result.classificationFallback);
         setBackData(null);
+        setIsReviewModalOpen(true);
       }
       setScanProgress(100);
     } catch (error: unknown) {
@@ -465,13 +465,13 @@ export default function ScanPage() {
     setSelectedFile(null);
     setPreviewUrl(null);
     setOcrData(blankData);
+    setClassificationFallback(false);
     setRawText("");
     setIsDemoMode(false);
     setIsReviewModalOpen(true);
   };
 
   const clearSelection = () => {
-    setComparison(null);
     preparationVersion.current++;
     setIsPreparing(false);
     setScanError(null);
@@ -582,7 +582,7 @@ export default function ScanPage() {
                       </div>
                       <Progress value={scanProgress} className="h-1.5 bg-slate-200 dark:bg-slate-800" />
                       <p className="text-[11px] text-slate-500">
-                        Reading the card and preparing manual and AI classification results.
+                          Reading the card and preparing the AI classified contact details.
                       </p>
                     </div>
                   ) : (
@@ -689,12 +689,6 @@ export default function ScanPage() {
         )}
       </div>
 
-      {comparison && <ClassificationComparison
-        comparison={comparison}
-        onCancel={() => { setComparison(null); setOcrData(null); setRawText(""); setBackData(null); }}
-        onChoose={data => { setOcrData(data); setComparison(null); setIsReviewModalOpen(true); }}
-      />}
-
       <OCRReviewModal
         isOpen={isReviewModalOpen}
         setIsOpen={(open) => {
@@ -702,7 +696,7 @@ export default function ScanPage() {
           if (!open) {
             // Keep the selected images so the user can compare classification modes.
             // Clear extraction results so the next scan always processes the card again.
-            setOcrData(null); setRawText(""); setBackData(null);
+            setOcrData(null); setRawText(""); setBackData(null); setClassificationFallback(false);
             setScanError(null); setBackError("");
           }
         }}
@@ -712,6 +706,7 @@ export default function ScanPage() {
           setBackFile(null); setBackPreviewUrl(null); setBackData(null);
         }}
         ocrData={ocrData}
+        classificationFallback={classificationFallback}
         rawText={rawText}
         backData={backData}
         backImageUrl={backPreviewUrl || ""}

@@ -15,6 +15,9 @@ export async function submitDirect(db, user, input, now = new Date(), options = 
       (!String(data.fullName || "").trim() && !String(data.companyName || "").trim()) ||
       (!String(data.email || "").trim() && !String(data.phone || "").trim())) throw failure("CONTACT_INVALID", 400, "Enter an exhibition, a name or company, and an email or phone.");
   if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(data.email).trim())) throw failure("CONTACT_INVALID", 400, "Enter a valid email address.");
+  if (data.meetingContext?.followUpRequired === "Yes" && (!String(data.meetingContext?.nextAction || "").trim() || !String(data.meetingContext?.followUpDate || "").trim())) {
+    throw failure("CONTACT_INVALID", 400, "Enter a next action and due date when follow-up is required.");
+  }
   if (!/^[a-f0-9-]{36}$/i.test(input.submissionId || "")) throw failure("SUBMISSION_ID_REQUIRED", 400, "A submission reference is required. Please retry.");
   const env = options.sheet?.env || process.env;
   const gateway = options.sheet?.gateway === undefined ? createSheetGateway(env) : options.sheet.gateway;

@@ -92,7 +92,7 @@ for (const role of ["exhibition_assistant", "vision71_administrator"]) test(`aut
   assert.equal(res.payload.provider, "google");
 });
 
-for (const scenario of ["manual", "ai", "fallback", "missing-key"]) test(`classification mode: ${scenario}`, async () => {
+for (const scenario of ["manual", "ai", "fallback", "missing-key", "invalid-result"]) test(`classification mode: ${scenario}`, async () => {
   const rawText = "Fake Person\nfake@example.test";
   const env = { ALLOWED_ORIGINS: "https://staging.example.test" };
   let calls = 0;
@@ -111,6 +111,7 @@ for (const scenario of ["manual", "ai", "fallback", "missing-key"]) test(`classi
       assert.equal(text, rawText);
       assert.equal(options.env, env);
       if (scenario === "fallback") throw new Error("Upstream unavailable");
+      if (scenario === "invalid-result") return {};
       return aiFields;
     } }),
   });
@@ -119,9 +120,9 @@ for (const scenario of ["manual", "ai", "fallback", "missing-key"]) test(`classi
   const res = response();
   await handler(req, res);
   assert.equal(res.statusCode, 200);
-  assert.equal(calls, scenario === "ai" || scenario === "fallback" ? 1 : 0);
+  assert.equal(calls, ["ai", "fallback", "invalid-result"].includes(scenario) ? 1 : 0);
   assert.equal(res.payload.classificationUsed, scenario === "ai" ? "ai" : "manual");
-  assert.equal(res.payload.classificationFallback, ["fallback", "missing-key"].includes(scenario));
+  assert.equal(res.payload.classificationFallback, ["fallback", "missing-key", "invalid-result"].includes(scenario));
   assert.deepEqual(res.payload.parsed, scenario === "ai" ? aiFields : parseOCRText(rawText));
 });
 
