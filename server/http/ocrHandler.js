@@ -184,30 +184,37 @@ export function createOcrHandler(dependencies = {}) {
   const env = dependencies.env || process.env;
   return async function ocrHandler(req, res) {
     let imageBody;
+    let stage = "request_validation";
     try {
       if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
       verifyOrigin(req, env);
       const classificationMode = req.headers["x-classification-mode"] || "manual";
       if (!["manual", "ai", "compare"].includes(classificationMode)) throw error("CLASSIFICATION_MODE_INVALID", 400, "Invalid classification mode.");
+      stage = "database";
       const db = await database();
       await ensureIndexes(db);
+      stage = "authentication";
       const sessionToken = parseCookies(req.headers.cookie || "")[SESSION_COOKIE];
       const signedIn = await auth(db, sessionToken);
       verifyCsrf(signedIn.session, req.headers["x-csrf-token"]);
       requireAction(signedIn.user, "use_ocr");
+      stage = "request_limits";
       const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "unknown";
       const hour = new Date().toISOString().slice(0, 13);
       await consumeLimit(db, `ocr:user:${signedIn.user.id}:${hour}`, OCR_USER_LIMIT);
       await consumeLimit(db, `ocr:ip:${digest(ip)}:${hour}`, OCR_IP_LIMIT);
       await consumeMonthlyCap(db, signedIn.user.tenantId, env);
+      stage = "image_validation";
       const body = await readBody(req);
       imageBody = body;
       const images = requestImages(body, String(req.headers["content-type"] || ""));
       const results = [];
       const ocrStarted = performance.now();
+      stage = "google_vision";
       for (const image of images) results.push(await runOcr(image.data));
       const ocrMs = performance.now() - ocrStarted;
       const rawText = results.map((result) => result.rawText || "").filter(Boolean).join("\n\n");
+      stage = "classification";
       if (classificationMode === "compare") {
         const manualStarted = performance.now();
         const manual = parseOCRText(rawText);
@@ -243,7 +250,20 @@ export function createOcrHandler(dependencies = {}) {
       if (!hasReadableContact(rawText, parsed)) throw error("NO_CONTACT_DETECTED", 422);
       return res.status(200).json({ rawText, parsed, provider: "google", success: true, classificationUsed, classificationFallback, classificationFallbackReason });
     } catch (caught) {
-      return res.status(caught.status || 500).json({ code: caught.code || "OCR_FAILED", error: OCR_FAILURE_MESSAGE });
+      const safeCode = typeof caught?.code === "string" && /^[A-Z0-9_]{1,40}$/.test(caught.code)
+        ? caught.code
+        : "OCR_FAILED";
+      const status = caught.status || 500;
+      if (status >= 500) {
+        console.error(JSON.stringify({
+          event: "ocr_request_failed",
+          stage,
+          code: safeCode,
+          status,
+          ts: new Date().toISOString(),
+        }));
+      }
+      return res.status(status).json({ code: safeCode, error: OCR_FAILURE_MESSAGE });
     } finally {
       if (Buffer.isBuffer(imageBody)) imageBody.fill(0);
       if (Buffer.isBuffer(req.body)) req.body.fill(0);
