@@ -127,7 +127,7 @@ Backend API (/api/*) → MongoDB Atlas (Encrypted) + Google Sheet Review Workflo
   - `400 Bad Request`: `{ "code": "IMAGE_REQUIRED", "error": "No image file provided." }`
   - `413 Payload Too Large`: `{ "code": "IMAGE_TOO_LARGE", "error": "Image file too large." }`
   - `422 Unprocessable Entity`: `{ "code": "NO_CONTACT_DETECTED", "error": "We couldn't read enough information from this card..." }`
-  - `429 Too Many Requests`: `{ "code": "OCR_RATE_LIMITED" }` or `{ "code": "OCR_MONTHLY_CAP_REACHED" }`
+  - `429 Too Many Requests`: `{ "code": "OCR_RATE_LIMITED" }` only for the existing OCR abuse guard. AI classification has a separate `AI_MAPPING_MONTHLY_CAP`; when it is reached, `/api/ocr` still returns HTTP 200 with `classificationUsed: "manual"` and `classificationFallback: true`.
   - `500 Server Error`: `{ "code": "OCR_FAILED", "error": "Google Vision processing failed." }`
 - **Frontend Behavior on Error:** Prompt user to **Retake card** or **Enter details manually**. No automatic fallback to OCR.space for Aventure cards.
 

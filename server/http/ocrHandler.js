@@ -12,6 +12,8 @@ export const OCR_MAX_BYTES = 20 * 1024 * 1024;
 
 // Only fixed messages are returned; upstream responses, OCR text and keys stay private.
 export function classificationFailureMessage(caught) {
+  if (caught?.code === "AI_MAPPING_DISABLED") return "AI classification is disabled; manual classification is being used.";
+  if (caught?.code === "AI_MONTHLY_CAP_REACHED") return "The AI request cap was reached; manual classification is being used.";
   if (caught?.code === "AI_KEY_MISSING") return "The server's Gemini API key is missing.";
   if (caught?.code === "AI_INPUT_INVALID") return "The card text is empty or too long for AI classification.";
   if (caught?.message === "Classification timeout" || caught?.name === "AbortError") return "AI classification exceeded the configured time limit.";
@@ -133,17 +135,27 @@ async function consumeLimit(db, key, limit, now = new Date()) {
   if (result.count > limit) throw error("OCR_RATE_LIMITED", 429);
 }
 
-async function consumeMonthlyCap(db, tenantId, env, now = new Date()) {
-  const cap = Math.max(1, Number.parseInt(env.OCR_MONTHLY_CAP || "900", 10) || 900);
+async function consumeAiMonthlyCap(db, tenantId, env, now = new Date()) {
+  const cap = Math.max(1, Number.parseInt(env.AI_MAPPING_MONTHLY_CAP || "900", 10) || 900);
   const month = now.toISOString().slice(0, 7);
-  const key = `ocr:month:${tenantId}:${month}`;
+  const key = `ai:month:${tenantId}:${month}`;
   const expiresAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 2));
   const result = await db.collection("rateLimits").findOneAndUpdate(
     { key },
     { $inc: { count: 1 }, $setOnInsert: { expiresAt } },
     { upsert: true, returnDocument: "after" },
   );
-  if (result.count > cap) throw error("OCR_MONTHLY_CAP_REACHED", 429);
+  if (result.count > cap) throw error("AI_MONTHLY_CAP_REACHED", 429, "AI request cap reached.");
+}
+
+function aiMappingEnabled(env) {
+  return String(env.ENABLE_AI_MAPPING ?? "true").trim().toLowerCase() !== "false";
+}
+
+async function classifyWithAiBudget(db, tenantId, env, classify, rawText) {
+  if (!aiMappingEnabled(env)) throw error("AI_MAPPING_DISABLED", 503, "AI classification is disabled.");
+  await consumeAiMonthlyCap(db, tenantId, env);
+  return classify(rawText, { env });
 }
 
 // ─── AI fallback monitoring ───────────────────────────────────────────────────
@@ -203,7 +215,6 @@ export function createOcrHandler(dependencies = {}) {
       const hour = new Date().toISOString().slice(0, 13);
       await consumeLimit(db, `ocr:user:${signedIn.user.id}:${hour}`, OCR_USER_LIMIT);
       await consumeLimit(db, `ocr:ip:${digest(ip)}:${hour}`, OCR_IP_LIMIT);
-      await consumeMonthlyCap(db, signedIn.user.tenantId, env);
       stage = "image_validation";
       const body = await readBody(req);
       imageBody = body;
@@ -222,7 +233,8 @@ export function createOcrHandler(dependencies = {}) {
         const aiStarted = performance.now();
         let ai = null;
         let aiError = null;
-        try { ai = await classify(rawText, { env }); } catch (caught) { aiError = classificationFailureMessage(caught); logAiFallback(caught, signedIn.user.tenantId, env); }
+        try { ai = await classifyWithAiBudget(db, signedIn.user.tenantId, env, classify, rawText); }
+        catch (caught) { aiError = classificationFailureMessage(caught); logAiFallback(caught, signedIn.user.tenantId, env); }
         const aiClassificationMs = performance.now() - aiStarted;
         if (!hasReadableContact(rawText, manual) && (!ai || !hasReadableContact(rawText, ai))) throw error("NO_CONTACT_DETECTED", 422);
         return res.status(200).json({ rawText, parsed: ai || manual, provider: "google", success: true,
@@ -236,7 +248,7 @@ export function createOcrHandler(dependencies = {}) {
       let classificationFallbackReason = null;
       if (classificationMode === "ai") {
         try {
-          parsed = await classify(rawText, { env });
+          parsed = await classifyWithAiBudget(db, signedIn.user.tenantId, env, classify, rawText);
           if (!hasReadableContact(rawText, parsed)) throw Object.assign(new Error("AI classification returned no readable contact fields."), { code: "AI_RESULT_INVALID" });
           classificationUsed = "ai";
         } catch (caught) {

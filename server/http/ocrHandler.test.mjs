@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { createOcrHandler, classificationFailureMessage } from "./ocrHandler.js";
 import { parseOCRText } from "../services/cardParser.js";
+import { submitDirect } from "../cards/directSubmission.js";
 
 function response() {
   return {
@@ -76,7 +77,7 @@ for (const role of ["exhibition_assistant", "vision71_administrator"]) test(`aut
     },
   }) };
   const handler = createOcrHandler({
-    env: { ALLOWED_ORIGINS: "https://staging.example.test", OCR_MONTHLY_CAP: "900" },
+    env: { ALLOWED_ORIGINS: "https://staging.example.test" },
     getDb: async () => db,
     ensureDatabaseIndexes: async () => {},
     authenticate: async () => ({ session: { csrfHash }, user: { id: "capturer-1", tenantId: "vision71", role } }),
@@ -124,6 +125,181 @@ for (const scenario of ["manual", "ai", "fallback", "missing-key", "invalid-resu
   assert.equal(res.payload.classificationUsed, scenario === "ai" ? "ai" : "manual");
   assert.equal(res.payload.classificationFallback, ["fallback", "missing-key", "invalid-result"].includes(scenario));
   assert.deepEqual(res.payload.parsed, scenario === "ai" ? aiFields : parseOCRText(rawText));
+});
+
+function aiFallbackFixture({ env = {}, classifier, countForKey } = {}) {
+  const rawText = "Synthetic Name\nsynthetic@example.test";
+  const counters = new Map();
+  const db = { collection: () => ({ findOneAndUpdate: async ({ key }) => {
+    if (countForKey) return { count: countForKey(key, counters) };
+    const count = (counters.get(key) || 0) + 1;
+    counters.set(key, count);
+    return { count };
+  } }) };
+  const handler = createOcrHandler({
+    env: { ALLOWED_ORIGINS: "https://staging.example.test", ...env },
+    getDb: async () => db,
+    ensureDatabaseIndexes: async () => {},
+    authenticate: async () => ({
+      session: { csrfHash: createHash("sha256").update("fake-csrf").digest("hex") },
+      user: { id: "synthetic-capturer", tenantId: "synthetic-tenant", role: "exhibition_assistant" },
+    }),
+    performOCR: async () => ({ rawText }),
+    ...(classifier ? { classifyWithGemini: classifier } : {}),
+  });
+  return { handler, rawText, counters };
+}
+
+test("ENABLE_AI_MAPPING=false bypasses Gemini and returns the saveable manual mapping", async () => {
+  let geminiCalls = 0;
+  const { handler, rawText } = aiFallbackFixture({
+    env: { ENABLE_AI_MAPPING: "false", AI_MAPPING_MONTHLY_CAP: "1" },
+    classifier: async () => { geminiCalls++; assert.fail("Gemini must not be called while disabled"); },
+  });
+  const req = request(); req.headers["x-classification-mode"] = "ai";
+  const res = response();
+  const started = performance.now();
+  await handler(req, res);
+  const elapsedMs = performance.now() - started;
+  assert.equal(res.statusCode, 200);
+  assert.equal(geminiCalls, 0);
+  assert.equal(res.payload.classificationUsed, "manual");
+  assert.equal(res.payload.classificationFallback, true);
+  assert.equal(res.payload.classificationFallbackReason, "AI_MAPPING_DISABLED");
+  assert.deepEqual(res.payload.parsed, parseOCRText(rawText));
+  assert.ok(Number.isFinite(elapsedMs) && elapsedMs >= 0);
+});
+
+for (const [scenario, classifier] of [
+  ["failed API response", async () => { throw Object.assign(new Error("failed"), { upstreamStatus: 503 }); }],
+  ["timeout", async () => { throw new Error("Classification timeout"); }],
+  ["invalid AI response", async () => ({})],
+  ["quota or rate limit", async () => { throw Object.assign(new Error("limited"), { upstreamStatus: 429 }); }],
+  ["no credit or rejected request", async () => { throw Object.assign(new Error("payment required"), { upstreamStatus: 402 }); }],
+]) test(`AI ${scenario} falls back to a saveable manual mapping`, async () => {
+  const { handler, rawText } = aiFallbackFixture({ env: { ENABLE_AI_MAPPING: "true" }, classifier });
+  const req = request(); req.headers["x-classification-mode"] = "ai";
+  const res = response();
+  const started = performance.now();
+  await handler(req, res);
+  const elapsedMs = performance.now() - started;
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.payload.classificationUsed, "manual");
+  assert.equal(res.payload.classificationFallback, true);
+  assert.deepEqual(res.payload.parsed, parseOCRText(rawText));
+  assert.ok(Number.isFinite(elapsedMs) && elapsedMs >= 0);
+});
+
+test("AI monthly cap falls back to manual without gating the normal manual OCR path", async () => {
+  let geminiCalls = 0;
+  const { handler, rawText, counters } = aiFallbackFixture({
+    env: { ENABLE_AI_MAPPING: "true", AI_MAPPING_MONTHLY_CAP: "1" },
+    countForKey: (key, counts) => {
+      const count = (counts.get(key) || 0) + 1;
+      counts.set(key, count);
+      return key.startsWith("ai:month:") ? 2 : 1;
+    },
+    classifier: async () => { geminiCalls++; return parseOCRText(rawText); },
+  });
+  const aiReq = request(); aiReq.headers["x-classification-mode"] = "ai";
+  const aiRes = response();
+  await handler(aiReq, aiRes);
+  assert.equal(aiRes.statusCode, 200);
+  assert.equal(aiRes.payload.classificationFallbackReason, "AI_MONTHLY_CAP_REACHED");
+  assert.equal(aiRes.payload.classificationUsed, "manual");
+  assert.equal(geminiCalls, 0);
+  const aiBudgetCount = [...counters.entries()].find(([key]) => key.startsWith("ai:month:"))?.[1];
+
+  const manualReq = request(); manualReq.headers["x-classification-mode"] = "manual";
+  const manualRes = response();
+  await handler(manualReq, manualRes);
+  assert.equal(manualRes.statusCode, 200);
+  assert.equal(manualRes.payload.classificationUsed, "manual");
+  assert.equal(manualRes.payload.classificationFallback, false);
+  assert.deepEqual(manualRes.payload.parsed, parseOCRText(rawText));
+  assert.equal([...counters.entries()].find(([key]) => key.startsWith("ai:month:"))?.[1], aiBudgetCount, "manual mode does not consume AI budget");
+});
+
+test("concurrent scans cannot exceed the shared AI monthly request cap, and both cards remain usable", async () => {
+  let geminiCalls = 0;
+  const { handler, rawText } = aiFallbackFixture({
+    env: { ENABLE_AI_MAPPING: "true", AI_MAPPING_MONTHLY_CAP: "1" },
+    classifier: async () => { geminiCalls++; await new Promise(resolve => setTimeout(resolve, 5)); return parseOCRText(rawText); },
+  });
+  const requests = [request(), request()];
+  for (const req of requests) req.headers["x-classification-mode"] = "ai";
+  const responses = [response(), response()];
+  await Promise.all(requests.map((req, index) => handler(req, responses[index])));
+  assert.deepEqual(responses.map(res => res.statusCode), [200, 200]);
+  assert.equal(geminiCalls, 1);
+  assert.deepEqual(responses.map(res => res.payload.classificationUsed).sort(), ["ai", "manual"]);
+  assert.ok(responses.every(res => JSON.stringify(res.payload.parsed) === JSON.stringify(parseOCRText(rawText))));
+});
+
+test("synthetic OCR AI failure still submits the manual result to an isolated mock register", async () => {
+  const rawText = "Synthetic Name\nsynthetic@example.test";
+  const counters = new Map();
+  const settingsDocs = new Map();
+  const rateLimits = { findOneAndUpdate: async ({ key }) => {
+    const count = (counters.get(key) || 0) + 1; counters.set(key, count); return { count };
+  } };
+  const settings = {
+    async findOne(query) { return settingsDocs.get(query.key || query._id); },
+    async insertOne(doc) { settingsDocs.set(doc.key || doc._id, structuredClone(doc)); },
+    async updateOne(query, update) {
+      const key = query.key || query._id;
+      const doc = settingsDocs.get(key) || {};
+      if (update.$max) for (const [field, value] of Object.entries(update.$max)) doc[field] = Math.max(doc[field] || 0, value);
+      Object.assign(doc, update.$setOnInsert || {}, update.$set || {});
+      for (const field of Object.keys(update.$unset || {})) delete doc[field];
+      settingsDocs.set(key, doc);
+    },
+    async findOneAndUpdate(query, update) {
+      const key = query.key || query._id;
+      const doc = settingsDocs.get(key);
+      if (!doc) return null;
+      if (update.$inc) for (const [field, value] of Object.entries(update.$inc)) doc[field] = (doc[field] || 0) + value;
+      Object.assign(doc, update.$set || {});
+      settingsDocs.set(key, doc);
+      return structuredClone(doc);
+    },
+  };
+  const db = { collection(name) { return name === "rateLimits" ? rateLimits : settings; } };
+  const handler = createOcrHandler({
+    env: { ALLOWED_ORIGINS: "https://staging.example.test", ENABLE_AI_MAPPING: "true", AI_MAPPING_MONTHLY_CAP: "10" },
+    getDb: async () => db,
+    ensureDatabaseIndexes: async () => {},
+    authenticate: async () => ({
+      session: { csrfHash: createHash("sha256").update("fake-csrf").digest("hex") },
+      user: { id: "synthetic-capturer", tenantId: "synthetic-tenant", name: "Synthetic Tester", role: "exhibition_assistant" },
+    }),
+    performOCR: async () => ({ rawText }),
+    classifyWithGemini: async () => { throw Object.assign(new Error("Synthetic quota exhaustion"), { upstreamStatus: 429 }); },
+  });
+  const req = request(); req.headers["x-classification-mode"] = "ai";
+  const res = response();
+  const started = performance.now();
+  await handler(req, res);
+  const processingMs = performance.now() - started;
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.payload.classificationFallback, true);
+  assert.equal(res.payload.classificationUsed, "manual");
+
+  const appendedRows = [];
+  const saved = await submitDirect(db, {
+    id: "synthetic-capturer", tenantId: "synthetic-tenant", name: "Synthetic Tester", role: "exhibition_assistant",
+  }, {
+    submissionId: "00000000-0000-4000-8000-000000000010",
+    verifiedData: { ...res.payload.parsed, meetingContext: { metAtLocation: "Synthetic Staging Drill", followUpRequired: "No" } },
+    source: "ocr",
+  }, new Date(), { sheet: { gateway: {
+    readAll: async () => [["Contact ID"]],
+    append: async row => { appendedRows.push(row); return appendedRows.length + 1; },
+  } } });
+  assert.equal(saved.sheetStatus, "submitted");
+  assert.equal(appendedRows.length, 1);
+  assert.ok(appendedRows[0].includes("Synthetic Name"));
+  assert.ok(Number.isFinite(processingMs) && processingMs >= 0);
 });
 
 test("invalid classification mode is rejected before OCR or database access", async () => {
