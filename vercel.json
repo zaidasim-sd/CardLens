@@ -11,8 +11,7 @@
     "api/constant-contact.js": { "maxDuration": 300 },
     "api/cron/sweep.js": { "maxDuration": 300 },
     "api/ocr.js": {
-      "maxDuration": 30,
-      "includeFiles": "node_modules/**"
+      "maxDuration": 30
     }
   },
   "rewrites": [
