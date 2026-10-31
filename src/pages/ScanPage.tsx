@@ -320,6 +320,7 @@ export default function ScanPage() {
   const [scanProgress, setScanProgress] = useState(0);
 
   const [ocrData, setOcrData] = useState<OCRData | null>(null);
+  const [aiClassified, setAiClassified] = useState(false);
   const [rawText, setRawText] = useState("");
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -358,7 +359,7 @@ export default function ScanPage() {
     } else {
       setScanError(null); setIsDemoMode(false);
       setSelectedFile(file); setPreviewUrl(URL.createObjectURL(file));
-      setOcrData(null); setRawText("");
+      setOcrData(null); setRawText(""); setAiClassified(false);
       setBackFile(null); setBackPreviewUrl(null); setBackData(null); setBackError("");
     }
   };
@@ -419,7 +420,7 @@ export default function ScanPage() {
 
   const handleScan = async () => {
     if (!selectedFile || isPreparing || isScanning) return;
-    setScanError(null); setBackError(""); setIsReviewModalOpen(false);
+    setScanError(null); setBackError(""); setIsReviewModalOpen(false); setAiClassified(false);
     setIsScanning(true); setScanProgress(15);
     const interval = setInterval(() => setScanProgress(p => Math.min(90, p + 12)), 350);
     try {
@@ -427,13 +428,14 @@ export default function ScanPage() {
       // Reuse a successful front read if only the back needs retrying.
       const demo = isDemoMode || selectedFile.name === "demo-card.svg";
       const [front, back] = await Promise.allSettled([
-        ocrData ? Promise.resolve({ parsed: ocrData, rawText })
-          : demo ? Promise.resolve({ parsed: SINGLE_DEMO_CARD.preparedData, rawText: SINGLE_DEMO_CARD.rawOCRText })
+        ocrData ? Promise.resolve({ parsed: ocrData, rawText, classificationUsed: aiClassified ? "ai" as const : "manual" as const })
+          : demo ? Promise.resolve({ parsed: SINGLE_DEMO_CARD.preparedData, rawText: SINGLE_DEMO_CARD.rawOCRText, classificationUsed: "manual" as const })
           : ocrCard(selectedFile),
         backFile ? ocrCard(backFile) : Promise.resolve(null),
       ]);
       if (front.status === "rejected") throw front.reason;
       setOcrData(front.value.parsed); setRawText(front.value.rawText);
+      setAiClassified(front.value.classificationUsed === "ai");
       if (back.status === "rejected") {
         setBackError(back.reason instanceof Error ? back.reason.message : OCR_FAILURE_MESSAGE);
         return;
@@ -442,6 +444,7 @@ export default function ScanPage() {
         setBackData(back.value.parsed);
         setOcrData(fillEmptyCardFields(front.value.parsed, back.value.parsed));
         setRawText("FRONT OF CARD:\n" + front.value.rawText + "\n\nBACK OF CARD:\n" + back.value.rawText);
+        setAiClassified(front.value.classificationUsed === "ai" || back.value.classificationUsed === "ai");
       }
       setScanProgress(100); setIsReviewModalOpen(true);
     } catch (error: unknown) {
@@ -471,6 +474,7 @@ export default function ScanPage() {
     setSelectedFile(null);
     setPreviewUrl(null);
     setOcrData(blankData);
+    setAiClassified(false);
     setRawText("");
     setIsDemoMode(false);
     setIsReviewModalOpen(true);
@@ -484,7 +488,7 @@ export default function ScanPage() {
     if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setIsDemoMode(false);
-    setOcrData(null); setRawText("");
+    setOcrData(null); setRawText(""); setAiClassified(false);
 
     setBackFile(null); setBackPreviewUrl(null); setBackData(null); setBackError("");
     captureSide.current = "front";
@@ -703,6 +707,7 @@ export default function ScanPage() {
           setBackFile(null); setBackPreviewUrl(null); setBackData(null);
         }}
         ocrData={ocrData}
+        aiClassified={aiClassified}
         rawText={rawText}
         backData={backData}
         backImageUrl={backPreviewUrl || ""}

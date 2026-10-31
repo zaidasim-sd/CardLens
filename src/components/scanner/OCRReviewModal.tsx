@@ -14,6 +14,7 @@ import {
   Mail,
   Phone,
   MapPin,
+  Sparkles,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,7 @@ interface Props {
   backImageUrl?: string;
   backData?: OCRData | null;
   isDemo?: boolean;
+  aiClassified?: boolean;
   onSuccess: () => void;
   onDiscardImage: () => void;
 }
@@ -108,6 +110,7 @@ export default function OCRReviewModal({
   backImageUrl = "",
   backData = null,
   isDemo = false,
+  aiClassified = false,
   onSuccess,
   onDiscardImage,
 }: Props) {
@@ -550,7 +553,15 @@ export default function OCRReviewModal({
                     noValidate
                   >
                     <div className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
-                      <p className="font-semibold text-slate-900 dark:text-slate-100">Form requirement:</p>
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                        <p className="font-semibold text-slate-900 dark:text-slate-100">Form requirement:</p>
+                        {aiClassified && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                            <Sparkles aria-hidden="true" className="h-3 w-3 text-cyan-600 dark:text-cyan-400" />
+                            AI classified
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-0.5">Enter either the contact name or company name, and at least one contact method: email or phone.</p>
                     </div>
 

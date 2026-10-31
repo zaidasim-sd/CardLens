@@ -38,3 +38,9 @@ artifacts/qa/
 *.traineddata*
 .vercel
 .env*
+
+# Local generated documents and rendering artifacts
+/tmp/
+/output/documents/Lead71_*.docx
+/output/pdf/Lead71_*.docx
+/output/pdf/Lead71_*.pdf

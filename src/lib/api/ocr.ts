@@ -7,6 +7,9 @@ export interface ScanResult {
   parsed: OCRData;
   provider: string;
   success: boolean;
+  classificationUsed: "ai" | "manual";
+  classificationFallback: boolean;
+  classificationFallbackReason?: string | null;
 }
 
 /**

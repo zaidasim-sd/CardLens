@@ -5,6 +5,7 @@ import { requireAction } from "../auth/permissions.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
 import { hasReadableContact } from "../../shared/contactValidation.mjs";
 import { parseOCRText } from "../services/cardParser.js";
+import { classifyWithGemini } from "../services/cardClassification.js";
 import { OCR_FAILURE_MESSAGE, performOCR } from "../services/ocrService.js";
 
 export const OCR_MAX_BYTES = 20 * 1024 * 1024;
@@ -114,9 +115,37 @@ async function consumeMonthlyCap(db, tenantId, env, now = new Date()) {
   if (result.count > cap) throw error("OCR_MONTHLY_CAP_REACHED", 429);
 }
 
+async function consumeAiMonthlyCap(db, tenantId, env, now = new Date()) {
+  const cap = Math.max(1, Number.parseInt(env.AI_MAPPING_MONTHLY_CAP || "900", 10) || 900);
+  const month = now.toISOString().slice(0, 7);
+  const key = `ai:month:${tenantId}:${month}`;
+  const expiresAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 2));
+  const result = await db.collection("rateLimits").findOneAndUpdate(
+    { key },
+    { $inc: { count: 1 }, $setOnInsert: { expiresAt } },
+    { upsert: true, returnDocument: "after" },
+  );
+  if (result.count > cap) throw Object.assign(new Error("AI request cap reached."), { code: "AI_MONTHLY_CAP_REACHED" });
+}
+
+function aiMappingEnabled(env) {
+  return String(env.ENABLE_AI_MAPPING ?? "false").trim().toLowerCase() === "true";
+}
+
+function safeClassificationFailureCode(caught) {
+  if (caught?.code === "AI_MONTHLY_CAP_REACHED") return "AI_MONTHLY_CAP_REACHED";
+  if (caught?.code === "AI_KEY_MISSING") return "AI_KEY_MISSING";
+  if (caught?.message === "Classification timeout" || caught?.name === "AbortError") return "TIMEOUT";
+  if (caught?.upstreamStatus === 429) return "RATE_LIMITED";
+  if ([401, 403].includes(caught?.upstreamStatus)) return "AI_AUTH_REJECTED";
+  if (caught?.upstreamStatus >= 500) return "AI_UNAVAILABLE";
+  return "CLASSIFICATION_FAILED";
+}
+
 export function createOcrHandler(dependencies = {}) {
   const database = dependencies.getDb || getDb;
   const runOcr = dependencies.performOCR || performOCR;
+  const classify = dependencies.classifyWithGemini || classifyWithGemini;
   const auth = dependencies.authenticate || authenticate;
   const ensureIndexes = dependencies.ensureDatabaseIndexes || ensureDatabaseIndexes;
   const env = dependencies.env || process.env;
@@ -142,9 +171,26 @@ export function createOcrHandler(dependencies = {}) {
       const results = [];
       for (const image of images) results.push(await runOcr(image.data));
       const rawText = results.map((result) => result.rawText || "").filter(Boolean).join("\n\n");
-      const parsed = parseOCRText(rawText);
+      let parsed;
+      let classificationUsed = "manual";
+      let classificationFallback = false;
+      let classificationFallbackReason = null;
+      if (aiMappingEnabled(env)) {
+        try {
+          await consumeAiMonthlyCap(db, signedIn.user.tenantId, env);
+          parsed = await classify(rawText, { env });
+          if (!hasReadableContact(rawText, parsed)) throw Object.assign(new Error("Invalid AI classification."), { code: "AI_RESULT_INVALID" });
+          classificationUsed = "ai";
+        } catch (caught) {
+          classificationFallback = true;
+          classificationFallbackReason = safeClassificationFailureCode(caught);
+          parsed = parseOCRText(rawText);
+        }
+      } else {
+        parsed = parseOCRText(rawText);
+      }
       if (!hasReadableContact(rawText, parsed)) throw error("NO_CONTACT_DETECTED", 422);
-      return res.status(200).json({ rawText, parsed, provider: "google", success: true });
+      return res.status(200).json({ rawText, parsed, provider: "google", success: true, classificationUsed, classificationFallback, classificationFallbackReason });
     } catch (caught) {
       return res.status(caught.status || 500).json({ code: caught.code || "OCR_FAILED", error: OCR_FAILURE_MESSAGE });
     } finally {
