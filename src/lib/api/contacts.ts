@@ -1,4 +1,4 @@
-import type { ContactRecord, OCRData } from "@/types";
+import type { ContactRecord, OCRData, ProcessTimings } from "@/types";
 import { apiFetch } from "./client";
 
 
@@ -12,23 +12,63 @@ export interface CreateContactInput {
   isDemo?: boolean;
   source?: "ocr" | "manual";
   allowDuplicate?: boolean;
+  timings?: ProcessTimings;
 }
 
 /**
  * Submits a contact for review into the backend workflow.
  * Date/time captured and captured-by user are recorded automatically on the backend.
+ *
+ * Measures client-side submission time from the API call start to when the browser
+ * receives the response, then fires a fire-and-forget timing patch to update the Sheet
+ * with the true user-perceived duration (click → success message visible).
  */
 export async function submitContact(input: CreateContactInput): Promise<ContactRecord> {
-  const body = { submissionId: input.submissionId, verifiedData: input.verifiedData,
-    isDemo: input.isDemo, source: input.source || "ocr", status: "submitted" };
+  const submissionStart = performance.now();
+  const body = {
+    submissionId: input.submissionId,
+    verifiedData: input.verifiedData,
+    isDemo: input.isDemo,
+    source: input.source || "ocr",
+    status: "submitted",
+    timings: input.timings,
+  };
 
   const response = await apiFetch("/api/cards", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  const clientSubmissionMs = Math.max(0, performance.now() - submissionStart);
+  const submissionSeconds = Number((clientSubmissionMs / 1000).toFixed(2));
 
-  return response.record as ContactRecord;
+  const record = response.record as ContactRecord;
+
+  // Override in-memory timings with true client-perceived submission duration
+  if (record) {
+    const scanningSeconds = Number(record.timings?.scanningSeconds || 0);
+    const totalSeconds = Number((scanningSeconds + submissionSeconds).toFixed(2));
+    record.timings = {
+      ...(record.timings || {}),
+      submissionSeconds,
+      totalSeconds,
+    };
+
+    // Fire-and-forget: patch the Sheet row with the true user-perceived timings.
+    // The server wrote its own server-side estimate; this corrects it asynchronously.
+    const rowNumber = record._sheetRowNumber;
+    if (rowNumber) {
+      void apiFetch("/api/cards?action=timing_patch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rowNumber, submissionSeconds, totalSeconds }),
+      }).catch(() => {
+        // Timing patch is best-effort; never block or surface errors to the user.
+      });
+    }
+  }
+
+  return record;
 }
 
 /**

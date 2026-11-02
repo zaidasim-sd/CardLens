@@ -116,8 +116,8 @@ test("the contact register maps review and sales qualification fields alongside 
   const enhanced = { ...card, capturedByName: "System Capturer", updatedAt: "2026-10-01T09:00:00Z", obtainedAt: "2026-09-29T10:00:00Z", lastConfirmedAt: "2026-10-01T09:00:00Z", verifiedData: { ...card.verifiedData, meetingContext: { metAtLocation: "Event B", whereMet: "Hall 2" } }, duplicateReview: { state: "pending", reason: "Matching email address" } };
   const row = sheetRow(enhanced);
   const read = field => row[mapping.columns.findIndex(column => column.field === field)];
-  assert.equal(row.length, 29);
-  assert.equal(mapping.columns.filter(column => !column.hidden).length, 26);
+  assert.equal(row.length, mapping.columns.length);
+  assert.equal(mapping.columns.filter(column => !column.hidden).length, 31);
   assert.equal(read("whereMet"), "Hall 2");
   assert.equal(read("capturedByName"), "System Capturer");
   assert.equal(read("capturedAt"), "2026-09-30T10:00:00.000Z");
@@ -139,7 +139,7 @@ test("the contact register maps review and sales qualification fields alongside 
   assert.equal(salesRead("aviationSector"), "Airline");
   assert.equal(salesRead("leadPriority"), "High");
   assert.equal(salesRead("additionalMeetingNotes"), "Fictional meeting notes");
-  assert.equal(columnLetter(mapping.columns.length), "AC");
+  assert.equal(columnLetter(mapping.columns.length), "AH");
   assert.equal(columnLetter(27), "AA");
 });
 

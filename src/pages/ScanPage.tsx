@@ -31,7 +31,7 @@ import {
 import { toast } from "sonner";
 import OCRReviewModal from "@/components/scanner/OCRReviewModal";
 import { SINGLE_DEMO_CARD } from "@/config/demoCards";
-import type { OCRData } from "@/types";
+import type { OCRData, ProcessTimings } from "@/types";
 import { cropBusinessCardImage } from "@/lib/imageCrop";
 import { ocrCard } from "@/lib/api/ocr";
 
@@ -323,6 +323,7 @@ export default function ScanPage() {
   const [rawText, setRawText] = useState("");
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
+  const [scanTimings, setScanTimings] = useState<ProcessTimings | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -434,6 +435,7 @@ export default function ScanPage() {
         setRawText(result.rawText);
         setOcrData(result.parsed);
         setClassificationFallback(result.classificationFallback);
+        setScanTimings(result.timings || null);
         setBackData(null);
         setIsReviewModalOpen(true);
       }
@@ -466,6 +468,7 @@ export default function ScanPage() {
     setPreviewUrl(null);
     setOcrData(blankData);
     setClassificationFallback(false);
+    setScanTimings(null);
     setRawText("");
     setIsDemoMode(false);
     setIsReviewModalOpen(true);
@@ -479,7 +482,7 @@ export default function ScanPage() {
     if (previewUrl && previewUrl !== "/demo-card.svg") URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setIsDemoMode(false);
-    setOcrData(null); setRawText("");
+    setOcrData(null); setRawText(""); setScanTimings(null);
 
     setBackFile(null); setBackPreviewUrl(null); setBackData(null); setBackError("");
     captureSide.current = "front";
@@ -713,6 +716,7 @@ export default function ScanPage() {
         originalImage={selectedFile}
         imageUrl={previewUrl || ""}
         isDemo={isDemoMode}
+        scanTimings={scanTimings}
         onSuccess={() => {
           setIsReviewModalOpen(false);
           clearSelection();

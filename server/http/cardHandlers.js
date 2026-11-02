@@ -4,7 +4,7 @@ import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
 import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "../cards/service.js";
 import { duplicateReviewContext, resolveDuplicate } from "../cards/duplicateReview.js";
 import { requireAction } from "../auth/permissions.js";
-import { diagnoseSheet } from "../integrations/sheetService.js";
+import { diagnoseSheet, createSheetGateway, sheetField } from "../integrations/sheetService.js";
 
 function send(res, status, body) {
   return res.status(status).json(body);
@@ -50,6 +50,28 @@ export async function cardsHandler(req, res) {
     if (req.method === "POST" && action === "duplicate") return send(res, 200, { duplicate: await findDuplicate(db, auth.user, req.body?.verifiedData, req.body?.excludingId) });
     if (req.method === "POST" && action === "records") return send(res, 201, { record: await createCard(db, auth.user, req.body) });
     if (req.method === "PATCH" && action === "records") return send(res, 200, { record: await updateCard(db, auth.user, req.query?.id, req.body) });
+    if (req.method === "POST" && action === "timing_patch") {
+      // Fire-and-forget sheet timing update: client sends true user-perceived submission time
+      requireAction(auth.user, "capture_card");
+      const { rowNumber, submissionSeconds, totalSeconds } = req.body || {};
+      if (rowNumber && submissionSeconds != null) {
+        const gateway = createSheetGateway();
+        if (gateway && typeof gateway.update === "function") {
+          try {
+            // Only update the timing columns (find their indices from live headers)
+            const rows = await gateway.readAll();
+            const headers = rows[0] || [];
+            const subIdx = headers.findIndex(h => sheetField(h) === "submissionTime");
+            const totIdx = headers.findIndex(h => sheetField(h) === "totalTime");
+            if (subIdx >= 0) await gateway.updateCell(rowNumber, subIdx + 1, Number(submissionSeconds).toFixed(2));
+            if (totIdx >= 0) await gateway.updateCell(rowNumber, totIdx + 1, Number(totalSeconds).toFixed(2));
+          } catch (patchErr) {
+            console.warn("[timing_patch sheet update warning]", patchErr?.message || patchErr);
+          }
+        }
+      }
+      return send(res, 200, { ok: true });
+    }
     if (req.method === "DELETE" && action === "records") {
       await deleteCard(db, auth.user, req.query?.id);
       return send(res, 200, { ok: true });

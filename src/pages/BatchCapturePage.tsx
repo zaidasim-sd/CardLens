@@ -45,7 +45,7 @@ import {
   renumberRegions,
   validateContact,
 } from "@/lib/batchCapture";
-import type { OCRData } from "@/types";
+import type { OCRData, ProcessTimings } from "@/types";
 import "./batchCapture.css";
 
 type BatchStep = "landing" | "regions" | "processing" | "review" | "complete";
@@ -77,6 +77,7 @@ interface BatchCardRecord {
   failureMessage: string;
   forcedFailure: boolean;
   processingMs?: number;
+  timings?: ProcessTimings;
 }
 
 const FIELD_LABELS: Array<{ key: ContactField; label: string; multiline?: boolean }> = [
@@ -578,6 +579,7 @@ export default function BatchCapturePage() {
           data: parsed,
           rawText: result.rawText,
           provider: result.provider || "gemini-ai",
+          timings: result.timings,
           extractedFields: getExtractedFields(parsed),
           errors: validateContact(parsed),
           failureMessage: "",
@@ -773,6 +775,7 @@ export default function BatchCapturePage() {
             meetingContext: { metAtLocation: selectedExhibition },
           },
           source: "ocr",
+          timings: record.timings,
         });
         successCount++;
         setRecords((items) =>

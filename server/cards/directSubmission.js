@@ -7,6 +7,7 @@ const failure = (code, status, message) => Object.assign(new Error(message), { c
 // Only counters and submission leases are persisted; the contact exists in this
 // request's memory and the Google Sheet. The browser keeps fields for a retry.
 export async function submitDirect(db, user, input, now = new Date(), options = {}) {
+  const submissionStarted = performance.now();
   requireAction(user, "capture_card");
   requireAction(user, "submit_own_draft", { tenantId: user.tenantId, capturedBy: user.id });
   const data = input.verifiedData || {};
@@ -18,11 +19,12 @@ export async function submitDirect(db, user, input, now = new Date(), options = 
   if (data.meetingContext?.followUpRequired === "Yes" && (!String(data.meetingContext?.nextAction || "").trim() || !String(data.meetingContext?.followUpDate || "").trim())) {
     throw failure("CONTACT_INVALID", 400, "Enter a next action and due date when follow-up is required.");
   }
-  if (!/^[a-f0-9-]{36}$/i.test(input.submissionId || "")) throw failure("SUBMISSION_ID_REQUIRED", 400, "A submission reference is required. Please retry.");
+  const submissionId = input.submissionId || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : null);
+  if (!/^[a-f0-9-]{36}$/i.test(submissionId || "")) throw failure("SUBMISSION_ID_REQUIRED", 400, "A submission reference is required. Please retry.");
   const env = options.sheet?.env || process.env;
   const gateway = options.sheet?.gateway === undefined ? createSheetGateway(env) : options.sheet.gateway;
   if (!gateway) throw failure("SHEET_NOT_CONFIGURED", 503, "Google Sheets is not configured. Your contact has not been submitted. Please retry later.");
-  const key = `submission:${user.tenantId}:${user.id}:${input.submissionId}`;
+  const key = `submission:${user.tenantId}:${user.id}:${submissionId}`;
   const settings = db.collection("settings");
   let receipt = await settings.findOne({ key });
   if (!receipt) {
@@ -31,12 +33,46 @@ export async function submitDirect(db, user, input, now = new Date(), options = 
     catch (error) { if (error.code !== 11000) throw error; }
     receipt = await settings.findOne({ key });
   }
+
+  const clientTimings = input.timings || {};
+  const isManual = input.source === "manual";
+
+  const ocrSeconds = !isManual && clientTimings.ocrSeconds != null && clientTimings.ocrSeconds !== ""
+    ? Number(clientTimings.ocrSeconds)
+    : (!isManual && clientTimings.ocrMs != null ? Number((clientTimings.ocrMs / 1000).toFixed(2)) : null);
+
+  // Gemini time MUST NOT be recorded or displayed for manual verification / entry / fallback
+  const rawGeminiSec = !isManual ? (clientTimings.geminiSeconds != null && clientTimings.geminiSeconds !== ""
+    ? clientTimings.geminiSeconds
+    : (clientTimings.geminiMs != null ? clientTimings.geminiMs / 1000 : null)) : null;
+  const geminiSeconds = rawGeminiSec != null && !Number.isNaN(Number(rawGeminiSec))
+    ? Number(Number(rawGeminiSec).toFixed(2))
+    : null;
+
+  const scanningSeconds = !isManual
+    ? (clientTimings.scanningSeconds != null && clientTimings.scanningSeconds !== ""
+      ? Number(clientTimings.scanningSeconds)
+      : clientTimings.scanningMs != null
+        ? Number((clientTimings.scanningMs / 1000).toFixed(2))
+        : (ocrSeconds != null ? Number(((ocrSeconds || 0) + (geminiSeconds || 0)).toFixed(2)) : null))
+    : null;
+
+  const initialTimings = {
+    ocrSeconds: ocrSeconds ?? "",
+    geminiSeconds: geminiSeconds ?? "",
+    classificationSeconds: geminiSeconds ?? "",
+    scanningSeconds: scanningSeconds ?? "",
+    submissionSeconds: "",
+    totalSeconds: scanningSeconds ?? "",
+  };
+
   const card = {
-    id: input.submissionId, recordId: receipt.recordId, tenantId: user.tenantId,
+    id: submissionId, recordId: receipt.recordId, tenantId: user.tenantId,
     capturedBy: user.id, capturedByName: user.name || user.email, status: "submitted",
     createdAt: receipt.createdAt.toISOString(), updatedAt: now.toISOString(), verifiedAt: now.toISOString(),
     verifiedData: data, ocrData: {}, rawOCRText: "", hasImage: false,
     source: input.source === "manual" ? "manual" : "ocr", isDemo: Boolean(input.isDemo),
+    timings: initialTimings,
   };
   if (receipt.completedAt) return { ...card, sheetStatus: "submitted" };
   const lease = new Date(Date.now() + 120000);
@@ -49,9 +85,34 @@ export async function submitDirect(db, user, input, now = new Date(), options = 
     const column = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (column === undefined || column < 0) throw failure("SHEET_COLUMNS_INVALID", 502, "The Sheet is missing the Contact ID column.");
     // Recover an uncertain successful append without overwriting reviewer edits.
-    if (!rows.slice(1).some(row => String(row[column] || "") === card.recordId)) await gateway.append(sheetRow(card));
+    const existingIndex = rows.slice(1).findIndex(row => String(row[column] || "") === card.recordId);
+    if (existingIndex < 0) {
+      const rowNumber = await gateway.append(sheetRow(card));
+      // Server-side timing: from function entry to sheet append completion.
+      // The client will send a timing_patch with the true user-perceived duration after
+      // it receives this response (click → success message), which will update the Sheet.
+      const serverSubmissionMs = performance.now() - submissionStarted;
+      const submissionSeconds = Number((serverSubmissionMs / 1000).toFixed(2));
+      const totalSeconds = Number(((scanningSeconds || 0) + submissionSeconds).toFixed(2));
+      card.timings = {
+        ocrSeconds: ocrSeconds ?? "",
+        geminiSeconds: geminiSeconds ?? "",
+        classificationSeconds: geminiSeconds ?? "",
+        scanningSeconds: scanningSeconds ?? "",
+        submissionSeconds,
+        totalSeconds,
+      };
+      card._sheetRowNumber = rowNumber;
+      if (typeof gateway.update === "function") {
+        try {
+          await gateway.update(rowNumber, sheetRow(card));
+        } catch (updateErr) {
+          console.warn("[submitDirect Google Sheet timings update warning]", updateErr);
+        }
+      }
+    }
     await settings.updateOne({ key }, { $set: { completedAt: new Date() } });
-    return { ...card, sheetStatus: "submitted" };
+    return { ...card, sheetStatus: "submitted", _sheetRowNumber: card._sheetRowNumber };
   } catch (err) {
     console.error("[submitDirect Google Sheet error]", err);
     throw failure("SHEET_SUBMISSION_FAILED", 502, "Delivery to Google Sheets could not be confirmed. Keep these details and retry with the same reference. No contact is saved in MongoDB.");

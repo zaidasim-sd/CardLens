@@ -11,8 +11,14 @@ const historicFields = new Set(["whereMet", "obtainedAt", "lastConfirmedAt", "tr
 export const pilotColumns = mapping.columns.filter(column => !historicFields.has(column.field));
 const normalizeHeader = value => String(value || "").trim().toLowerCase();
 export function sheetField(header) {
-  if (["contact id", "record id", "lead71 record id", "cardsnap record id"].includes(normalizeHeader(header))) return "recordId";
-  return mapping.columns.find(column => normalizeHeader(column.header) === normalizeHeader(header))?.field;
+  const norm = normalizeHeader(header);
+  if (["contact id", "record id", "lead71 record id", "cardsnap record id"].includes(norm)) return "recordId";
+  if (/^ocr\s*time(\s*\(s\))?$/i.test(norm) || norm === "ocr (s)" || norm === "ocr") return "ocrTime";
+  if (/^gemini(\s*classification)?\s*time(\s*\(s\))?$/i.test(norm) || norm === "gemini (s)" || norm === "gemini classification") return "geminiTime";
+  if (/^scanning\s*time(\s*\(s\))?$/i.test(norm) || /^scan\s*time(\s*\(s\))?$/i.test(norm) || /^scanning(\s*\(ocr\s*\+\s*gemini\))?(\s*\(s\))?$/i.test(norm) || norm === "scanning") return "scanningTime";
+  if (/^submission\s*time(\s*\(s\))?$/i.test(norm) || /^submit\s*time(\s*\(s\))?$/i.test(norm) || norm === "submission (s)" || norm === "submission") return "submissionTime";
+  if (/^total(\s*processing)?\s*time(\s*\(s\))?$/i.test(norm) || norm === "total (s)" || norm === "total time" || norm === "total") return "totalTime";
+  return mapping.columns.find(column => normalizeHeader(column.header) === norm)?.field;
 }
 export function pilotHeaders() {
   return pilotColumns.map(column => column.field === "recordId" ? "Contact ID" : column.header);
@@ -25,6 +31,15 @@ export function safeSheetValue(value) {
 
 export function sheetRow(card, people = {}) {
   const data = card.verifiedData || {};
+  const timings = card.timings || {};
+  const isManual = card.source === "manual";
+  const formatSeconds = val => (val !== undefined && val !== null && val !== "" && !Number.isNaN(Number(val))) ? Number(val).toFixed(2) : "";
+  const ocrSec = !isManual ? (timings.ocrSeconds != null && timings.ocrSeconds !== "" ? timings.ocrSeconds : (timings.ocrMs != null ? timings.ocrMs / 1000 : null)) : null;
+  // Gemini time MUST NOT be displayed in case of manual verification or if Gemini was not used
+  const geminiSec = !isManual ? (timings.geminiSeconds != null && timings.geminiSeconds !== "" ? timings.geminiSeconds : (timings.geminiMs != null ? timings.geminiMs / 1000 : null)) : null;
+  const scanSec = !isManual ? (timings.scanningSeconds != null && timings.scanningSeconds !== "" ? timings.scanningSeconds : (timings.scanningMs != null ? timings.scanningMs / 1000 : (ocrSec != null || geminiSec != null ? (Number(ocrSec || 0) + Number(geminiSec || 0)) : null))) : null;
+  const subSec = timings.submissionSeconds != null && timings.submissionSeconds !== "" ? timings.submissionSeconds : (timings.submissionMs != null ? timings.submissionMs / 1000 : null);
+  const totalSec = timings.totalSeconds != null && timings.totalSeconds !== "" ? timings.totalSeconds : (timings.totalMs != null ? timings.totalMs / 1000 : ((scanSec != null || subSec != null) ? (Number(scanSec || 0) + Number(subSec || 0)) : null));
   const values = {
     event: data.meetingContext?.metAtLocation || "",
     whereMet: data.meetingContext?.whereMet || "",
@@ -55,6 +70,11 @@ export function sheetRow(card, people = {}) {
     transferStatus: { not_started: "Not transferred", transferred: "Transferred", failed: "Transfer failed", pending: "Pending transfer", reconciliation_required: "Transfer needs checking", existing_contact: "Existing contact preserved" }[card.transferStatus || "not_started"] || card.transferStatus,
     reviewerComment: card.reviewerComment || "",
     recordId: sheetRecordId(card),
+    ocrTime: formatSeconds(ocrSec),
+    geminiTime: formatSeconds(geminiSec),
+    scanningTime: formatSeconds(scanSec),
+    submissionTime: formatSeconds(subSec),
+    totalTime: formatSeconds(totalSec),
   };
   return mapping.columns.map((column) => safeSheetValue(values[column.field]));
 }
@@ -227,9 +247,10 @@ export function createSubmissionSheetGateway(env = process.env, fetcher = fetch)
   };
   const aligned = row => headers.map(header => {
     const key = field(header);
-    const dateValue = row[mapping.columns.findIndex(column => column.field === "capturedAt")];
+    const dateValue = row[mapping.columns.findIndex(column => column.field === "capturedAt")] || row[8];
     if (key === "capturedAt" || key === "capturedTime") {
-      const date = new Date(dateValue);
+      const date = dateValue ? new Date(dateValue) : null;
+      if (!date || Number.isNaN(date.getTime())) return "";
       return key === "capturedAt"
         ? new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date)
         : new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(date);
@@ -254,8 +275,15 @@ export function createSubmissionSheetGateway(env = process.env, fetcher = fetch)
     async update(rowNumber, row) {
       if (!headers) await readAll();
       const values = aligned(row);
-      const data = headers.flatMap((header, index) => required.includes(field(header)) ? [{ range: `${tab}!${columnLetter(index + 1)}${rowNumber}`, values: [[values[index]]] }] : []);
+      const data = headers.map((header, index) => ({
+        range: `${tab}!${columnLetter(index + 1)}${rowNumber}`,
+        values: [[values[index] ?? ""]],
+      }));
       await request("/values:batchUpdate", { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+    },
+    async updateCell(rowNumber, columnNumber, value) {
+      const range = `${tab}!${columnLetter(columnNumber)}${rowNumber}`;
+      await request("/values:batchUpdate", { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data: [{ range, values: [[value ?? ""]] }] }) });
     },
     async remove(rowNumber) {
       const metadata = await request("?fields=sheets(properties)");
@@ -525,19 +553,22 @@ export async function addPendingSheetRecord(db, card, options = {}) {
 export async function syncContactSheet(db, card, options = {}) {
   const gateway = options.gateway === undefined ? createSheetGateway(options.env) : options.gateway;
   if (!gateway) return { skipped: true };
-  const _id = new ObjectId(card.id);
+  if (pilot.submissionOnlyEnabled && !pilot.internalReviewEnabled) {
+    return updateSheetRecord(db, card, { ...options, gateway });
+  }
+  const cardQuery = ObjectId.isValid(card.id) ? { _id: new ObjectId(card.id) } : { recordId: card.recordId || card.id };
   const lease = new Date(Date.now() + 120000);
-  const claimed = await db.collection("cards").findOneAndUpdate({ _id, tenantId: card.tenantId,
+  const claimed = await db.collection("cards").findOneAndUpdate({ ...cardQuery, tenantId: card.tenantId,
     updatedAt: new Date(card.updatedAt),
     $or: [{ sheetSyncLease: { $exists: false } }, { sheetSyncLease: { $lte: new Date() } }],
   }, { $set: { sheetSyncLease: lease } }, { returnDocument: "after" });
   if (!claimed) throw Object.assign(new Error("This contact is already syncing or has changed. Retry shortly."), { code: "SHEET_SYNC_BUSY", status: 409 });
   try {
     const result = await updateSheetRecord(db, card, { ...options, gateway });
-    await db.collection("cards").updateOne({ _id, tenantId: card.tenantId, sheetSyncLease: lease }, { $set: { sheetStatus: card.status }, $unset: { sheetError: "", sheetWritePending: "" } });
+    await db.collection("cards").updateOne({ ...cardQuery, tenantId: card.tenantId, sheetSyncLease: lease }, { $set: { sheetStatus: card.status }, $unset: { sheetError: "", sheetWritePending: "" } });
     return result;
   } finally {
-    await db.collection("cards").updateOne({ _id, tenantId: card.tenantId, sheetSyncLease: lease }, { $unset: { sheetSyncLease: "" } });
+    await db.collection("cards").updateOne({ ...cardQuery, tenantId: card.tenantId, sheetSyncLease: lease }, { $unset: { sheetSyncLease: "" } });
   }
 }
 

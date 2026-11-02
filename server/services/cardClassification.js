@@ -1,7 +1,7 @@
 import { getEmptyFields, parseOCRText } from './cardParser.js';
 import { hasReadableContact } from '../../shared/contactValidation.mjs';
 
-export const DEFAULT_CLASSIFICATION_MODEL = 'gemini-3.5-flash-lite';
+export const DEFAULT_CLASSIFICATION_MODEL = 'gemini-2.5-flash';
 const descriptions = {
   fullName: 'Person name, excluding academic degrees and certifications.',
   jobTitle: 'Person role, including nearby continuation lines. Exclude company taglines.',

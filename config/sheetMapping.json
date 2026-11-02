@@ -128,6 +128,31 @@
       "field": "reviewedAt",
       "automatic": true,
       "hidden": true
+    },
+    {
+      "header": "OCR Time (s)",
+      "field": "ocrTime",
+      "automatic": true
+    },
+    {
+      "header": "Gemini Classification Time (s)",
+      "field": "geminiTime",
+      "automatic": true
+    },
+    {
+      "header": "Scanning Time (s)",
+      "field": "scanningTime",
+      "automatic": true
+    },
+    {
+      "header": "Submission Time (s)",
+      "field": "submissionTime",
+      "automatic": true
+    },
+    {
+      "header": "Total Time (s)",
+      "field": "totalTime",
+      "automatic": true
     }
   ]
 }

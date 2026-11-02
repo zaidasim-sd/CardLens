@@ -30,6 +30,19 @@ export interface OCRData {
   meetingContext?: MeetingContext;
 }
 
+export interface ProcessTimings {
+  ocrMs?: number;
+  classificationMs?: number;
+  geminiMs?: number;
+  scanningMs?: number;
+  ocrSeconds?: number;
+  classificationSeconds?: number;
+  geminiSeconds?: number;
+  scanningSeconds?: number;
+  submissionSeconds?: number;
+  totalSeconds?: number;
+}
+
 export type RecordStatus = "draft" | "submitted" | "correction_requested" | "approved" | "rejected" | "transferred";
 
 export interface ContactRecord {
@@ -74,4 +87,7 @@ export interface ContactRecord {
   sheetStatus?: string;
   sheetError?: { code: string; message: string } | null;
   restricted?: boolean;
+  timings?: ProcessTimings;
+  /** Server-assigned Sheet row number, used for the client-side timing patch after success. */
+  _sheetRowNumber?: number;
 }

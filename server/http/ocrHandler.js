@@ -180,7 +180,7 @@ function logAiFallback(caught, tenantId, env) {
     event: "ai_classification_fallback",
     reason,
     tenantId: tenantId || "unknown",
-    model: env.GEMINI_CLASSIFICATION_MODEL || "gemini-3.5-flash-lite",
+    model: env.GEMINI_CLASSIFICATION_MODEL || "gemini-2.5-flash",
     ts: new Date().toISOString(),
   }));
   return reason;
@@ -195,6 +195,7 @@ export function createOcrHandler(dependencies = {}) {
   const ensureIndexes = dependencies.ensureDatabaseIndexes || ensureDatabaseIndexes;
   const env = dependencies.env || process.env;
   return async function ocrHandler(req, res) {
+    const requestStarted = performance.now();
     let imageBody;
     let stage = "request_validation";
     try {
@@ -237,30 +238,76 @@ export function createOcrHandler(dependencies = {}) {
         catch (caught) { aiError = classificationFailureMessage(caught); logAiFallback(caught, signedIn.user.tenantId, env); }
         const aiClassificationMs = performance.now() - aiStarted;
         if (!hasReadableContact(rawText, manual) && (!ai || !hasReadableContact(rawText, ai))) throw error("NO_CONTACT_DETECTED", 422);
+        const compClassMs = ai ? aiClassificationMs : manualClassificationMs;
+        const compScanMs = ocrMs + compClassMs;
+        const timings = {
+          ocrMs: Math.round(ocrMs),
+          classificationMs: ai ? Math.round(aiClassificationMs) : null,
+          geminiMs: ai ? Math.round(aiClassificationMs) : null,
+          scanningMs: Math.round(compScanMs),
+          ocrSeconds: Number((ocrMs / 1000).toFixed(2)),
+          classificationSeconds: ai ? Number((aiClassificationMs / 1000).toFixed(2)) : null,
+          geminiSeconds: ai ? Number((aiClassificationMs / 1000).toFixed(2)) : null,
+          scanningSeconds: Number((compScanMs / 1000).toFixed(2)),
+        };
         return res.status(200).json({ rawText, parsed: ai || manual, provider: "google", success: true,
           classificationUsed: ai ? "ai" : "manual", classificationFallback: !ai,
           comparison: { manual, ai, aiError, ocrMs, manualClassificationMs, aiClassificationMs,
-            manualTotalMs: ocrMs + manualClassificationMs, aiTotalMs: ocrMs + aiClassificationMs } });
+            manualTotalMs: ocrMs + manualClassificationMs, aiTotalMs: ocrMs + aiClassificationMs },
+          timings });
       }
       let parsed;
       let classificationUsed = "manual";
       let classificationFallback = false;
       let classificationFallbackReason = null;
+      let aiClassificationMs = 0;
       if (classificationMode === "ai") {
+        const aiStarted = performance.now();
         try {
           parsed = await classifyWithAiBudget(db, signedIn.user.tenantId, env, classify, rawText);
+          aiClassificationMs = performance.now() - aiStarted;
           if (!hasReadableContact(rawText, parsed)) throw Object.assign(new Error("AI classification returned no readable contact fields."), { code: "AI_RESULT_INVALID" });
           classificationUsed = "ai";
         } catch (caught) {
+          aiClassificationMs = performance.now() - aiStarted;
           classificationFallback = true;
           classificationFallbackReason = logAiFallback(caught, signedIn.user.tenantId, env);
           parsed = parseOCRText(rawText);
         }
       } else {
+        const manualStarted = performance.now();
         parsed = parseOCRText(rawText);
+        aiClassificationMs = performance.now() - manualStarted;
       }
       if (!hasReadableContact(rawText, parsed)) throw error("NO_CONTACT_DETECTED", 422);
-      return res.status(200).json({ rawText, parsed, provider: "google", success: true, classificationUsed, classificationFallback, classificationFallbackReason });
+      const isGeminiUsed = classificationUsed === "ai" && !classificationFallback;
+      const totalProcessingMs = Math.max(0, performance.now() - requestStarted);
+      const rawCombinedMs = (ocrMs || 0) + (isGeminiUsed ? (aiClassificationMs || 0) : 0);
+      const ocrRatio = isGeminiUsed && rawCombinedMs > 0 ? (ocrMs / rawCombinedMs) : 1;
+      const scanningSeconds = Number((totalProcessingMs / 1000).toFixed(2));
+      const ocrSeconds = isGeminiUsed ? Number(((totalProcessingMs * ocrRatio) / 1000).toFixed(2)) : scanningSeconds;
+      const geminiSeconds = isGeminiUsed ? Number(Math.max(0, scanningSeconds - ocrSeconds).toFixed(2)) : null;
+
+      const timings = {
+        ocrMs: isGeminiUsed ? Math.round(totalProcessingMs * ocrRatio) : Math.round(totalProcessingMs),
+        classificationMs: isGeminiUsed ? Math.round(totalProcessingMs * (1 - ocrRatio)) : null,
+        geminiMs: isGeminiUsed ? Math.round(totalProcessingMs * (1 - ocrRatio)) : null,
+        scanningMs: Math.round(totalProcessingMs),
+        ocrSeconds,
+        classificationSeconds: geminiSeconds,
+        geminiSeconds,
+        scanningSeconds,
+      };
+      return res.status(200).json({
+        rawText,
+        parsed,
+        provider: "google",
+        success: true,
+        classificationUsed,
+        classificationFallback,
+        classificationFallbackReason,
+        timings,
+      });
     } catch (caught) {
       const safeCode = typeof caught?.code === "string" && /^[A-Z0-9_]{1,40}$/.test(caught.code)
         ? caught.code

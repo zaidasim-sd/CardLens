@@ -15,6 +15,7 @@ import {
   Phone,
   MapPin,
   ChevronDown,
+  Clock,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ import { checkDuplicateContact } from "@/lib/duplicateChecker";
 import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
 import DuplicateWarningModal from "./DuplicateWarningModal";
 import ViewCardModal from "@/components/verified/ViewCardModal";
-import type { OCRData, ContactRecord } from "@/types";
+import type { OCRData, ContactRecord, ProcessTimings } from "@/types";
 import pilot from "@/config/pilot";
 import "./reviewSubmit.css";
 import { cardContactFields } from "@/lib/cardSides";
@@ -108,6 +109,7 @@ interface Props {
   backData?: OCRData | null;
   isDemo?: boolean;
   classificationFallback?: boolean;
+  scanTimings?: ProcessTimings | null;
   onSuccess: () => void;
   onDiscardImage: () => void;
 }
@@ -123,6 +125,7 @@ export default function OCRReviewModal({
   backData = null,
   isDemo = false,
   classificationFallback = false,
+  scanTimings = null,
   onSuccess,
   onDiscardImage,
 }: Props) {
@@ -239,6 +242,7 @@ export default function OCRReviewModal({
   }, [isOpen, exhibitionOptions, dirtyFields.metAtLocation, getValues, setValue]);
 
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
+    const saveClickedAt = performance.now(); // Capture exact moment user clicked Save
     setIsSaving(true);
     isSubmittingLock.current = true;
     try {
@@ -253,7 +257,17 @@ export default function OCRReviewModal({
         isDemo,
         source: isManual ? "manual" : "ocr",
         allowDuplicate,
+        timings: scanTimings || undefined,
       });
+      // Override submission time: measure from user's Save click to success response received
+      const userSubmissionMs = Math.max(0, performance.now() - saveClickedAt);
+      const userSubmissionSeconds = Number((userSubmissionMs / 1000).toFixed(2));
+      const scanSec = Number(record.timings?.scanningSeconds || 0);
+      const userTotalSeconds = Number((scanSec + userSubmissionSeconds).toFixed(2));
+      if (record.timings) {
+        record.timings.submissionSeconds = userSubmissionSeconds;
+        record.timings.totalSeconds = userTotalSeconds;
+      }
       setSavedRecord(record);
       submissionId.current = crypto.randomUUID();
       onDiscardImage();
@@ -517,6 +531,53 @@ export default function OCRReviewModal({
                 )}
               </div>
 
+              {savedRecord.timings && (
+                <div className="w-full min-w-0 p-3.5 rounded-xl border border-blue-200/80 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20 text-left space-y-2 mb-4 text-xs">
+                  <div className="flex items-center justify-between font-semibold text-slate-800 dark:text-slate-200 border-b border-blue-100 dark:border-blue-900/30 pb-2">
+                    <span className="flex items-center gap-1.5 text-blue-900 dark:text-blue-300">
+                      <Clock className="w-3.5 h-3.5 text-blue-600" />
+                      Stage Timings Recorded to Sheet
+                    </span>
+                    <span className="font-mono text-blue-800 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-900/50 px-2 py-0.5 rounded text-[11px]">
+                      Total: {savedRecord.timings.totalSeconds ?? "—"}s
+                    </span>
+                  </div>
+                  <div className={`grid gap-2 pt-0.5 text-[11px] ${
+                    savedRecord.source === "manual"
+                      ? "grid-cols-1"
+                      : (savedRecord.timings.geminiSeconds != null && !classificationFallback
+                        ? "grid-cols-2 sm:grid-cols-4"
+                        : "grid-cols-3")
+                  }`}>
+                    {savedRecord.source !== "manual" && (
+                      <div className="rounded-lg bg-white dark:bg-slate-900 p-2 border border-slate-200/60 dark:border-slate-800">
+                        <span className="text-slate-500 dark:text-slate-400 block text-[10px]">OCR</span>
+                        <span className="font-semibold text-slate-900 dark:text-white font-mono">{savedRecord.timings.ocrSeconds ?? "—"}s</span>
+                      </div>
+                    )}
+                    {savedRecord.source !== "manual" && savedRecord.timings.geminiSeconds != null && !classificationFallback && (
+                      <div className="rounded-lg bg-white dark:bg-slate-900 p-2 border border-slate-200/60 dark:border-slate-800">
+                        <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Gemini Classification</span>
+                        <span className="font-semibold text-slate-900 dark:text-white font-mono">{savedRecord.timings.geminiSeconds}s</span>
+                      </div>
+                    )}
+                    {savedRecord.source !== "manual" && (
+                      <div className="rounded-lg bg-white dark:bg-slate-900 p-2 border border-slate-200/60 dark:border-slate-800">
+                        <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Total Scanning</span>
+                        <span className="font-semibold text-slate-900 dark:text-white font-mono">{savedRecord.timings.scanningSeconds ?? "—"}s</span>
+                      </div>
+                    )}
+                    <div className="rounded-lg bg-white dark:bg-slate-900 p-2 border border-slate-200/60 dark:border-slate-800">
+                      <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Submission</span>
+                      <span className="font-semibold text-slate-900 dark:text-white font-mono">{savedRecord.timings.submissionSeconds ?? "—"}s</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 italic pt-0.5">
+                    * Total time excludes manual review and editing.
+                  </p>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex flex-col gap-2 w-full">
                 <Button
@@ -553,6 +614,18 @@ export default function OCRReviewModal({
                       Fast Review
                     </DialogTitle>
                     {classificationFallback && <span className="inline-flex min-h-7 items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">Manual classification fallback</span>}
+                    {scanTimings && originalImage && (
+                      <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50/80 px-2.5 text-[11px] font-medium text-blue-800 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-200">
+                        <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                        <span>
+                          OCR: <strong>{scanTimings.ocrSeconds ?? "0"}s</strong>
+                          {scanTimings.geminiSeconds != null && !classificationFallback && (
+                            <> · Gemini: <strong>{scanTimings.geminiSeconds}s</strong></>
+                          )}
+                          · Scan: <strong>{scanTimings.scanningSeconds ?? "0"}s</strong>
+                        </span>
+                      </span>
+                    )}
                     {isDemo && (
                       <span className="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                         Demo
