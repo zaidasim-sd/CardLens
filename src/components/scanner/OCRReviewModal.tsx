@@ -109,6 +109,7 @@ interface Props {
   backData?: OCRData | null;
   isDemo?: boolean;
   classificationFallback?: boolean;
+  classificationFallbackReason?: string | null;
   scanTimings?: ProcessTimings | null;
   onSuccess: () => void;
   onDiscardImage: () => void;
@@ -125,6 +126,7 @@ export default function OCRReviewModal({
   backData = null,
   isDemo = false,
   classificationFallback = false,
+  classificationFallbackReason = null,
   scanTimings = null,
   onSuccess,
   onDiscardImage,
@@ -613,7 +615,7 @@ export default function OCRReviewModal({
                     <DialogTitle className="text-lg md:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
                       Fast Review
                     </DialogTitle>
-                    {classificationFallback && <span className="inline-flex min-h-7 items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">Manual classification fallback</span>}
+                    {classificationFallback && <span className="inline-flex min-h-7 items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">Manual classification fallback{classificationFallbackReason ? ` (${classificationFallbackReason})` : ""}</span>}
                     {scanTimings && originalImage && (
                       <span className="inline-flex min-h-7 items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50/80 px-2.5 text-[11px] font-medium text-blue-800 dark:border-blue-900 dark:bg-blue-950/60 dark:text-blue-200">
                         <Clock className="w-3 h-3 text-blue-600 dark:text-blue-400" />

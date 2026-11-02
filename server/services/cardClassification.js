@@ -97,12 +97,19 @@ export function validateClassification(value, rawText) {
 // One request, no retry: the entire operation (including body decoding) has a
 // deadline. Never log OCR text, keys or raw upstream errors.
 export async function classifyWithGemini(rawText, { env = process.env, fetcher = fetch, timeoutMs } = {}) {
-  const key = env.GEMINI_API_KEY?.trim();
+  let key = String(env.GEMINI_API_KEY || '').trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1).trim();
+  }
   if (!key) throw Object.assign(new Error('Classification unavailable'), { code: 'AI_KEY_MISSING' });
   if (typeof rawText !== 'string' || !rawText.trim() || rawText.length > 60000) throw Object.assign(new Error('Classification unavailable'), { code: 'AI_INPUT_INVALID' });
-  const model = env.GEMINI_CLASSIFICATION_MODEL?.trim() || DEFAULT_CLASSIFICATION_MODEL;
+  let model = String(env.GEMINI_CLASSIFICATION_MODEL || '').trim();
+  if ((model.startsWith('"') && model.endsWith('"')) || (model.startsWith("'") && model.endsWith("'"))) {
+    model = model.slice(1, -1).trim();
+  }
+  if (!model) model = DEFAULT_CLASSIFICATION_MODEL;
   if (!/^gemini-[a-z0-9.-]+$/.test(model)) throw new Error('Invalid model');
-  const duration = Math.min(15000, Math.max(100, Number(timeoutMs ?? env.GEMINI_CLASSIFICATION_TIMEOUT_MS) || 8000));
+  const duration = Math.min(25000, Math.max(100, Number(timeoutMs ?? env.GEMINI_CLASSIFICATION_TIMEOUT_MS) || 12000));
   const controller = new AbortController();
   let timer;
   const deadline = new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new Error('Classification timeout')); }, duration); });

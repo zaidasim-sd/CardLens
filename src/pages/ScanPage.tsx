@@ -320,6 +320,7 @@ export default function ScanPage() {
 
   const [ocrData, setOcrData] = useState<OCRData | null>(null);
   const [classificationFallback, setClassificationFallback] = useState(false);
+  const [classificationFallbackReason, setClassificationFallbackReason] = useState<string | null>(null);
   const [rawText, setRawText] = useState("");
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -420,7 +421,7 @@ export default function ScanPage() {
 
   const handleScan = async () => {
     if (!selectedFile || isPreparing || isScanning) return;
-    setScanError(null); setBackError(""); setIsReviewModalOpen(false); setClassificationFallback(false);
+    setScanError(null); setBackError(""); setIsReviewModalOpen(false); setClassificationFallback(false); setClassificationFallbackReason(null);
     setIsScanning(true); setScanProgress(15);
     const interval = setInterval(() => setScanProgress(p => Math.min(90, p + 12)), 350);
     try {
@@ -435,6 +436,7 @@ export default function ScanPage() {
         setRawText(result.rawText);
         setOcrData(result.parsed);
         setClassificationFallback(result.classificationFallback);
+        setClassificationFallbackReason(result.classificationFallbackReason || null);
         setScanTimings(result.timings || null);
         setBackData(null);
         setIsReviewModalOpen(true);
@@ -468,6 +470,7 @@ export default function ScanPage() {
     setPreviewUrl(null);
     setOcrData(blankData);
     setClassificationFallback(false);
+    setClassificationFallbackReason(null);
     setScanTimings(null);
     setRawText("");
     setIsDemoMode(false);
@@ -710,6 +713,7 @@ export default function ScanPage() {
         }}
         ocrData={ocrData}
         classificationFallback={classificationFallback}
+        classificationFallbackReason={classificationFallbackReason}
         rawText={rawText}
         backData={backData}
         backImageUrl={backPreviewUrl || ""}
