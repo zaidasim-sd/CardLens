@@ -1,0 +1,166 @@
+✔ back fills only missing fields without replacing front or mutating either side (2.5713ms)
+✔ blank back fields and non-contact fields never replace front data (0.3394ms)
+✔ missing front contact fields accept trimmed back values (0.2827ms)
+[AUTH] User hala@aventureaviation.com is an administrator. Auto-activated without requiring approval.
+[AUTH] User osman@aventureaviation.com is an administrator. Auto-activated without requiring approval.
+✔ Hala and Osman are admins alongside existing and configured administrators (1.9881ms)
+✔ verified Firebase sign-in and Google sign-in give designated emails admin access (8.0795ms)
+✔ older capturer sessions for new admins are upgraded while existing roles are retained (1.3407ms)
+✔ domain restriction: @aventureaviation.com is always allowed (1.4079ms)
+✔ domain restriction: @vision71tech.com is allowed when toggle is active (0.3823ms)
+✔ domain restriction: @vision71tech.com is rejected when toggle is explicitly false in production (0.4262ms)
+✔ domain restriction: arbitrary external domains are rejected (0.289ms)
+✔ exhibition_assistant can capture_card (3.3597ms)
+✔ exhibition_assistant can use_ocr (0.1787ms)
+✔ exhibition_assistant can view_own_draft (0.1397ms)
+✔ exhibition_assistant can correct_own_draft (0.1267ms)
+✔ exhibition_assistant can submit_own_draft (0.2168ms)
+✔ exhibition_assistant cannot view_review_queue (0.1302ms)
+✔ exhibition_assistant cannot correct_submitted_card (0.1214ms)
+✔ exhibition_assistant cannot approve_card (0.0837ms)
+✔ exhibition_assistant cannot reject_card (0.1632ms)
+✔ exhibition_assistant cannot request_correction (0.3026ms)
+✔ exhibition_assistant cannot transfer_approved_card (0.1756ms)
+✔ exhibition_assistant cannot manage_users (0.1164ms)
+✔ exhibition_assistant cannot manage_lists (0.0886ms)
+✔ exhibition_assistant cannot change_retention (0.0932ms)
+✔ exhibition_assistant cannot delete_record (0.0996ms)
+✔ exhibition_assistant cannot end_pilot_export (0.0952ms)
+✔ exhibition_assistant cannot view_aggregate_counts (0.0822ms)
+✔ aventure_reviewer cannot capture_card (0.078ms)
+✔ aventure_reviewer cannot use_ocr (0.0685ms)
+✔ aventure_reviewer cannot view_own_draft (0.2851ms)
+✔ aventure_reviewer cannot correct_own_draft (0.1852ms)
+✔ aventure_reviewer cannot submit_own_draft (0.1ms)
+✔ aventure_reviewer can view_review_queue (0.1094ms)
+✔ aventure_reviewer can correct_submitted_card (0.0892ms)
+✔ aventure_reviewer can approve_card (0.0871ms)
+✔ aventure_reviewer can reject_card (0.0812ms)
+✔ aventure_reviewer can request_correction (0.0969ms)
+✔ aventure_reviewer cannot transfer_approved_card (0.0787ms)
+✔ aventure_reviewer cannot manage_users (0.1295ms)
+✔ aventure_reviewer cannot manage_lists (0.0806ms)
+✔ aventure_reviewer cannot change_retention (0.1031ms)
+✔ aventure_reviewer cannot delete_record (0.1691ms)
+✔ aventure_reviewer cannot end_pilot_export (0.1086ms)
+✔ aventure_reviewer cannot view_aggregate_counts (0.1018ms)
+✔ vision71_administrator can capture_card (0.0901ms)
+✔ vision71_administrator can use_ocr (0.0942ms)
+✔ vision71_administrator can view_own_draft (0.1243ms)
+✔ vision71_administrator can correct_own_draft (0.153ms)
+✔ vision71_administrator can submit_own_draft (0.0997ms)
+✔ vision71_administrator can view_review_queue (0.1682ms)
+✔ vision71_administrator can correct_submitted_card (0.0957ms)
+✔ vision71_administrator can approve_card (0.0904ms)
+✔ vision71_administrator can reject_card (0.0886ms)
+✔ vision71_administrator can request_correction (0.0866ms)
+✔ vision71_administrator cannot transfer_approved_card (0.0926ms)
+✔ vision71_administrator can manage_users (0.0748ms)
+✔ vision71_administrator can manage_lists (0.0951ms)
+✔ vision71_administrator can change_retention (0.0806ms)
+✔ vision71_administrator can delete_record (0.1001ms)
+✔ vision71_administrator can end_pilot_export (0.0774ms)
+✔ vision71_administrator cannot view_aggregate_counts (0.072ms)
+✔ vision71_support cannot capture_card (0.1096ms)
+✔ vision71_support cannot use_ocr (0.083ms)
+✔ vision71_support cannot view_own_draft (0.0794ms)
+✔ vision71_support cannot correct_own_draft (0.0718ms)
+✔ vision71_support cannot submit_own_draft (0.0836ms)
+✔ vision71_support cannot view_review_queue (0.0661ms)
+✔ vision71_support cannot correct_submitted_card (0.0787ms)
+✔ vision71_support cannot approve_card (0.0784ms)
+✔ vision71_support cannot reject_card (0.0691ms)
+✔ vision71_support cannot request_correction (0.0648ms)
+✔ vision71_support cannot transfer_approved_card (0.0639ms)
+✔ vision71_support cannot manage_users (0.0692ms)
+✔ vision71_support cannot manage_lists (0.1764ms)
+✔ vision71_support cannot change_retention (0.0789ms)
+✔ vision71_support cannot delete_record (0.075ms)
+✔ vision71_support cannot end_pilot_export (0.0778ms)
+✔ vision71_support can view_aggregate_counts (0.081ms)
+✔ assistant access is limited to a draft captured by that assistant (1.641ms)
+✔ reviewer cannot approve a record captured by that reviewer (0.2579ms)
+✔ record checks reject another tenant (0.2075ms)
+✔ administrators capture their own cards without bypassing ownership or self-approval checks (0.3755ms)
+[submitDirect Google Sheet error] Error: response lost after append
+    at f.gateway.append (file:///D:/CardLens/server/cards/directSubmission.test.mjs:44:11)
+    at submitDirect (file:///D:/CardLens/server/cards/directSubmission.js:49:96)
+    at async waitForActual (node:assert:646:5)
+    at async strict.rejects (node:assert:769:25)
+    at async TestContext.<anonymous> (file:///D:/CardLens/server/cards/directSubmission.test.mjs:46:3)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ direct submission writes contact to Sheets and only reference metadata to MongoDB (30.4983ms)
+✔ failed/uncertain Sheet append can be retried without duplicating the row (2.9163ms)
+✔ missing Sheet configuration is an error, never success (0.2702ms)
+✔ administrator uses the same submission flow and retains capturer attribution (1.0453ms)
+✖ Mongo guard blocks contact collections and nested password/contact writes (1.4272ms)
+✔ complete OCR is sent server-side using header key and strict JSON schema (8.5313ms)
+✔ missing key uses existing parser without a network call (4.6861ms)
+✔ HTTP 400 silently falls back with no retries (1.1739ms)
+✔ HTTP 401 silently falls back with no retries (0.8632ms)
+✔ HTTP 403 silently falls back with no retries (2.4645ms)
+✔ HTTP 429 silently falls back with no retries (0.7929ms)
+✔ HTTP 500 silently falls back with no retries (0.6413ms)
+✔ HTTP 503 silently falls back with no retries (0.7087ms)
+✔ timeout aborts and falls back even if upstream ignores cancellation (106.7061ms)
+✔ timeout covers body decoding too (110.2634ms)
+✔ invalid or ungrounded classification falls back (0.8569ms)
+✔ invalid or ungrounded classification falls back (0.5479ms)
+✔ invalid or ungrounded classification falls back (0.5802ms)
+✔ invalid or ungrounded classification falls back (0.4928ms)
+✔ invalid or ungrounded classification falls back (0.4487ms)
+✔ invalid or ungrounded classification falls back (0.864ms)
+✔ invalid or ungrounded classification falls back (0.8905ms)
+✔ invalid or ungrounded classification falls back (0.467ms)
+✔ invalid or ungrounded classification falls back (0.6234ms)
+✔ malformed JSON and truncated output fall back (2.6534ms)
+✔ OCR domain spacing and attached extensions remain grounded (0.522ms)
+✔ direct classifier failure is distinguishable for server-side diagnostics (0.5287ms)
+✔ printed IDs and fax numbers cannot become primary phones (0.3419ms)
+✔ grounded vanity phones do not discard a correct person and role (0.518ms)
+ℹ tests 111
+ℹ suites 0
+ℹ pass 110
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3637.0605
+
+✖ failing tests:
+
+test at server\cards\directSubmission.test.mjs:67:1
+✖ Mongo guard blocks contact collections and nested password/contact writes (1.4272ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    Comparison {
+  +   code: 'FIREBASE_AUTH_ONLY'
+  -   code: 'MONGO_PRIVACY_REFUSED'
+    }
+  
+      at TestContext.<anonymous> (file:///D:/CardLens/server/cards/directSubmission.test.mjs:70:136)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: Error: User accounts must not be stored in MongoDB. Authentication is managed via Firebase.
+        at Proxy.value (file:///D:/CardLens/server/db.js:54:49)
+        at assert.throws.code (file:///D:/CardLens/server/cards/directSubmission.test.mjs:70:152)
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///D:/CardLens/server/cards/directSubmission.test.mjs:70:136)
+        at Test.runInAsyncScope (node:async_hooks:214:14)
+        at Test.run (node:internal/test_runner/test:1106:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:788:18)
+        at Test.postRun (node:internal/test_runner/test:1235:19)
+        at Test.run (node:internal/test_runner/test:1163:12),
+    expected: { code: 'MONGO_PRIVACY_REFUSED' },
+    operator: 'throws',
+    diff: 'simple'
+  }

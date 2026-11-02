@@ -1,0 +1,14 @@
+OFFLINE RENDER ONLY — NO EMAIL SENT
+Subject: Lead71: New Exhibition Assistant Access Request (Vision71 Test User)
+
+New Exhibition Assistant Access Request
+
+Candidate: Vision71 Test User
+Email: test.user@vision71tech.com
+Role: Exhibition Assistant
+Event: Aero-Engines Americas 2026
+
+Please review and authorize access at:
+https://lead71.com/approve-user?token=OFFLINE-PREVIEW-NOT-VALID&email=test.user%40vision71tech.com
+
+Lead71 by Vision71
