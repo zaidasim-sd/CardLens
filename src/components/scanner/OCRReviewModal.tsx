@@ -23,7 +23,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { submitContact } from "@/lib/api/contacts";
 import { checkDuplicateContact } from "@/lib/duplicateChecker";
-import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
+import { getExhibitions, getDefaultExhibition, type ExhibitionOption } from "@/lib/api/exhibitions";
+import ExhibitionSelector from "./ExhibitionSelector";
 import DuplicateWarningModal from "./DuplicateWarningModal";
 import ViewCardModal from "@/components/verified/ViewCardModal";
 import type { OCRData, ContactRecord } from "@/types";
@@ -174,6 +175,7 @@ export default function OCRReviewModal({
     if (isOpen) {
       const defaultExhibition =
         ocrData?.meetingContext?.metAtLocation ||
+        getDefaultExhibition() ||
         exhibitionOptions.find((o) => o.value)?.value ||
         "";
 
@@ -198,7 +200,7 @@ export default function OCRReviewModal({
 
   // Loading exhibition options must not reset details the user has already checked.
   useEffect(() => {
-    const first = exhibitionOptions.find(option => option.value)?.value;
+    const first = getDefaultExhibition() || exhibitionOptions.find(option => option.value)?.value;
     if (isOpen && first && !dirtyFields.metAtLocation && !getValues("metAtLocation")) {
       setValue("metAtLocation", first);
     }
@@ -567,29 +569,15 @@ export default function OCRReviewModal({
 
                     <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
                       {/* 1. Exhibition Name (Approved Field) */}
-                      <div className="space-y-1.5 sm:col-span-2">
-                        <Label htmlFor="metAtLocation" className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
-                          Exhibition / Source <span className="text-red-600" aria-hidden="true">*</span>
-                        </Label>
-                        <select
+                      <div className="sm:col-span-2">
+                        <ExhibitionSelector
                           id="metAtLocation"
-                          {...register("metAtLocation")}
-                          aria-required="true"
-                          aria-invalid={Boolean(errors.metAtLocation)}
-                          aria-describedby={errors.metAtLocation ? "exhibition-error" : undefined}
-                          className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                        >
-                          {exhibitionOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value} disabled={!opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.metAtLocation && (
-                          <p id="exhibition-error" role="alert" className="text-xs text-red-600">
-                            {errors.metAtLocation.message}
-                          </p>
-                        )}
+                          value={watch("metAtLocation") || ""}
+                          onChange={(val) => setValue("metAtLocation", val, { shouldValidate: true, shouldDirty: true })}
+                          options={exhibitionOptions}
+                          error={errors.metAtLocation?.message}
+                          required
+                        />
                       </div>
 
                       {/* 2. Contact Name */}

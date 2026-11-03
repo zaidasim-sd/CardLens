@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { updateContact, getDuplicateReview, type DuplicateReviewContext } from "@/lib/api/contacts";
 import DuplicateReviewPanel from "./DuplicateReviewPanel";
 import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
+import ExhibitionSelector from "@/components/scanner/ExhibitionSelector";
 import { cardApi } from "@/lib/cardApi";
 import { useAuth } from "@/auth/AuthContext";
 import type { ContactRecord, OCRData, RecordStatus } from "@/types";
@@ -71,7 +72,7 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
     return () => { active = false; };
   }, [isOpen, record, reviewRevision]);
 
-  const { register, handleSubmit, reset } = useForm<ReviewFormData>({
+  const { register, handleSubmit, reset, watch, setValue } = useForm<ReviewFormData>({
     defaultValues: {
       fullName: "",
       companyName: "",
@@ -396,23 +397,13 @@ export default function ReviewContactModal({ isOpen, setIsOpen, record, onSucces
                 </div>
 
                 {/* Exhibition Event */}
-                <div className="space-y-1">
-                  <Label htmlFor="rev-metAtLocation" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Exhibition / Source <span className="text-red-600" aria-hidden="true">*</span>
-                  </Label>
-                  <select
-                    id="rev-metAtLocation"
-                    {...register("metAtLocation")}
-                    required
-                    className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                  >
-                    {exhibitionOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <ExhibitionSelector
+                  id="rev-metAtLocation"
+                  value={watch("metAtLocation") || ""}
+                  onChange={(val) => setValue("metAtLocation", val, { shouldValidate: true, shouldDirty: true })}
+                  options={exhibitionOptions}
+                  required
+                />
               <div className="min-w-0 space-y-1">
                 <Label htmlFor="rev-whereMet">Where met / Location</Label>
                 <Input id="rev-whereMet" {...register("whereMet")} placeholder="e.g. Hall 2, Booth 14 (optional)" className="text-base sm:text-sm" />

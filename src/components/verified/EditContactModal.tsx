@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { updateContact } from "@/lib/api/contacts";
 import { getExhibitions, type ExhibitionOption } from "@/lib/api/exhibitions";
+import ExhibitionSelector from "@/components/scanner/ExhibitionSelector";
 import type { ContactRecord, OCRData } from "@/types";
 import pilot from "@/config/pilot";
 
@@ -35,7 +36,7 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
     { label: "Select exhibition", value: "" },
   ]);
 
-  const { register, handleSubmit, reset } = useForm<EditFormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<EditFormData>({
     defaultValues: {
       fullName: "",
       companyName: "",
@@ -140,23 +141,14 @@ export default function EditContactModal({ isOpen, setIsOpen, record, onSuccess 
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5 pt-2">
           {/* Exhibition Name */}
-          <div className="space-y-1">
-            <Label htmlFor="edit-metAtLocation" className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-              Exhibition / Source <span className="text-red-600" aria-hidden="true">*</span>
-            </Label>
-            <select
-              id="edit-metAtLocation"
-              {...register("metAtLocation")}
-              required
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm text-slate-900 focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
-            >
-              {exhibitionOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <ExhibitionSelector
+            id="edit-metAtLocation"
+            value={watch("metAtLocation") || ""}
+            onChange={(val) => setValue("metAtLocation", val, { shouldValidate: true, shouldDirty: true })}
+            options={exhibitionOptions}
+            error={errors.metAtLocation?.message}
+            required
+          />
               {/* PILOT: historic location input retained for later restoration. */}
               {pilot.historicFieldsEnabled && <div className="min-w-0 space-y-1">
                 <Label htmlFor="edit-whereMet">Where met / Location</Label>
