@@ -17,7 +17,7 @@ export async function submitStagingScan(db,user,input,deps={}) {
  try {
   const transfer=await (deps.lock||((task)=>withStagingLock(db,task)))(async()=>{
    if(!session)session=await act('scan_session',{source});
-   const captured=await act('capture',{id:input.submissionId,lead71RecordId:record.recordId,sessionId:session.id,name:v.fullName,company:v.companyName,title:v.jobTitle,email:v.email,phone:v.phone});
+   const captured=await act('capture',{id:input.submissionId,lead71RecordId:record.recordId,capturedAt:record.createdAt,sessionId:session.id,name:v.fullName,company:v.companyName,title:v.jobTitle,email:v.email,phone:v.phone});
    // Another existing local contact is preserved rather than silently approved by this submitter.
    if(captured.capturedBy===user.id)await act('scan_review',{id:captured.id});
    if(!v.email)return act('email_required',{id:captured.id});

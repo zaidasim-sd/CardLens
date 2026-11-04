@@ -95,6 +95,7 @@ export async function stagingAction(db,user,action,input={},deps={}) {
  }
  if(action==='capture') {
   validateStagingContact(input);
+  const capturedAt=input.capturedAt?new Date(input.capturedAt).toISOString():now();
   if(!/^[a-f0-9-]{36}$/i.test(input.id||''))throw issue('A stable submission ID is required.');
   const session=(await reg.rows('Sessions')).find(s=>s.id===input.sessionId&&s.status==='active'&&s.representativeId===user.id);
   if(!session)throw issue('Start your exhibition session first.');
@@ -104,9 +105,9 @@ export async function stagingAction(db,user,action,input={},deps={}) {
   if(row&&row.email!==(input.email||'').toLowerCase())throw issue('Submission reference already belongs to another record.',409);
   if(!row) {
    row=input.email?records.find(c=>c.email===input.email.toLowerCase()):undefined;
-   if(!row){row={id:input.id,lead71RecordId:input.lead71RecordId||input.id,email:(input.email||'').toLowerCase(),name:input.name||'',company:input.company||'',title:input.title||'',phone:input.phone||'',status:'pending review',sessionId:session.id,capturedBy:user.id,capturedAt:now(),syncStatus:'not synced',version:now()};await reg.append('Contacts',row);}
+   if(!row){row={id:input.id,lead71RecordId:input.lead71RecordId||input.id,email:(input.email||'').toLowerCase(),name:input.name||'',company:input.company||'',title:input.title||'',phone:input.phone||'',status:'pending review',sessionId:session.id,capturedBy:user.id,capturedAt,syncStatus:'not synced',version:now()};await reg.append('Contacts',row);}
   }
-  if(!(await reg.rows('Contact_Exhibition_Links')).some(e=>e.id===input.id))await reg.append('Contact_Exhibition_Links',{id:input.id,contactId:row.id,sessionId:session.id,capturedAt:now(),capturedBy:user.id,source:'Exhibition',exhibitionId:exhibition.id,exhibitionName:exhibition.name,city:exhibition.city,country:exhibition.country});
+  if(!(await reg.rows('Contact_Exhibition_Links')).some(e=>e.id===input.id))await reg.append('Contact_Exhibition_Links',{id:input.id,contactId:row.id,sessionId:session.id,capturedAt,capturedBy:user.id,source:'Exhibition',exhibitionId:exhibition.id,exhibitionName:exhibition.name,city:exhibition.city,country:exhibition.country});
   return row;
  }
  const contact=(await reg.rows('Contacts')).find(c=>c.id===input.id);
