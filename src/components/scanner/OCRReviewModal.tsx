@@ -493,7 +493,7 @@ export default function OCRReviewModal({
                 {savedRecord.transferError&&<p className="text-amber-800">{savedRecord.transferError}</p>}
                 {savedRecord.transferStatus==='failed'&&<Button disabled={isSaving} onClick={async()=>{
                   setIsSaving(true);
-                  try{const retried=await submitContact({submissionId:savedRecord.id,integrationSessionId:savedRecord.integrationSessionId,verifiedData:savedRecord.verifiedData,ocrData:savedRecord.verifiedData,rawOCRText:'',source:savedRecord.source||'manual'});setSavedRecord(retried);}
+                  try{const retried=await submitContact({submissionId:savedRecord.id,integrationSessionId:savedRecord.integrationSessionId,verifiedData:savedRecord.verifiedData,ocrData:savedRecord.verifiedData,rawOCRText:'',source:savedRecord.source||'manual',timings:savedRecord.timings});setSavedRecord(retried);}
                   catch(e){toast.error(e instanceof Error?e.message:'Retry failed.');}finally{setIsSaving(false);}
                 }}>Retry Constant Contact delivery</Button>}
               </div>}
