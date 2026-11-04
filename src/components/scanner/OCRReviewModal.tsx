@@ -173,8 +173,10 @@ export default function OCRReviewModal({
     if (initializedData.current === ocrData) return;
     initializedData.current = ocrData;
     if (isOpen) {
+      const sessionExhibition = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("lead71_active_exhibition") : null;
       const defaultExhibition =
         ocrData?.meetingContext?.metAtLocation ||
+        sessionExhibition ||
         getDefaultExhibition() ||
         exhibitionOptions.find((o) => o.value)?.value ||
         "";
@@ -200,9 +202,10 @@ export default function OCRReviewModal({
 
   // Loading exhibition options must not reset details the user has already checked.
   useEffect(() => {
-    const first = getDefaultExhibition() || exhibitionOptions.find(option => option.value)?.value;
-    if (isOpen && first && !dirtyFields.metAtLocation && !getValues("metAtLocation")) {
-      setValue("metAtLocation", first);
+    const sessionExhibition = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("lead71_active_exhibition") : null;
+    const preferred = sessionExhibition || getDefaultExhibition() || exhibitionOptions.find(option => option.value)?.value;
+    if (isOpen && preferred && !dirtyFields.metAtLocation && !getValues("metAtLocation")) {
+      setValue("metAtLocation", preferred);
     }
   }, [isOpen, exhibitionOptions, dirtyFields.metAtLocation, getValues, setValue]);
 
@@ -573,7 +576,12 @@ export default function OCRReviewModal({
                         <ExhibitionSelector
                           id="metAtLocation"
                           value={watch("metAtLocation") || ""}
-                          onChange={(val) => setValue("metAtLocation", val, { shouldValidate: true, shouldDirty: true })}
+                          onChange={(val) => {
+                          setValue("metAtLocation", val, { shouldValidate: true, shouldDirty: true });
+                          if (val && val !== "Other / Source" && typeof sessionStorage !== "undefined") {
+                            sessionStorage.setItem("lead71_active_exhibition", val);
+                          }
+                        }}
                           options={exhibitionOptions}
                           error={errors.metAtLocation?.message}
                           required

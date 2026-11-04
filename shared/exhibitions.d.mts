@@ -5,6 +5,7 @@ export interface ExhibitionCatalogItem {
   startDate: string;
   endDate: string;
   aliases?: string[];
+  clientStatus?: "cancelled" | "not_attending";
 }
 
 export interface ExhibitionSearchSuggestion {

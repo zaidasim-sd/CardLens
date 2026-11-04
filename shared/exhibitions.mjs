@@ -1,7 +1,7 @@
 /**
  * Confirmed exhibitions master catalog for Lead71.
  * Source: Official tradeshow master schedule.
- * Cancelled / Not Attending events (F-16 TCG, MRO Asia-Pacific, IDEAS) are excluded.
+ * All client events are preserved in the catalog for predictive search.
  */
 export const EXHIBITIONS_CATALOG = [
   {
@@ -59,6 +59,22 @@ export const EXHIBITIONS_CATALOG = [
     location: "London, England",
     startDate: "2026-09-08",
     endDate: "2026-09-10",
+  },
+  {
+    name: "F-16 TCG",
+    venue: "Ogden-Eccles Conference Center",
+    location: "Ogden, UT",
+    startDate: "2026-09-14",
+    endDate: "2026-09-17",
+    clientStatus: "not_attending",
+  },
+  {
+    name: "MRO Asia-Pacific",
+    venue: "Singapore Expo-Convention and Exhibition Centre",
+    location: "Singapore",
+    startDate: "2026-09-22",
+    endDate: "2026-09-24",
+    clientStatus: "not_attending",
   },
   {
     name: "Airline Economics Dubai",
@@ -146,6 +162,15 @@ export const EXHIBITIONS_CATALOG = [
     endDate: "2026-11-20",
   },
   {
+    name: "International Defense Exhibition & Seminar (IDEAS)",
+    venue: "Karachi Expo Center",
+    location: "Karachi, Pakistan",
+    startDate: "2026-11-24",
+    endDate: "2026-11-27",
+    aliases: ["IDEAS", "IDEAS 2026"],
+    clientStatus: "cancelled",
+  },
+  {
     name: "Asian Defense & Security (ADAS)",
     venue: "World Trade Center",
     location: "Manila, Philippines",
@@ -171,8 +196,11 @@ function toDateString(date) {
 }
 
 /**
- * Filters the catalog to events occurring in the current relevant window
- * (e.g., past 45 days to next 45 days, approximately ~2 months around today).
+ * Filters the catalog to active attending events occurring in the current relevant window
+ * (e.g., past 45 days to next 45 days).
+ * Events flagged as clientStatus: 'cancelled' or 'not_attending' are omitted from the
+ * default dropdown so they don't clutter active operations, but remain in the catalog
+ * for predictive search.
  */
 export function getActiveExhibitions(refDate = new Date(), pastDays = 45, futureDays = 45) {
   const dateStr = toDateString(refDate);
@@ -182,6 +210,10 @@ export function getActiveExhibitions(refDate = new Date(), pastDays = 45, future
   const maxTime = refTime + futureDays * msDay;
 
   return EXHIBITIONS_CATALOG.filter((item) => {
+    // Exclude cancelled/not attending from automatic active dropdown
+    if (item.clientStatus === "cancelled" || item.clientStatus === "not_attending") {
+      return false;
+    }
     const startTime = new Date(item.startDate).getTime();
     const endTime = new Date(item.endDate).getTime();
     // Overlaps the window
@@ -199,7 +231,7 @@ export function getActiveExhibitions(refDate = new Date(), pastDays = 45, future
  * @param {number} [cfg.pastDays=45] Days in past to include
  * @param {number} [cfg.futureDays=45] Days in future to include
  * @param {string} [cfg.currentEvent] If an existing card has an older event, include it in dropdown
- * @param {boolean} [cfg.includeAll=false] If true, includes all 21 catalog items
+ * @param {boolean} [cfg.includeAll=false] If true, includes all catalog items
  */
 export function getExhibitionOptions(refDate = new Date(), cfg = {}) {
   const {
@@ -210,7 +242,7 @@ export function getExhibitionOptions(refDate = new Date(), cfg = {}) {
   } = cfg;
 
   const items = includeAll
-    ? EXHIBITIONS_CATALOG
+    ? EXHIBITIONS_CATALOG.filter((item) => !item.clientStatus || includeAll)
     : getActiveExhibitions(refDate, pastDays, futureDays);
 
   const options = [{ label: "Select exhibition / source", value: "" }];
@@ -221,7 +253,7 @@ export function getExhibitionOptions(refDate = new Date(), cfg = {}) {
     added.add(item.name);
   }
 
-  // If a card already has an older event selected, make sure it is in the options
+  // If a card already has an older/custom event selected, make sure it is in the options
   if (currentEvent && !added.has(currentEvent) && currentEvent !== "Other / Source") {
     options.push({ label: currentEvent, value: currentEvent });
     added.add(currentEvent);
@@ -253,19 +285,22 @@ export function getDefaultExhibition(refDate = new Date()) {
 
   const dateStr = toDateString(refDate);
 
+  // Active candidate events only (not cancelled/not attending)
+  const activePool = EXHIBITIONS_CATALOG.filter((item) => !item.clientStatus);
+
   // 2. Currently ongoing event (startDate <= today <= endDate)
-  const ongoing = EXHIBITIONS_CATALOG
+  const ongoing = activePool
     .filter((e) => e.startDate <= dateStr && dateStr <= e.endDate)
     .sort((a, b) => b.endDate.localeCompare(a.endDate) || b.startDate.localeCompare(a.startDate));
   if (ongoing.length > 0) return ongoing[0].name;
 
   // 3. Past events (ended before today), latest first
-  const past = EXHIBITIONS_CATALOG
+  const past = activePool
     .filter((e) => e.endDate < dateStr)
     .sort((a, b) => b.endDate.localeCompare(a.endDate) || b.startDate.localeCompare(a.startDate));
 
   // 4. Upcoming events (starts after today), earliest first
-  const upcoming = EXHIBITIONS_CATALOG
+  const upcoming = activePool
     .filter((e) => e.startDate > dateStr)
     .sort((a, b) => a.startDate.localeCompare(b.startDate) || a.endDate.localeCompare(b.endDate));
 
@@ -289,7 +324,7 @@ export function getDefaultExhibition(refDate = new Date()) {
     return upcoming[0].name;
   }
 
-  return EXHIBITIONS_CATALOG[0].name;
+  return activePool[0].name;
 }
 
 /**
