@@ -85,6 +85,7 @@ export interface ContactRecord {
   transferStatus?: "not_started" | "pending" | "failed" | "reconciliation_required" | "transferred" | "existing_contact";
   transferError?: string;
   ccContactId?: string;
+  constantContactIntegration?: boolean;
   integrationSessionId?: string;
   sheetStatus?: string;
   sheetError?: { code: string; message: string } | null;

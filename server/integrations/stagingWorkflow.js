@@ -15,10 +15,10 @@ const snapshot=item=>JSON.stringify(writableContact(item));
 export function assertStaging(env=process.env) {
  if(env.STAGING_INTEGRATION_ENABLED!=='true'||env.APP_ENV!=='staging'||env.APP_BASE_URL!=='https://cardsnap-vision71-staging.vercel.app'||!/staging|test/i.test(env.MONGODB_DB||'')) throw issue('This workflow is available only on the isolated staging deployment.',403);
 }
-export function validateSynthetic(data) {
- if(!/^l71-test-[a-z0-9+.-]+@example\.com$/i.test(data.email||'')) throw issue('Use a synthetic l71-test-...@example.com address only.');
+export function validateStagingContact(data) {
+ if(data.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) throw issue('Enter a valid email address.');
  for(const k of ['name','company','title','phone']) if(String(data[k]||'').length>100) throw issue(`${k} is too long.`);
- if(!String(data.name||'').trim()) throw issue('Contact name is required.');
+ if(!String(data.name||data.company||'').trim()) throw issue('Contact name or company is required.');
 }
 export async function ccCall(db,path,method='GET',body,env=process.env) {
  assertStaging(env);
@@ -62,7 +62,17 @@ export async function stagingAction(db,user,action,input={},deps={}) {
  }
  if(action==='context') {
   const [exhibitions,sessions]=await Promise.all([reg.rows('Exhibitions'),reg.rows('Sessions')]);
-  return {exhibitions:exhibitions.filter(e=>e.status==='approved'),sessions:sessions.filter(s=>s.representativeId===user.id&&s.status==='active')};
+  return {exhibitions:exhibitions.filter(e=>['approved','source recorded'].includes(e.status)),sessions:sessions.filter(s=>s.representativeId===user.id&&s.status==='active')};
+ }
+ if(action==='scan_session') {
+  const source=String(input.source||'').trim();if(!source||source.length>150)throw issue('Select an exhibition or source.');
+  let exhibition=(await reg.rows('Exhibitions')).find(e=>e.name===source);
+  if(!exhibition){exhibition={id:randomUUID(),name:source,status:'source recorded',createdBy:user.id,createdAt:now()};await reg.append('Exhibitions',exhibition);}
+  const ownSessions=(await reg.rows('Sessions')).filter(s=>s.representativeId===user.id&&s.status==='active');
+  const existing=ownSessions.find(s=>s.exhibitionId===exhibition.id);
+  if(existing)return existing;
+  for(const prior of ownSessions){prior.status='closed';prior.endedAt=now();await reg.update('Sessions',prior);}
+  const row={id:randomUUID(),exhibitionId:exhibition.id,representativeId:user.id,representativeName:user.name,startedAt:now(),status:'active'};await reg.append('Sessions',row);return row;
  }
  if(action==='exhibition') {
   if(!input.name||!input.city||!input.country||!input.startDate||!input.endDate||!input.timeZone) throw issue('Enter exhibition name, city, country, dates and time zone.');
@@ -72,7 +82,7 @@ export async function stagingAction(db,user,action,input={},deps={}) {
   await reg.append('Exhibitions',row);return row;
  }
  if(action==='session') {
-  const exhibition=(await reg.rows('Exhibitions')).find(e=>e.id===input.exhibitionId&&e.status==='approved');
+  const exhibition=(await reg.rows('Exhibitions')).find(e=>e.id===input.exhibitionId&&['approved','source recorded'].includes(e.status));
   if(!exhibition)throw issue('Select an approved exhibition.');
   const active=(await reg.rows('Sessions')).find(s=>s.representativeId===user.id&&s.status==='active');
   if(active){if(active.exhibitionId===exhibition.id)return active;throw issue('End your current exhibition session before starting another.',409);}
@@ -84,17 +94,17 @@ export async function stagingAction(db,user,action,input={},deps={}) {
   if(!row)throw issue('Session not found.',404);row.status='closed';row.endedAt=now();await reg.update('Sessions',row);return row;
  }
  if(action==='capture') {
-  validateSynthetic(input);
+  validateStagingContact(input);
   if(!/^[a-f0-9-]{36}$/i.test(input.id||''))throw issue('A stable submission ID is required.');
   const session=(await reg.rows('Sessions')).find(s=>s.id===input.sessionId&&s.status==='active'&&s.representativeId===user.id);
   if(!session)throw issue('Start your exhibition session first.');
   const exhibition=(await reg.rows('Exhibitions')).find(e=>e.id===session.exhibitionId);
   const records=await reg.rows('Contacts');
   let row=records.find(c=>c.id===input.id);
-  if(row&&row.email!==input.email.toLowerCase())throw issue('Submission reference already belongs to another record.',409);
+  if(row&&row.email!==(input.email||'').toLowerCase())throw issue('Submission reference already belongs to another record.',409);
   if(!row) {
-   row=records.find(c=>c.email===input.email.toLowerCase());
-   if(!row){row={id:input.id,lead71RecordId:input.lead71RecordId||input.id,email:input.email.toLowerCase(),name:input.name,company:input.company||'',title:input.title||'',phone:input.phone||'',status:'pending review',sessionId:session.id,capturedBy:user.id,capturedAt:now(),syncStatus:'not synced',version:now()};await reg.append('Contacts',row);}
+   row=input.email?records.find(c=>c.email===input.email.toLowerCase()):undefined;
+   if(!row){row={id:input.id,lead71RecordId:input.lead71RecordId||input.id,email:(input.email||'').toLowerCase(),name:input.name||'',company:input.company||'',title:input.title||'',phone:input.phone||'',status:'pending review',sessionId:session.id,capturedBy:user.id,capturedAt:now(),syncStatus:'not synced',version:now()};await reg.append('Contacts',row);}
   }
   if(!(await reg.rows('Contact_Exhibition_Links')).some(e=>e.id===input.id))await reg.append('Contact_Exhibition_Links',{id:input.id,contactId:row.id,sessionId:session.id,capturedAt:now(),capturedBy:user.id,source:'Exhibition',exhibitionId:exhibition.id,exhibitionName:exhibition.name,city:exhibition.city,country:exhibition.country});
   return row;
@@ -107,6 +117,7 @@ export async function stagingAction(db,user,action,input={},deps={}) {
   const row={id:randomUUID(),name:String(input.name||'Contact Details Review').slice(0,100),recipientIds:JSON.stringify(ids),status:'local draft only - campaign scope unavailable',preparedBy:user.id,createdAt:now()};await reg.append('Campaign_Register',row);return row;
  }
  if(!contact)throw issue('Contact not found.',404);
+ if(action==='email_required') {contact.syncStatus='email required';contact.error='Saved to Google Sheets. Add an email address before Constant Contact sync.';await reg.update('Contacts',contact);return contact;}
  if(action==='scan_review') {
   if(contact.capturedBy!==user.id)throw issue('Only the capturer can confirm this scan review.',403);
   if(!contact.approvedBy){contact.status='approved';contact.approvedBy=`scan-review:${user.id}`;await reg.update('Contacts',contact);await log(contact.id,'scan_review','confirmed on submission');}
@@ -150,7 +161,8 @@ export async function stagingAction(db,user,action,input={},deps={}) {
  }
  if(action==='retry'||action==='sync') {
   if(contact.status!=='approved'||!contact.approvedBy)throw issue('A different reviewer must approve before sync.',403);
-  validateSynthetic(contact);
+  validateStagingContact(contact);
+  if(!contact.email)throw issue('An email address is required for Constant Contact sync.');
   try {
    const lists=await cc('/contact_lists?limit=1000&status=active');
    const list=lists.lists?.find(l=>l.name===TEST_LIST);

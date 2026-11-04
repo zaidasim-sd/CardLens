@@ -486,7 +486,7 @@ export default function OCRReviewModal({
                 </p>
               </div>
 
-              {savedRecord.integrationSessionId&&<div className="w-full rounded-xl border p-3 mt-4 text-left text-sm space-y-2" role="status">
+              {(savedRecord.integrationSessionId||savedRecord.constantContactIntegration)&&<div className="w-full rounded-xl border p-3 mt-4 text-left text-sm space-y-2" role="status">
                 <p>Google Sheets: saved</p>
                 <p>Constant Contact: {savedRecord.transferStatus==='transferred'?'synced to internal test list':savedRecord.transferStatus==='existing_contact'?'existing contact preserved':'not yet confirmed'}</p>
                 {savedRecord.ccContactId&&<p className="text-xs break-all">Provider reference: {savedRecord.ccContactId}</p>}

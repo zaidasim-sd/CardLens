@@ -3,9 +3,9 @@
 Use the existing `/scan` page. There is no separate integration workbench.
 
 1. Sign in with an internal staging account.
-2. Select an approved exhibition in the inline session section and start the session once.
-3. Scan or upload a synthetic card, or use the existing manual-entry option.
-4. Review the extracted fields. Use an address beginning `l71-test-` at `example.com`.
+2. Optionally select an exhibition in the inline session section. Otherwise choose the source in the normal review form; its session is recorded on submission.
+3. Scan or upload a card, or use the existing manual-entry option.
+4. Review the extracted fields. Ordinary valid email addresses are accepted; no synthetic prefix or domain is required.
 5. Submit through the existing review form. The operational Google Sheet saves first, followed by the protected register and Constant Contact.
 6. Read both delivery statuses in the existing success dialog. Retry a failed provider delivery using the same reference.
 
@@ -15,7 +15,7 @@ The latest user instruction makes review-and-submit the explicit **staging** tra
 
 ## Isolation
 
-`STAGING_INTEGRATION_ENABLED=true` is allowed only with `APP_ENV=staging`, the exact staging app base URL, a staging/test database, the dedicated register ID and a pinned hash of the user-confirmed internal Constant Contact OAuth subject. No client contacts are allowed by the synthetic-email guard.
+`STAGING_INTEGRATION_ENABLED=true` is allowed only with `APP_ENV=staging`, the exact staging app base URL, a staging/test database, the dedicated register ID and a pinned hash of the user-confirmed internal Constant Contact OAuth subject. The synthetic-address restriction was removed at the user's request. Evidence fixtures remain fictional. Phone-only records still save to Sheets and wait for an email before provider sync.
 
 `CC_STAGING_REGISTER_ID` identifies the staging workbook. `CC_STAGING_SUBJECT_HASH` pins the existing internal OAuth connection. Secrets remain in server settings; the existing rotating OAuth tokens are encrypted in staging MongoDB. Contact data stays in Google Sheets.
 
