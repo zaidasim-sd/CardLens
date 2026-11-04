@@ -12,6 +12,7 @@ import ApproveUserPage from "./pages/ApproveUserPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import UserAdminPage from "./pages/UserAdminPage";
+import ContactReviewPage from './pages/ContactReviewPage';
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import LegalPage from "./pages/LegalPage";
@@ -51,6 +52,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/welcome" element={<LandingPage />} />
+        <Route path="/contact-review" element={<ContactReviewPage />} />
         <Route path="/privacy-policy" element={<LegalPage kind="privacy" />} />
         <Route path="/terms-of-use" element={<LegalPage kind="terms" />} />
         <Route path="/" element={<RootPage />}>
@@ -69,6 +71,7 @@ export default function App() {
             <Route path="/scan/batch" element={<BatchCaptureRoute />} />
             <Route path="/submissions" element={<SubmissionQueueRoute />} />
             <Route path="/users" element={<UserAdminPage />} />
+            <Route path="/integration-staging" element={<Navigate to="/scan" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Route>

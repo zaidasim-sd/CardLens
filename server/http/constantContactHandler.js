@@ -4,9 +4,26 @@ import { requireAction } from "../auth/permissions.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
 import { beginConnection, finishConnection, connectionStatus, processTransfers } from "../integrations/constantContact.js";
 import { pilot } from "../pilot.js";
+import { stagingAction, withStagingLock } from '../integrations/stagingWorkflow.js';
+import {stagingReviewHandler} from './stagingReviewHandler.js';
 
 export default async function constantContactHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  if(req.query?.action==='staging_review')return stagingReviewHandler(req,res,await getDb());
+  if(String(req.query?.action||'').startsWith('staging_')) {
+    try {
+      const db=await getDb();await ensureDatabaseIndexes(db);
+      const cookies=parseCookies(req.headers.cookie||'');
+      const auth=await authenticate(db,cookies[SESSION_COOKIE]);
+      const action=String(req.query.action).slice(8);
+      requireAction(auth.user,['context','session','close_session'].includes(action)?'capture_card':'manage_users');
+      if(req.method==='GET'&&action==='context')return res.json(await stagingAction(db,auth.user,action));
+      if(req.method==='GET'&&action==='status')return res.json(await stagingAction(db,auth.user,action));
+      if(req.method!=='POST')return res.status(405).json({error:'Method not allowed.'});
+      verifyCsrf(auth.session,req.headers['x-csrf-token']);
+      return res.json(await withStagingLock(db,()=>stagingAction(db,auth.user,action,req.body||{})));
+    }catch(error){return res.status(error.status||500).json({error:error.status?error.message:'Staging operation failed. Check the register before retrying.'});}
+  }
   // PILOT: route and OAuth implementation retained but unavailable for this scope.
   if (!pilot.constantContactEnabled) return res.status(403).json({ code: "FEATURE_DISABLED", error: "Constant Contact is paused for this pilot." });
   try {

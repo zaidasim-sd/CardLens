@@ -4,6 +4,7 @@ import { apiFetch } from "./client";
 
 export interface CreateContactInput {
   submissionId: string;
+  integrationSessionId?: string;
   originalImage?: Blob;
   originalFileName?: string;
   rawOCRText: string;
@@ -27,6 +28,7 @@ export async function submitContact(input: CreateContactInput): Promise<ContactR
   const submissionStart = performance.now();
   const body = {
     submissionId: input.submissionId,
+    integrationSessionId: input.integrationSessionId || (window.location.hostname==='cardsnap-vision71-staging.vercel.app'?sessionStorage.getItem('l71_staging_session')||undefined:undefined),
     verifiedData: input.verifiedData,
     isDemo: input.isDemo,
     source: input.source || "ocr",

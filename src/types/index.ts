@@ -84,6 +84,8 @@ export interface ContactRecord {
   reviewerComment?: string;
   transferStatus?: "not_started" | "pending" | "failed" | "reconciliation_required" | "transferred" | "existing_contact";
   transferError?: string;
+  ccContactId?: string;
+  integrationSessionId?: string;
   sheetStatus?: string;
   sheetError?: { code: string; message: string } | null;
   restricted?: boolean;

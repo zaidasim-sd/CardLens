@@ -5,6 +5,7 @@ import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards
 import { duplicateReviewContext, resolveDuplicate } from "../cards/duplicateReview.js";
 import { requireAction } from "../auth/permissions.js";
 import { diagnoseSheet, createSheetGateway, sheetField } from "../integrations/sheetService.js";
+import {submitStagingScan} from '../integrations/stagingScanSubmission.js';
 
 function send(res, status, body) {
   return res.status(status).json(body);
@@ -48,7 +49,10 @@ export async function cardsHandler(req, res) {
     verifyCsrf(auth.session, req.headers["x-csrf-token"]);
     if (req.method === "POST" && action === "resolve_duplicate") return send(res, 200, { record: await resolveDuplicate(db, auth.user, req.query?.id, req.body) });
     if (req.method === "POST" && action === "duplicate") return send(res, 200, { duplicate: await findDuplicate(db, auth.user, req.body?.verifiedData, req.body?.excludingId) });
-    if (req.method === "POST" && action === "records") return send(res, 201, { record: await createCard(db, auth.user, req.body) });
+    if (req.method === "POST" && action === "records") {
+      if(process.env.STAGING_INTEGRATION_ENABLED==='true')return send(res,201,{record:await submitStagingScan(db,auth.user,req.body)});
+      return send(res, 201, { record: await createCard(db, auth.user, req.body) });
+    }
     if (req.method === "PATCH" && action === "records") return send(res, 200, { record: await updateCard(db, auth.user, req.query?.id, req.body) });
     if (req.method === "POST" && action === "timing_patch") {
       // Fire-and-forget sheet timing update: client sends true user-perceived submission time

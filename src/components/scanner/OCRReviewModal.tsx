@@ -201,6 +201,7 @@ export default function OCRReviewModal({
     initializedData.current = ocrData;
     if (isOpen) {
       const defaultExhibition =
+        (window.location.hostname==='cardsnap-vision71-staging.vercel.app'&&sessionStorage.getItem('l71_staging_exhibition_name')) ||
         ocrData?.meetingContext?.metAtLocation ||
         exhibitionOptions.find((o) => o.value)?.value ||
         "";
@@ -252,6 +253,7 @@ export default function OCRReviewModal({
       const fileName = originalImage instanceof File ? originalImage.name : undefined;
       const record = await submitContact({
         submissionId: submissionId.current,
+        integrationSessionId: window.location.hostname === 'cardsnap-vision71-staging.vercel.app' ? sessionStorage.getItem('l71_staging_session') || undefined : undefined,
         originalFileName: fileName,
         rawOCRText: rawText,
         ocrData: ocrData || verifiedData,
@@ -276,7 +278,8 @@ export default function OCRReviewModal({
       if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
         toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to the review register is pending; do not submit another copy."}`);
       } else {
-        toast.success("Your contact has been submitted for review.");
+        if(record.transferStatus==='failed')toast.warning('Saved to Google Sheets. Constant Contact needs a retry.');
+        else toast.success(record.transferStatus==='transferred'?'Saved to Google Sheets and Constant Contact.':'Your contact has been submitted for review.');
       }
     } catch (error: any) {
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
@@ -475,13 +478,25 @@ export default function OCRReviewModal({
 
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
-                  Your contact has been submitted for review.
+                  {savedRecord.transferStatus==='transferred'?'Saved to Google Sheets and Constant Contact.':'Your contact has been submitted for review.'}
                 </h3>
                 {savedRecord.recordId?.startsWith("L71-") && <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Reference: {savedRecord.recordId}</p>}
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   Your contact will appear in the review register. Capture date, time, and user account have been recorded automatically.
                 </p>
               </div>
+
+              {savedRecord.integrationSessionId&&<div className="w-full rounded-xl border p-3 mt-4 text-left text-sm space-y-2" role="status">
+                <p>Google Sheets: saved</p>
+                <p>Constant Contact: {savedRecord.transferStatus==='transferred'?'synced to internal test list':savedRecord.transferStatus==='existing_contact'?'existing contact preserved':'not yet confirmed'}</p>
+                {savedRecord.ccContactId&&<p className="text-xs break-all">Provider reference: {savedRecord.ccContactId}</p>}
+                {savedRecord.transferError&&<p className="text-amber-800">{savedRecord.transferError}</p>}
+                {savedRecord.transferStatus==='failed'&&<Button disabled={isSaving} onClick={async()=>{
+                  setIsSaving(true);
+                  try{const retried=await submitContact({submissionId:savedRecord.id,integrationSessionId:savedRecord.integrationSessionId,verifiedData:savedRecord.verifiedData,ocrData:savedRecord.verifiedData,rawOCRText:'',source:savedRecord.source||'manual'});setSavedRecord(retried);}
+                  catch(e){toast.error(e instanceof Error?e.message:'Retry failed.');}finally{setIsSaving(false);}
+                }}>Retry Constant Contact delivery</Button>}
+              </div>}
 
               {/* Submitted Contact Summary Card */}
               <div className="review-success-summary w-full min-w-0 p-4 rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/60 text-left space-y-2.5 my-4 text-xs">
@@ -695,7 +710,8 @@ export default function OCRReviewModal({
                           aria-describedby={errors.metAtLocation ? "exhibition-error" : undefined}
                           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                         >
-                          {exhibitionOptions.map((opt) => (
+                          {window.location.hostname==='cardsnap-vision71-staging.vercel.app'&&sessionStorage.getItem('l71_staging_exhibition_name')&&<option value={sessionStorage.getItem('l71_staging_exhibition_name')||''}>{sessionStorage.getItem('l71_staging_exhibition_name')}</option>}
+                          {exhibitionOptions.filter(()=>window.location.hostname!=='cardsnap-vision71-staging.vercel.app'||!sessionStorage.getItem('l71_staging_exhibition_name')).map((opt) => (
                             <option key={opt.value} value={opt.value} disabled={!opt.value}>
                               {opt.label}
                             </option>
