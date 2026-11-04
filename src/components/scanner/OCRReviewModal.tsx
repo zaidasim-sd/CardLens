@@ -463,6 +463,7 @@ export default function OCRReviewModal({
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent
+          style={window.location.hostname==='cardsnap-vision71-staging.vercel.app'?{top:'calc(50% + 24px)',maxHeight:'calc(100dvh - 80px)'}:undefined}
           className={
             savedRecord
               ? "review-contact-modal max-w-md w-[92vw] sm:max-w-[460px] max-h-[90dvh] p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm bg-background overflow-y-auto dark:border-slate-800"
