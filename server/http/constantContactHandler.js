@@ -16,7 +16,7 @@ export default async function constantContactHandler(req, res) {
       const cookies=parseCookies(req.headers.cookie||'');
       const auth=await authenticate(db,cookies[SESSION_COOKIE]);
       const action=String(req.query.action).slice(8);
-      requireAction(auth.user,['context','session','close_session'].includes(action)?'capture_card':'manage_users');
+      requireAction(auth.user,action==='context'?'capture_card':'manage_users');
       if(req.method==='GET'&&action==='context')return res.json(await stagingAction(db,auth.user,action));
       if(req.method==='GET'&&action==='status')return res.json(await stagingAction(db,auth.user,action));
       if(req.method!=='POST')return res.status(405).json({error:'Method not allowed.'});

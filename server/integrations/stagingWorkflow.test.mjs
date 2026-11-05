@@ -14,3 +14,18 @@ test('capture inherits session and repeats safely without creating another conta
 test('response is local only and correction requires another reviewer',async()=>{const s=setup(),session=await seed(s),id=randomUUID();await s.call('capture',{id,sessionId:session.id,name:'Fixture',title:'Before',email:'l71-test-correction@example.com'});await s.call('response',{id,category:'details changed',proposed:{title:'After'}});const ch=s.data.Change_Requests[0];await assert.rejects(s.call('apply_change',{id,changeId:ch.id}),/different reviewer/);await s.call('apply_change',{id,changeId:ch.id},{...user,id:'reviewer'});assert.equal(s.data.Contacts[0].title,'After');await s.call('rollback',{id,changeId:ch.id},{...user,id:'reviewer'});assert.equal(s.data.Contacts[0].title,'Before');});
 test('sync does not fall back to another list and failure is logged',async()=>{const s=setup(async()=>({lists:[{name:'General Interest',list_id:'wrong'}]})),session=await seed(s),id=randomUUID();await s.call('capture',{id,sessionId:session.id,name:'Fixture',email:'l71-test-missing-list@example.com'});await s.call('approve',{id},{...user,id:'reviewer'});await assert.rejects(s.call('sync',{id}),/exact internal test list/);assert.equal(s.data.Contacts[0].syncStatus,'failed');assert.equal(s.data.Sync_Log.at(-1).status,'failed');});
 test('preexisting provider contact is preserved without update',async()=>{let writes=0;const cc=async(path,method)=>{if(method)writes++;if(path.startsWith('/contact_lists'))return {lists:[{name:TEST_LIST,list_id:'list'}]};if(path.startsWith('/contacts?'))return {contacts:[{contact_id:'existing'}]};return {contact_id:'existing',email_address:{address:'l71-test-existing@example.com',permission_to_send:'unsubscribed'},list_memberships:['original']};};const s=setup(cc),session=await seed(s),id=randomUUID();await s.call('capture',{id,sessionId:session.id,name:'Fixture',email:'l71-test-existing@example.com'});await s.call('approve',{id},{...user,id:'reviewer'});const result=await s.call('sync',{id});assert.equal(result.syncStatus,'existing contact preserved');assert.equal(writes,0);});
+
+test('administrators share one persistent session and can replace each other selection',async()=>{
+ const s=setup(),first=await seed(s),other={...user,id:'other-admin',name:'Other Admin'};
+ assert.equal((await s.call('context',{},other)).sessions[0].id,first.id);
+ assert.equal((await s.call('scan_session',{source:'Stale browser source'},other)).id,first.id);
+ const e=await s.call('exhibition',{name:'Second event',city:'Dubai',country:'UAE',startDate:'2026-11-05',endDate:'2026-11-06',timeZone:'Asia/Dubai'},other);
+ const second=await s.call('session',{exhibitionId:e.id},other);
+ assert.equal((await s.call('context')).sessions[0].id,second.id);
+ assert.equal(s.data.Sessions.filter(r=>r.status==='active').length,1);
+ await assert.rejects(s.call('close_session',{id:first.id}),/already changed/);
+ const id=randomUUID();await s.call('capture',{id,sessionId:second.id,name:'Shared capture',email:'shared@example.com'});
+ assert.equal(s.data.Contact_Exhibition_Links[0].exhibitionName,'Second event');
+ assert.equal(s.data.Contact_Exhibition_Links[0].capturedBy,user.id);
+ await s.call('close_session',{id:second.id});assert.equal((await s.call('context',{},other)).sessions.length,0);
+});

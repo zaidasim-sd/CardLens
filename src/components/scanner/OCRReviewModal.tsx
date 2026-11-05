@@ -244,6 +244,16 @@ export default function OCRReviewModal({
     }
   }, [isOpen, exhibitionOptions, dirtyFields.metAtLocation, getValues, setValue]);
 
+  useEffect(() => {
+    const update = () => {
+      if (isOpen && window.location.hostname === 'cardsnap-vision71-staging.vercel.app') {
+        setValue('metAtLocation', sessionStorage.getItem('l71_staging_exhibition_name') || '', { shouldValidate: false });
+      }
+    };
+    window.addEventListener('lead71-shared-session-changed', update);
+    return () => window.removeEventListener('lead71-shared-session-changed', update);
+  }, [isOpen, setValue]);
+
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
     const saveClickedAt = performance.now(); // Capture exact moment user clicked Save
     setIsSaving(true);

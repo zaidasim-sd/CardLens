@@ -11,6 +11,7 @@ export function writableContact(item) {
  if(item.email_address)out.email_address={address:item.email_address.address,permission_to_send:item.email_address.permission_to_send};
  return out;
 }
+export const activeSharedSession=sessions=>sessions.filter(s=>s.status==='active').sort((a,b)=>String(a.startedAt).localeCompare(String(b.startedAt))||String(a.id).localeCompare(String(b.id))).at(-1);
 const snapshot=item=>JSON.stringify(writableContact(item));
 export function assertStaging(env=process.env) {
  if(env.STAGING_INTEGRATION_ENABLED!=='true'||env.APP_ENV!=='staging'||env.APP_BASE_URL!=='https://cardsnap-vision71-staging.vercel.app'||!/staging|test/i.test(env.MONGODB_DB||'')) throw issue('This workflow is available only on the isolated staging deployment.',403);
@@ -62,13 +63,14 @@ export async function stagingAction(db,user,action,input={},deps={}) {
  }
  if(action==='context') {
   const [exhibitions,sessions]=await Promise.all([reg.rows('Exhibitions'),reg.rows('Sessions')]);
-  return {exhibitions:exhibitions.filter(e=>['approved','source recorded'].includes(e.status)),sessions:sessions.filter(s=>s.representativeId===user.id&&s.status==='active')};
+  return {exhibitions:exhibitions.filter(e=>['approved','source recorded'].includes(e.status)),sessions:[activeSharedSession(sessions)].filter(Boolean)};
  }
  if(action==='scan_session') {
+  const shared=activeSharedSession(await reg.rows('Sessions'));if(shared)return shared;
   const source=String(input.source||'').trim();if(!source||source.length>150)throw issue('Select an exhibition or source.');
   let exhibition=(await reg.rows('Exhibitions')).find(e=>e.name===source);
   if(!exhibition){exhibition={id:randomUUID(),name:source,status:'source recorded',createdBy:user.id,createdAt:now()};await reg.append('Exhibitions',exhibition);}
-  const ownSessions=(await reg.rows('Sessions')).filter(s=>s.representativeId===user.id&&s.status==='active');
+  const ownSessions=(await reg.rows('Sessions')).filter(s=>s.status==='active');
   const existing=ownSessions.find(s=>s.exhibitionId===exhibition.id);
   if(existing)return existing;
   for(const prior of ownSessions){prior.status='closed';prior.endedAt=now();await reg.update('Sessions',prior);}
@@ -84,20 +86,24 @@ export async function stagingAction(db,user,action,input={},deps={}) {
  if(action==='session') {
   const exhibition=(await reg.rows('Exhibitions')).find(e=>e.id===input.exhibitionId&&['approved','source recorded'].includes(e.status));
   if(!exhibition)throw issue('Select an approved exhibition.');
-  const active=(await reg.rows('Sessions')).find(s=>s.representativeId===user.id&&s.status==='active');
-  if(active){if(active.exhibitionId===exhibition.id)return active;throw issue('End your current exhibition session before starting another.',409);}
+  const sessions=await reg.rows('Sessions');
+  const active=activeSharedSession(sessions);
+  if(active?.exhibitionId===exhibition.id)return active;
+  for(const prior of sessions.filter(s=>s.status==='active')){prior.status='closed';prior.endedAt=now();await reg.update('Sessions',prior);}
   const row={id:randomUUID(),exhibitionId:exhibition.id,representativeId:user.id,representativeName:user.name,startedAt:now(),status:'active'};
   await reg.append('Sessions',row);return row;
  }
  if(action==='close_session') {
-  const row=(await reg.rows('Sessions')).find(s=>s.id===input.id&&s.representativeId===user.id);
-  if(!row)throw issue('Session not found.',404);row.status='closed';row.endedAt=now();await reg.update('Sessions',row);return row;
+  const row=(await reg.rows('Sessions')).find(s=>s.id===input.id&&s.status==='active');
+  if(!row)throw issue('Session has already changed. Refresh before ending it.',409);
+  if(activeSharedSession(await reg.rows('Sessions'))?.id!==row.id)throw issue('Session has already changed. Refresh before ending it.',409);row.status='closed';row.endedAt=now();await reg.update('Sessions',row);return row;
  }
  if(action==='capture') {
   validateStagingContact(input);
   const capturedAt=input.capturedAt?new Date(input.capturedAt).toISOString():now();
   if(!/^[a-f0-9-]{36}$/i.test(input.id||''))throw issue('A stable submission ID is required.');
-  const session=(await reg.rows('Sessions')).find(s=>s.id===input.sessionId&&s.status==='active'&&s.representativeId===user.id);
+  const session=activeSharedSession(await reg.rows('Sessions'));
+  if(session?.id!==input.sessionId)throw issue('The shared exhibition session changed. Please review again.',409);
   if(!session)throw issue('Start your exhibition session first.');
   const exhibition=(await reg.rows('Exhibitions')).find(e=>e.id===session.exhibitionId);
   const records=await reg.rows('Contacts');

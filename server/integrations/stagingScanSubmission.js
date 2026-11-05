@@ -3,11 +3,14 @@ import {createCard} from '../cards/service.js';
 
 // The existing review form is the explicit staging test approval. Production rules stay unchanged.
 export async function submitStagingScan(db,user,input,deps={}) {
+ return (deps.lock||((task)=>withStagingLock(db,task)))(()=>submitLocked(db,user,input,{...deps,lock:async task=>task()}));
+}
+async function submitLocked(db,user,input,deps={}) {
  assertStaging();
  const v=input.verifiedData||{};validateStagingContact({email:v.email,name:v.fullName,company:v.companyName,title:v.jobTitle,phone:v.phone});
  const act=deps.action||((action,data)=>stagingAction(db,user,action,data));
  const context=await act('context');
- let session=context.sessions.find(s=>s.id===input.integrationSessionId);
+ let session=context.sessions.at(-1);
  const exhibition=session?context.exhibitions.find(e=>e.id===session.exhibitionId):undefined;
  const source=exhibition?.name||String(v.meetingContext?.metAtLocation||'').trim();
  if(!source)throw Object.assign(new Error('Select an exhibition or source.'),{status:400});
