@@ -96,7 +96,10 @@ export async function stagingAction(db,user,action,input={},deps={}) {
  if(action==='close_session') {
   const row=(await reg.rows('Sessions')).find(s=>s.id===input.id&&s.status==='active');
   if(!row)throw issue('Session has already changed. Refresh before ending it.',409);
-  if(activeSharedSession(await reg.rows('Sessions'))?.id!==row.id)throw issue('Session has already changed. Refresh before ending it.',409);row.status='closed';row.endedAt=now();await reg.update('Sessions',row);return row;
+  const sessions=await reg.rows('Sessions');
+  if(activeSharedSession(sessions)?.id!==row.id)throw issue('Session has already changed. Refresh before ending it.',409);
+  for(const prior of sessions.filter(s=>s.status==='active')){prior.status='closed';prior.endedAt=now();await reg.update('Sessions',prior);}
+  return {...row,status:'closed'};
  }
  if(action==='capture') {
   validateStagingContact(input);
