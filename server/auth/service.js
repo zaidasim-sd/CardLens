@@ -106,6 +106,7 @@ export function getAdministratorEmails() {
     process.env.ADMIN_EMAILS,
     process.env.APPROVER_EMAILS,
     process.env.SEED_ADMIN_EMAIL,
+    isStagingEnvironment() ? process.env.STAGING_ADMIN_EMAILS : '',
   ];
 
   const parsedEnv = envAdmins
