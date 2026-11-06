@@ -34,3 +34,14 @@ test('other lists, account-wide lookups, updates and campaigns are forbidden',as
  const f=fixture();for(const [path,method] of [['/contact_lists','GET'],['/contacts?email=anything','GET'],['/contacts/existing','PUT'],['/contacts/existing','DELETE'],['/emails','POST'],['/contact_lists/other','GET']])await assert.rejects(allowedCall(f.db,f.session.user.tenantId,path,method,{},env,f.fetcher),{code:'CC_OPERATION_REFUSED'});
  assert.equal(f.calls.length,0);
 });
+test('provider authorization refusal is distinguished from missing code without any side effect',async()=>{
+ for(const description of ['User is not assigned to the client application.','untrusted secret-like query text']){
+  let touched=false;
+  const handler=createProductionHandler({env,getDb:async()=>{touched=true;throw Error('must not connect');}});
+  const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(c){this.code=c;return this;},json(b){this.body=b;return this;}};
+  await handler({method:'GET',query:{action:'callback',error:'access_denied',error_description:description},headers:{}},res);
+  assert.equal(res.code,403);assert.equal(res.body.code,'CC_AUTHORIZATION_DENIED');assert.equal(touched,false);
+  assert.ok(res.headers['Set-Cookie'].includes('Max-Age=0'));assert.ok(!JSON.stringify(res.body).includes('untrusted secret-like'));
+  if(description.startsWith('User'))assert.match(res.body.error,/not assigned/);
+ }
+});

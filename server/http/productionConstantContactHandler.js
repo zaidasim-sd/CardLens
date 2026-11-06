@@ -16,6 +16,15 @@ export function createProductionHandler(deps = {}) {
       // The registered URL is OAuth only. Unsolicited webhook POSTs are refused.
       if (action === 'callback' && req.method !== 'GET') return res.status(405).json({ code: 'METHOD_NOT_ALLOWED', error: 'This endpoint accepts OAuth authorization callbacks only.' });
       if (action === 'callback') productionConfig(env);
+      if (action === 'callback' && req.query?.error) {
+        // A provider refusal contains no authorization code. Never exchange tokens
+        // or reflect arbitrary provider query text into the response.
+        const assignmentDenied = req.query.error === 'access_denied' && /user is not assigned to the client application/i.test(String(req.query.error_description || ''));
+        res.setHeader('Set-Cookie', 'cc_production_oauth=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+        return res.status(403).json({code:'CC_AUTHORIZATION_DENIED',error:assignmentDenied
+          ? 'Constant Contact refused authorization: the signed-in user is not assigned to this application. Ask the account owner to verify the separate staging application and authorize with the intended Constant Contact account. If this persists, contact Constant Contact support. No connection was created.'
+          : 'Constant Contact did not grant authorization. Return to the staging administrator connection screen and ask the account owner to authorize the separate staging application. No connection was created.'});
+      }
       if (action === 'callback' && (!/^[a-f0-9]{64}$/.test(String(req.query?.state || '')) || typeof req.query?.code !== 'string' || !req.query.code))
         return res.status(400).json({code:'CC_OAUTH_INVALID',error:'Authorization parameters are missing or invalid. Start from the staging administrator connection screen.'});
       const db = await (deps.getDb || getDb)();
