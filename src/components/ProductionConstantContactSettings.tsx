@@ -15,7 +15,7 @@ export function ProductionConstantContactSettings() {
   }
   return <section className="space-y-3 rounded-3xl border bg-white p-6 dark:bg-slate-900">
     <h2 className="font-bold">Constant Contact</h2>
-    {(status.localTest||status.hostedStaging)&&<p className="text-sm font-semibold text-amber-700">Controlled staging test: staging Sheet and the approved production list only.</p>}
+    {(status.localTest||status.hostedStaging)&&<p className="text-sm font-semibold text-amber-700">Staging delivery: staging Sheet and the approved Constant Contact list only.</p>}
     <p className="break-words text-sm">Destination: {status.listName}</p>
     <p className="text-sm">{status.connected ? 'Account connected. Delivery is shown separately after each Sheet submission.' : 'An administrator must connect the approved account before delivery.'}</p>
     {!status.writesEnabled && <p className="text-sm">Constant Contact writes are paused.</p>}

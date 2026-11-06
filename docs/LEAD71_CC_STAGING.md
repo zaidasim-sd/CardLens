@@ -1,5 +1,9 @@
 # Lead71 Constant Contact controlled staging integration
 
+## Current operating mode
+
+After the successful single-contact test, the owner requested ongoing delivery of reviewed staging submissions. Set `CC_STAGING_ALLOW_REVIEWED_CONTACTS=true` with `CC_WRITES_ENABLED_PRODUCTION=true` for that mode. The designated single-email gate is then inactive. All other guards remain: exact staging origin, exact staging Sheet, separate application credentials, approved sole list membership, Sheet verification before delivery, idempotent submission references, and no existing-contact search or update. No campaign or consent change is permitted. An existing email conflict remains a visible delivery stop, not an upsert. The procedures below describe the initial controlled test and the available pause/cleanup process; ongoing delivery stays enabled until explicitly paused by the owner.
+
 ## Deployment and boundaries
 
 Application URL: https://lead71-cc-staging.vercel.app/

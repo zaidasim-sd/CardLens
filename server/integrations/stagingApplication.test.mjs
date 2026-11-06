@@ -45,3 +45,24 @@ test('provider authorization refusal is distinguished from missing code without 
   if(description.startsWith('User'))assert.match(res.body.error,/not assigned/);
  }
 });
+test('ongoing reviewed staging delivery permits creation only in the approved list',async()=>{
+ const live={...env,CC_WRITES_ENABLED_PRODUCTION:'true',CC_STAGING_ALLOW_REVIEWED_CONTACTS:'true'};
+ const f=fixture(),start=await beginProductionConnection(f.db,f.session.user,f.session,live),url=new URL(start.url);
+ await finishProductionConnection(f.db,{code:'fixture',state:url.searchParams.get('state')},start.cookie.split(';')[0].split('=')[1],live,f.fetcher);
+ f.calls.length=0;
+ const body=productionPayload({fullName:'Reviewed fixture',email:'reviewed@example.test'});
+ await allowedCall(f.db,f.session.user.tenantId,'/contacts','POST',body,live,f.fetcher);
+ assert.equal(f.calls.length,1);assert.equal(f.calls[0].url,'https://api.cc.email/v3/contacts');
+ assert.deepEqual(JSON.parse(f.calls[0].options.body).list_memberships,[PRODUCTION_LIST_ID]);
+ for(const [path,method,payload]of [['/contacts?email=existing@example.test','GET'],['/contacts/existing','PUT',body],['/contacts/existing','DELETE'],['/contact_lists','GET'],['/contact_lists/other','GET'],['/emails','POST',body],['/contacts','POST',{...body,list_memberships:[PRODUCTION_LIST_ID,'other-list']}],['/contacts','POST',{...body,list_memberships:['other-list']}],['/contacts','POST',{...body,email_address:{address:'reviewed@example.test',permission_to_send:'explicit'}}]])
+  await assert.rejects(allowedCall(f.db,f.session.user.tenantId,path,method,payload,live,f.fetcher),{code:'CC_OPERATION_REFUSED'});
+ assert.equal(f.calls.length,1,'Forbidden operations must never reach the provider');
+ assert.equal((await productionStatus(f.db,f.session.user.tenantId,live)).reviewedContactDeliveryEnabled,true);
+});
+test('ongoing staging delivery cannot bypass the independent pause or target guards',async()=>{
+ const f=fixture(),body=productionPayload({fullName:'Fixture',email:'reviewed@example.test'});
+ await assert.rejects(allowedCall(f.db,f.session.user.tenantId,'/contacts','POST',body,{...env,CC_STAGING_ALLOW_REVIEWED_CONTACTS:'true'},f.fetcher),{code:'CC_WRITES_PAUSED'});
+ for(const patch of [{CC_LIST_ID_PRODUCTION:'other-list'},{GOOGLE_SHEET_ID:'production-sheet'},{APP_BASE_URL:'https://lead71.com'}])
+  assert.throws(()=>productionConfig({...env,CC_STAGING_ALLOW_REVIEWED_CONTACTS:'true',...patch}));
+ assert.equal(f.calls.length,0);
+});

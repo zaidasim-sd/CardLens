@@ -41,7 +41,7 @@ export async function productionStatus(db, tenantId, env = process.env) {
   if (!productionEnabled(env)) return { enabled: false, configured: false, connected: false, listName: PRODUCTION_LIST_NAME };
   try {
     const config = await db.collection('settings').findOne(identity(tenantId, env));
-    return { enabled: true, configured: true, connected: Boolean(config?.tokens && config?.verifiedListId === PRODUCTION_LIST_ID), localTest: productionConfig(env).localTest, hostedStaging: productionConfig(env).hostedStaging, writesEnabled: env.CC_WRITES_ENABLED_PRODUCTION === 'true', listName: PRODUCTION_LIST_NAME, listId: PRODUCTION_LIST_ID };
+    return { enabled: true, configured: true, connected: Boolean(config?.tokens && config?.verifiedListId === PRODUCTION_LIST_ID), localTest: productionConfig(env).localTest, hostedStaging: productionConfig(env).hostedStaging, writesEnabled: env.CC_WRITES_ENABLED_PRODUCTION === 'true', reviewedContactDeliveryEnabled: productionConfig(env).hostedStaging && env.CC_STAGING_ALLOW_REVIEWED_CONTACTS === 'true', listName: PRODUCTION_LIST_NAME, listId: PRODUCTION_LIST_ID };
   } catch (error) { return { enabled: true, configured: false, connected: false, listName: PRODUCTION_LIST_NAME, error: error.message }; }
 }
 
@@ -113,7 +113,7 @@ export async function allowedCall(db, tenantId, path, method, body, env = proces
     && Object.keys(body).every(key => createKeys.has(key)) && Object.keys(body.email_address).every(key => ['address', 'permission_to_send'].includes(key));
   if (!isList && !isCreate) throw issue('CC_OPERATION_REFUSED', 'This Constant Contact operation is outside the approved destination.', 403);
   if (isCreate && env.CC_WRITES_ENABLED_PRODUCTION !== 'true') throw issue('CC_WRITES_PAUSED', 'Production Constant Contact writes are paused.');
-  if (isCreate && env.CC_STAGING_TEST_MODE === 'true') {
+  if (isCreate && env.CC_STAGING_TEST_MODE === 'true' && env.CC_STAGING_ALLOW_REVIEWED_CONTACTS !== 'true') {
     const designated = String(env.CC_STAGING_TEST_CONTACT_EMAIL || '').trim().toLowerCase();
     if (!designated || body.email_address.address.toLowerCase() !== designated) throw issue('CC_TEST_CONTACT_REFUSED', 'Only the designated internal test contact may be delivered.', 403);
   }
