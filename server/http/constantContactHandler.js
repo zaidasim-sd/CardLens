@@ -1,3 +1,5 @@
+import productionHandler from './productionConstantContactHandler.js';
+import {productionEnabled} from '../integrations/productionConstantContact.js';
 import { getDb, ensureDatabaseIndexes } from "../db.js";
 import { authenticate, verifyCsrf } from "../auth/service.js";
 import { requireAction } from "../auth/permissions.js";
@@ -9,6 +11,7 @@ import {stagingReviewHandler} from './stagingReviewHandler.js';
 
 export default async function constantContactHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  if(productionEnabled())return productionHandler(req,res);
   if(req.query?.action==='staging_review')return stagingReviewHandler(req,res,await getDb());
   if(String(req.query?.action||'').startsWith('staging_')) {
     try {

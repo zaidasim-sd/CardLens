@@ -28,7 +28,7 @@ export async function submitContact(input: CreateContactInput): Promise<ContactR
   const submissionStart = performance.now();
   const body = {
     submissionId: input.submissionId,
-    integrationSessionId: input.integrationSessionId || (window.location.hostname==='cardsnap-vision71-staging.vercel.app'?sessionStorage.getItem('l71_staging_session')||undefined:undefined),
+    integrationSessionId: input.integrationSessionId || (window.location.hostname==='lead71-cc-staging.vercel.app'?sessionStorage.getItem('l71_staging_session')||undefined:undefined),
     verifiedData: input.verifiedData,
     isDemo: input.isDemo,
     source: input.source || "ocr",
@@ -48,7 +48,7 @@ export async function submitContact(input: CreateContactInput): Promise<ContactR
 
   // Override in-memory timings with true client-perceived submission duration
   if (record) {
-    if(record.integrationSessionId&&window.location.hostname==='cardsnap-vision71-staging.vercel.app'){
+    if(record.integrationSessionId&&window.location.hostname==='lead71-cc-staging.vercel.app'){
       sessionStorage.setItem('l71_staging_session',record.integrationSessionId);
       sessionStorage.setItem('l71_staging_exhibition_name',record.verifiedData.meetingContext?.metAtLocation||'');
       window.dispatchEvent(new Event('lead71-staging-session'));

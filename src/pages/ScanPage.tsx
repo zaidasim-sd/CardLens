@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import OCRReviewModal from "@/components/scanner/OCRReviewModal";
-import StagingCaptureSession from '@/components/scanner/StagingCaptureSession';
+
 import { SINGLE_DEMO_CARD } from "@/config/demoCards";
 import type { OCRData, ProcessTimings } from "@/types";
 import { cropBusinessCardImage } from "@/lib/imageCrop";
@@ -512,7 +512,7 @@ export default function ScanPage() {
       />
 
       <div className="scan-page max-w-6xl mx-auto px-2 sm:px-6 pt-4 sm:pt-8 pb-2 space-y-8">
-        {window.location.hostname==='cardsnap-vision71-staging.vercel.app'&&<StagingCaptureSession/>}
+
         {!selectedFile ? (
 
           <section onDrop={handleDrop} onDragOver={e => e.preventDefault()} className="capture-home">

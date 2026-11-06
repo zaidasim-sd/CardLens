@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import {assertStagingClientEmailAllowed} from '../../shared/stagingIsolation.mjs';
 import { GoogleAuth } from "google-auth-library";
 import { isAllowedEmail } from "./service.js";
 import { getAppPublicUrl, sendPasswordResetEmailTemplate } from "../notifications/emailService.js";
@@ -29,6 +30,7 @@ export async function requestPasswordReset(db, { email, ip = "unknown" }, {
   sendEmail = sendPasswordResetEmailTemplate, now = new Date(), baseUrl = getAppPublicUrl(),
 } = {}) {
   const normalized = typeof email === "string" ? email.trim().toLowerCase() : "";
+  assertStagingClientEmailAllowed(normalized,env);
   if (normalized.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) || !isAllowedEmail(normalized)) {
     throw problem("EMAIL_INVALID", 400, "Please enter an authorized work email address.");
   }

@@ -5,7 +5,7 @@ export function isStagingDeployment(env = {}, hostname = "") {
   return normalized(env.APP_ENV) === "staging"
     || normalized(env.VERCEL_ENV) === "preview"
     || ["true", "1"].includes(normalized(env.VITE_IS_STAGING))
-    || /^cardsnap-vision71-staging(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(hostname);
+    || /^lead71-cc-staging(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(hostname);
 }
 
 export function isBlockedClientEmail(email) {

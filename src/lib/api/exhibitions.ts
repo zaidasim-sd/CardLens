@@ -1,15 +1,29 @@
 import { apiFetch } from "./client";
-import { getExhibitionOptions } from "../../../shared/exhibitions.mjs";
+import type { ExhibitionSession } from '../../../shared/exhibitionSession.mjs';
+import {getExhibitionOptions} from '../../../shared/exhibitions.mjs';
 
 export interface ExhibitionOption {
   label: string;
   value: string;
 }
 
-/** Uses the same code-based exhibition list as the API when it is offline. */
+export interface ExhibitionsConfigResponse {
+  exhibitions: ExhibitionOption[];
+  allExhibitions?: string[];
+  defaultExhibition?: string;
+}
+export interface SharedExhibitionConfig {session:ExhibitionSession|null;defaultExhibition:string;exhibitions:ExhibitionOption[]}
+export function getSharedExhibitionConfig():Promise<SharedExhibitionConfig> {
+  return apiFetch('/api/config/exhibitions?action=session');
+}
+export function changeSharedExhibitionSession(input:{operation:'set'|'end';exhibition?:string;expectedVersion:string|null}):Promise<SharedExhibitionConfig> {
+  return apiFetch('/api/config/exhibitions?action=session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
+}
+
+/** Uses the time-windowed exhibition list (past 45 days / next 45 days) */
 export async function getExhibitions(): Promise<ExhibitionOption[]> {
   try {
-    const data = await apiFetch<{ exhibitions: ExhibitionOption[] }>("/api/config/exhibitions");
+    const data = await apiFetch<ExhibitionsConfigResponse>("/api/config/exhibitions");
     if (Array.isArray(data?.exhibitions) && data.exhibitions.length > 0) {
       return data.exhibitions;
     }
@@ -19,3 +33,5 @@ export async function getExhibitions(): Promise<ExhibitionOption[]> {
 
   return getExhibitionOptions();
 }
+
+export {getExhibitionOptions};

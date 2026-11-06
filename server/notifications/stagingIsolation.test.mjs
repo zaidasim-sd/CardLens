@@ -8,7 +8,7 @@ import { isStagingDeployment, assertStagingClientEmailAllowed } from '../../shar
 
 test('staging identity survives the Vercel production slot and known staging host', () => {
   assert.equal(isStagingDeployment({APP_ENV:'staging',VERCEL_ENV:'production'}),true);
-  assert.equal(isStagingDeployment({VERCEL_ENV:'production'},'cardsnap-vision71-staging.vercel.app'),true);
+  assert.equal(isStagingDeployment({VERCEL_ENV:'production'},'lead71-cc-staging.vercel.app'),true);
   assert.equal(isStagingDeployment({APP_ENV:'production',VERCEL_ENV:'production'},'lead71.com'),false);
 });
 
@@ -47,7 +47,7 @@ test('verified client registration stops before database or notifications in sta
 
 test('password reset blocks before token generation provider call database or mail', async () => {
   let calls=0;const forbidden=()=>{calls++;throw new Error('No side effect permitted');};
-  await assert.rejects(requestPasswordReset({collection:forbidden},{email:'probe@aventureaviation.com'},{env:{APP_ENV:'staging',VERCEL_ENV:'production'},getToken:forbidden,fetcher:forbidden,sendEmail:forbidden,baseUrl:'https://cardsnap-vision71-staging.vercel.app'}),{code:'STAGING_RESTRICTED'});
+  await assert.rejects(requestPasswordReset({collection:forbidden},{email:'probe@aventureaviation.com'},{env:{APP_ENV:'staging',VERCEL_ENV:'production'},getToken:forbidden,fetcher:forbidden,sendEmail:forbidden,baseUrl:'https://lead71-cc-staging.vercel.app'}),{code:'STAGING_RESTRICTED'});
   assert.equal(calls,0);
 });
 function restore(before){for(const key of Object.keys(process.env))if(!(key in before))delete process.env[key];Object.assign(process.env,before);}

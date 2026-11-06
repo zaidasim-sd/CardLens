@@ -1,3 +1,6 @@
+import {useExhibitionSession} from '@/hooks/useExhibitionSession';
+import {reviewExhibitionDefault,refreshReviewExhibition} from '../../../shared/exhibitionSession.mjs';
+import {apiFetch} from '@/lib/api';
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -134,6 +137,8 @@ export default function OCRReviewModal({
   const navigate = useNavigate();
   const submissionId = useRef(crypto.randomUUID());
   const isSubmittingLock = useRef(false);
+  const exhibitionEdited = useRef(false);
+  const sharedExhibition = useExhibitionSession(isOpen);
   const initializedData = useRef<OCRData | null | undefined>(undefined);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -187,6 +192,11 @@ export default function OCRReviewModal({
   });
 
   const formValues = watch();
+  useEffect(()=>{if(sharedExhibition.config?.exhibitions)setExhibitionOptions(sharedExhibition.config.exhibitions);},[sharedExhibition.config]);
+  useEffect(()=>{
+    const preferred=sharedExhibition.config?.defaultExhibition;
+    if(isOpen && preferred){const next=refreshReviewExhibition(getValues('metAtLocation'),preferred,exhibitionEdited.current || Boolean(dirtyFields.metAtLocation));if(next!==getValues('metAtLocation'))setValue('metAtLocation',next,{shouldDirty:false});}
+  },[isOpen,sharedExhibition.config,dirtyFields.metAtLocation,getValues,setValue]);
 
   // Load exhibition options
   useEffect(() => {
@@ -196,15 +206,12 @@ export default function OCRReviewModal({
   }, []);
 
   useEffect(() => {
-    if (!isOpen) { initializedData.current = undefined; return; }
+    if (!isOpen) { initializedData.current = undefined; exhibitionEdited.current=false; return; }
     if (initializedData.current === ocrData) return;
     initializedData.current = ocrData;
+    exhibitionEdited.current=false;
     if (isOpen) {
-      const defaultExhibition =
-        (window.location.hostname==='cardsnap-vision71-staging.vercel.app'&&sessionStorage.getItem('l71_staging_exhibition_name')) ||
-        ocrData?.meetingContext?.metAtLocation ||
-        exhibitionOptions.find((o) => o.value)?.value ||
-        "";
+      const defaultExhibition = reviewExhibitionDefault({session:sharedExhibition.config?.session,recordValue:ocrData?.meetingContext?.metAtLocation,fallback:sharedExhibition.config?.defaultExhibition || exhibitionOptions.find(o=>o.value)?.value || ''});
 
       reset({
         fullName: ocrData?.fullName || "",
@@ -246,7 +253,7 @@ export default function OCRReviewModal({
 
   useEffect(() => {
     const update = () => {
-      if (isOpen && window.location.hostname === 'cardsnap-vision71-staging.vercel.app') {
+      if (isOpen && window.location.hostname === 'lead71-cc-staging.vercel.app') {
         setValue('metAtLocation', sessionStorage.getItem('l71_staging_exhibition_name') || '', { shouldValidate: false });
       }
     };
@@ -263,7 +270,6 @@ export default function OCRReviewModal({
       const fileName = originalImage instanceof File ? originalImage.name : undefined;
       const record = await submitContact({
         submissionId: submissionId.current,
-        integrationSessionId: window.location.hostname === 'cardsnap-vision71-staging.vercel.app' ? sessionStorage.getItem('l71_staging_session') || undefined : undefined,
         originalFileName: fileName,
         rawOCRText: rawText,
         ocrData: ocrData || verifiedData,
@@ -473,7 +479,7 @@ export default function OCRReviewModal({
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent
-          style={window.location.hostname==='cardsnap-vision71-staging.vercel.app'?{top:'calc(50% + 24px)',maxHeight:'calc(100dvh - 80px)'}:undefined}
+          style={window.location.hostname==='lead71-cc-staging.vercel.app'?{top:'calc(50% + 24px)',maxHeight:'calc(100dvh - 80px)'}:undefined}
           className={
             savedRecord
               ? "review-contact-modal max-w-md w-[92vw] sm:max-w-[460px] max-h-[90dvh] p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-sm bg-background overflow-y-auto dark:border-slate-800"
@@ -499,14 +505,14 @@ export default function OCRReviewModal({
 
               {(savedRecord.integrationSessionId||savedRecord.constantContactIntegration)&&<div className="w-full rounded-xl border p-3 mt-4 text-left text-sm space-y-2" role="status">
                 <p>Google Sheets: saved</p>
-                <p>Constant Contact: {savedRecord.transferStatus==='transferred'?'synced to internal test list':savedRecord.transferStatus==='existing_contact'?'existing contact preserved':'not yet confirmed'}</p>
+                <p>Constant Contact: {savedRecord.transferStatus==='transferred'?'delivered to approved list':savedRecord.transferStatus==='existing_contact'?'existing contact preserved':'not yet confirmed'}</p>
                 {savedRecord.ccContactId&&<p className="text-xs break-all">Provider reference: {savedRecord.ccContactId}</p>}
                 {savedRecord.transferError&&<p className="text-amber-800">{savedRecord.transferError}</p>}
-                {savedRecord.transferStatus==='failed'&&<Button disabled={isSaving} onClick={async()=>{
+                {['failed','pending'].includes(savedRecord.transferStatus || '')&&<Button disabled={isSaving} onClick={async()=>{
                   setIsSaving(true);
-                  try{const retried=await submitContact({submissionId:savedRecord.id,integrationSessionId:savedRecord.integrationSessionId,verifiedData:savedRecord.verifiedData,ocrData:savedRecord.verifiedData,rawOCRText:'',source:savedRecord.source||'manual',timings:savedRecord.timings});setSavedRecord(retried);}
+                  try{const result=await apiFetch<{record:ContactRecord}>('/api/constantcontact?action=retry_submission',{method:'POST',body:JSON.stringify({submissionId:savedRecord.id,verifiedData:savedRecord.verifiedData,ocrData:savedRecord.verifiedData,source:savedRecord.source||'manual'})});setSavedRecord(result.record);}
                   catch(e){toast.error(e instanceof Error?e.message:'Retry failed.');}finally{setIsSaving(false);}
-                }}>Retry Constant Contact delivery</Button>}
+                }}>Retry Constant Contact only</Button>}
               </div>}
 
               {/* Submitted Contact Summary Card */}
@@ -715,14 +721,13 @@ export default function OCRReviewModal({
                         </Label>
                         <select
                           id="metAtLocation"
-                          {...register("metAtLocation")}
+                          {...register("metAtLocation",{onChange:()=>{exhibitionEdited.current = true;}})}
                           aria-required="true"
                           aria-invalid={Boolean(errors.metAtLocation)}
                           aria-describedby={errors.metAtLocation ? "exhibition-error" : undefined}
                           className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                         >
-                          {window.location.hostname==='cardsnap-vision71-staging.vercel.app'&&sessionStorage.getItem('l71_staging_exhibition_name')&&<option value={sessionStorage.getItem('l71_staging_exhibition_name')||''}>{sessionStorage.getItem('l71_staging_exhibition_name')}</option>}
-                          {exhibitionOptions.filter(()=>window.location.hostname!=='cardsnap-vision71-staging.vercel.app'||!sessionStorage.getItem('l71_staging_exhibition_name')).map((opt) => (
+                          {exhibitionOptions.map((opt) => (
                             <option key={opt.value} value={opt.value} disabled={!opt.value}>
                               {opt.label}
                             </option>

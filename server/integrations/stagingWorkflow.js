@@ -14,7 +14,7 @@ export function writableContact(item) {
 export const activeSharedSession=sessions=>sessions.filter(s=>s.status==='active').sort((a,b)=>String(a.startedAt).localeCompare(String(b.startedAt))||String(a.id).localeCompare(String(b.id))).at(-1);
 const snapshot=item=>JSON.stringify(writableContact(item));
 export function assertStaging(env=process.env) {
- if(env.STAGING_INTEGRATION_ENABLED!=='true'||env.APP_ENV!=='staging'||env.APP_BASE_URL!=='https://cardsnap-vision71-staging.vercel.app'||!/staging|test/i.test(env.MONGODB_DB||'')) throw issue('This workflow is available only on the isolated staging deployment.',403);
+ if(env.STAGING_INTEGRATION_ENABLED!=='true'||env.APP_ENV!=='staging'||env.APP_BASE_URL!=='https://lead71-cc-staging.vercel.app'||!/staging|test/i.test(env.MONGODB_DB||'')) throw issue('This workflow is available only on the isolated staging deployment.',403);
 }
 export function validateStagingContact(data) {
  if(data.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) throw issue('Enter a valid email address.');

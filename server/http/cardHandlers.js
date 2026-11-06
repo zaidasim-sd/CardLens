@@ -1,3 +1,5 @@
+import {submitProductionContact} from '../integrations/productionSubmission.js';
+import {productionEnabled} from '../integrations/productionConstantContact.js';
 import { getDb, ensureDatabaseIndexes } from "../db.js";
 import { authenticate, verifyCsrf } from "../auth/service.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
@@ -50,6 +52,7 @@ export async function cardsHandler(req, res) {
     if (req.method === "POST" && action === "resolve_duplicate") return send(res, 200, { record: await resolveDuplicate(db, auth.user, req.query?.id, req.body) });
     if (req.method === "POST" && action === "duplicate") return send(res, 200, { duplicate: await findDuplicate(db, auth.user, req.body?.verifiedData, req.body?.excludingId) });
     if (req.method === "POST" && action === "records") {
+      if(productionEnabled())return send(res,201,{record:await submitProductionContact(db,auth.user,req.body)});
       if(process.env.STAGING_INTEGRATION_ENABLED==='true')return send(res,201,{record:await submitStagingScan(db,auth.user,req.body)});
       return send(res, 201, { record: await createCard(db, auth.user, req.body) });
     }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {stagingAction,assertStaging,validateStagingContact,TEST_LIST} from './stagingWorkflow.js';
-const env={STAGING_INTEGRATION_ENABLED:'true',APP_ENV:'staging',APP_BASE_URL:'https://cardsnap-vision71-staging.vercel.app',MONGODB_DB:'fixture_staging'};
+const env={STAGING_INTEGRATION_ENABLED:'true',APP_ENV:'staging',APP_BASE_URL:'https://lead71-cc-staging.vercel.app',MONGODB_DB:'fixture_staging'};
 const user={id:'capturer',name:'Test Capturer',tenantId:'vision71-internal'};
 function setup(cc=async()=>{throw new Error('Provider must not be called');}){
  const data={}; const register={rows:async t=>(data[t]||[]).map((r,i)=>({...r,_row:i+2})),append:async(t,r)=>{(data[t]||=[]).push({...r})},update:async(t,r)=>{data[t][r._row-2]={...r}}};

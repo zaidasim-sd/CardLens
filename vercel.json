@@ -15,6 +15,7 @@
     }
   },
   "rewrites": [
+    {"source":"/api/constantcontact","destination":"/api/constant-contact"},
     {
       "source": "/api/cron/constant-contact",
       "destination": "/api/cron/sweep?action=constant_contact"

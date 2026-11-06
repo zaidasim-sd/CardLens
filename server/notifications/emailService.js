@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import addressparser from 'nodemailer/lib/addressparser/index.js';
+import {isStagingDeployment,isBlockedClientEmail} from '../../shared/stagingIsolation.mjs';
 import fs from "node:fs";
 import path from "node:path";
 
@@ -59,14 +61,10 @@ function escapeHtml(str) {
 /**
  * Returns true when the current deployment is a staging/preview environment.
  * Matches Vercel Preview deployments (VERCEL_ENV=preview) and any explicit
- * APP_ENV=staging override. Production (VERCEL_ENV=production) is never staging.
+ * APP_ENV=staging override. An explicit staging identity takes precedence over Vercel deployment slots.
  */
 export function isStagingEnvironment() {
-  const vercelEnv = (process.env.VERCEL_ENV || "").toLowerCase();
-  const appEnv = (process.env.APP_ENV || "").toLowerCase();
-  if (vercelEnv === "production") return false;
-  if (vercelEnv === "preview") return true;
-  return appEnv === "staging";
+  return isStagingDeployment(process.env);
 }
 
 /**
@@ -90,19 +88,12 @@ export function getStagingAllowlist() {
  */
 function assertStagingEmailPermitted(to) {
   if (!isStagingEnvironment()) return; // production — no restriction here
-  const allowlist = getStagingAllowlist();
-  const recipient = String(to || "").trim().toLowerCase();
-  if (allowlist.size === 0) {
-    const msg = `[STAGING BLOCK] Email to <${recipient}> suppressed. STAGING_EMAIL_ALLOWLIST is empty — set it to permit internal test addresses.`;
-    console.warn(msg);
-    throw Object.assign(new Error(msg), { code: "STAGING_EMAIL_BLOCKED", status: 403 });
-  }
-  if (!allowlist.has(recipient)) {
-    const msg = `[STAGING BLOCK] Email to <${recipient}> suppressed. Address is not in STAGING_EMAIL_ALLOWLIST.`;
-    console.warn(msg);
-    throw Object.assign(new Error(msg), { code: "STAGING_EMAIL_BLOCKED", status: 403 });
-  }
-  console.log(`[STAGING] Email to <${recipient}> permitted by STAGING_EMAIL_ALLOWLIST.`);
+  const values=Array.isArray(to)?to:[to];
+  const recipients=values.flatMap(value=>typeof value==='object' && value ? [value.address || ''] : addressparser(String(value||''),{flatten:true}).map(v=>v.address));
+  const allowed=getStagingAllowlist();
+  if(!recipients.length || recipients.some(value=>!value || isBlockedClientEmail(value) || !allowed.has(String(value).trim().toLowerCase())))
+    throw Object.assign(new Error('Staging recipient is blocked. No email was sent.'),{code:'STAGING_EMAIL_BLOCKED',status:403});
+
 }
 
 /**

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {submitStagingScan} from './stagingScanSubmission.js';
-Object.assign(process.env,{STAGING_INTEGRATION_ENABLED:'true',APP_ENV:'staging',APP_BASE_URL:'https://cardsnap-vision71-staging.vercel.app',MONGODB_DB:'fixture_staging'});
+Object.assign(process.env,{STAGING_INTEGRATION_ENABLED:'true',APP_ENV:'staging',APP_BASE_URL:'https://lead71-cc-staging.vercel.app',MONGODB_DB:'fixture_staging'});
 const user={id:'scanner',tenantId:'vision71-internal'};
 const input={submissionId:'fixture-id',integrationSessionId:'session',verifiedData:{fullName:'Test Contact',email:'l71-test-scan@example.com',meetingContext:{metAtLocation:'wrong'}}};
 function deps(fail=false){const calls=[];return {calls,lock:async f=>f(),create:async(_db,_u,body)=>{calls.push(['sheet',body]);return{id:input.submissionId,recordId:'L71-TEST-001',sheetStatus:'submitted',verifiedData:body.verifiedData}},action:async(action,body)=>{calls.push([action,body]);if(action==='context')return{sessions:[{id:'session',exhibitionId:'event'}],exhibitions:[{id:'event',name:'Selected Exhibition'}]};if(action==='scan_session')return{id:'auto-session'};if(action==='capture')return{id:'contact',capturedBy:user.id};if(action==='email_required')return{syncStatus:'email required',error:'An email is required.'};if(action==='sync'){if(fail)throw new Error('timeout');return{syncStatus:'synced',ccId:'provider-id'}};return{};}};}

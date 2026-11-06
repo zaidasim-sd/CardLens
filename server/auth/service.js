@@ -40,7 +40,7 @@ function assertStagingSignInPermitted(email) {
   const domain = emailLower.split("@")[1] || "";
 
   // Hard block: known client domains are never permitted on staging
-  if (EXTERNAL_CLIENT_DOMAINS_ALWAYS_BLOCKED_ON_STAGING.includes(domain)) {
+  if (EXTERNAL_CLIENT_DOMAINS_ALWAYS_BLOCKED_ON_STAGING.some(blocked=>domain===blocked||domain.endsWith('.'+blocked))) {
     console.warn(`[STAGING BLOCK] Sign-in attempt for <${emailLower}> refused — external client domain on staging.`);
     throw authError(
       "STAGING_RESTRICTED",
