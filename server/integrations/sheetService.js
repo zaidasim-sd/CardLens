@@ -14,6 +14,13 @@ export function sheetField(header) {
   if (["contact id", "record id", "lead71 record id", "cardsnap record id"].includes(normalizeHeader(header))) return "recordId";
   return mapping.columns.find(column => normalizeHeader(column.header) === normalizeHeader(header))?.field;
 }
+// Use the same existing-layout aliases when writing and verifying submissions.
+export function submissionSheetField(header) {
+  const text = normalizeHeader(String(header).replace(/\s+/g, " "));
+  if (["place/exhibition", "place / exhibition"].includes(text)) return "event";
+  if (/^time\s*\(gmt\s*-\s*4\)$/.test(text)) return "capturedTime";
+  return sheetField(text);
+}
 export function pilotHeaders() {
   return pilotColumns.map(column => column.field === "recordId" ? "Contact ID" : column.header);
 }
@@ -197,12 +204,7 @@ export function createSubmissionSheetGateway(env = process.env, fetcher = fetch)
   const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(selected.sheetId)}`;
   const tab = `'${selected.tab.replaceAll("'", "''")}'`;
   const request = (path, options) => googleRequest(env, `${base}${path}`, options, fetcher);
-  const field = header => {
-    const text = normalizeHeader(String(header).replace(/\s+/g, " "));
-    if (["place/exhibition", "place / exhibition"].includes(text)) return "event";
-    if (/^time\s*\(gmt\s*-\s*4\)$/.test(text)) return "capturedTime";
-    return sheetField(text);
-  };
+  const field = submissionSheetField;
   const required = ["recordId", "event", "fullName", "companyName", "jobTitle", "email", "phone", "notes", "capturedAt", "capturedTime", "capturedByName"];
   let headers;
   const readAll = async () => {

@@ -7,6 +7,7 @@ import { createProductionHandler } from '../http/productionConstantContactHandle
 import { submitProductionContact, verifyProductionSheetRecord } from './productionSubmission.js';
 import { createCard } from '../cards/service.js';
 import mapping from '../../config/sheetMapping.json' with { type: 'json' };
+import { sheetRow } from './sheetService.js';
 
 process.env.ENCRYPTION_KEY = 'a'.repeat(64); // Test fixture only. No .env is loaded.
 const env = { APP_ENV:'production', APP_BASE_URL:'https://lead71.com', CC_ENABLED_PRODUCTION:'true', CC_WRITES_ENABLED_PRODUCTION:'true', CC_API_KEY_PRODUCTION:'fixture-production-client', CC_CLIENT_SECRET_PRODUCTION:'fixture-secret', CC_LIST_ID_PRODUCTION:PRODUCTION_LIST_ID, CC_LIST_NAME_PRODUCTION:PRODUCTION_LIST_NAME };
@@ -117,6 +118,25 @@ test('overlapping retries cannot send the same contact twice',async()=>{
 test('an expired administrator session cannot complete account authorization',async()=>{const f=fixture(),start=await beginProductionConnection(f.db,user,f.session,env);f.session.absoluteExpiresAt=new Date(0);await assert.rejects(finishProductionConnection(f.db,{code:'fixture-code',state:new URL(start.url).searchParams.get('state')},start.cookie.split(';')[0].split('=')[1],env,f.fetcher),{code:'CC_OAUTH_SESSION_INVALID'});assert.equal(f.calls.length,0);});
 test('Vercel callback alias reuses the existing function and keeps the query string',async()=>{const {readFile}=await import('node:fs/promises');const config=JSON.parse(await readFile(new URL('../../vercel.json',import.meta.url)));assert.ok(config.rewrites.some(r=>r.source==='/api/constantcontact'&&r.destination==='/api/constant-contact'));const route=(await readFile(new URL('../../server/index.js',import.meta.url))).toString();assert.ok(route.includes("app.all('/api/constantcontact', productionConstantContactHandler)"));});
 test('a receipt or colliding reference cannot substitute another Sheet contact',async()=>{let calls=0;const gateway={readAll:async()=>[mapping.columns.map(c=>c.header),mapping.columns.map(c=>c.field==='recordId'?card.recordId:'Different contact')]};const result=await submitProductionContact(null,user,{}, {env,saveSheet:async()=>card,verify:(c,e)=>verifyProductionSheetRecord(c,e,gateway),deliver:async()=>{calls++;}});assert.equal(result.sheetStatus,'submitted');assert.equal(result.transferStatus,'failed');assert.equal(calls,0);});
+
+test('existing submission Sheet exhibition headers verify and permit one transfer without another Sheet append',async()=>{
+ for(const exhibitionHeader of ['Place/Exhibition','Place / Exhibition',' Place /  Exhibition ']){
+  const f=fixture(),canonical=sheetRow(card);
+  const headers=['Contact ID',exhibitionHeader,'Contact Name','Company Name','Job Title','Email Address','Phone Number','Short Notes','Date Captured','Time(GMT-4)','Captured By'];
+  const keys=['recordId','event','fullName','companyName','jobTitle','email','phone','notes','capturedAt','capturedTime','capturedByName'];
+  const row=keys.map(key=>key==='capturedTime'?'14:06:00':canonical[mapping.columns.findIndex(c=>c.field===key)]);
+  const gateway={readAll:async()=>[headers,row]};
+  const deps={env,verify:(c,e)=>verifyProductionSheetRecord(c,e,gateway),deliver:(db,u,c)=>deliverProductionContact(db,u,c,env,f.fetcher)};
+  const result=await (await import('./productionSubmission.js')).deliverVerifiedProductionContact(f.db,user,card,deps);
+  assert.equal(result.transferStatus,'transferred',exhibitionHeader);
+  await (await import('./productionSubmission.js')).deliverVerifiedProductionContact(f.db,user,card,deps);
+  assert.equal(f.calls.filter(c=>c.options.method==='POST').length,1);
+  row[1]='Different exhibition';
+  await assert.rejects(verifyProductionSheetRecord(card,env,gateway));
+  row[1]=card.verifiedData.meetingContext.metAtLocation;
+  await assert.rejects(verifyProductionSheetRecord(card,env,{readAll:async()=>[headers,row,row]}));
+ }
+});
 
 test('malformed or multiple memberships and consent escalation are blocked before provider access',async()=>{
  const f=fixture(),body=productionPayload(card.verifiedData);

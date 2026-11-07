@@ -1,12 +1,12 @@
 import { createCard } from '../cards/service.js';
 import { deliverProductionContact } from './productionConstantContact.js';
 import { productionEnabled } from './productionConstantContact.js';
-import { createSheetGateway, sheetField, sheetRow } from './sheetService.js';
+import { createSheetGateway, submissionSheetField, sheetRow } from './sheetService.js';
 import mapping from '../../config/sheetMapping.json' with { type: 'json' };
 
 export async function verifyProductionSheetRecord(card, env = process.env, gateway = createSheetGateway(env)) {
   if (!gateway) throw new Error('Sheet verification is unavailable.');
-  const rows = await gateway.readAll(), fields = (rows[0] || []).map(sheetField);
+  const rows = await gateway.readAll(), fields = (rows[0] || []).map(submissionSheetField);
   const idColumn = fields.indexOf('recordId');
   const matches = idColumn < 0 ? [] : rows.slice(1).filter(row => String(row[idColumn] || '') === card.recordId);
   if (matches.length !== 1) throw new Error('Sheet reference is missing or ambiguous.');
