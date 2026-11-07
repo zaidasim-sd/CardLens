@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": { "deploymentEnabled": { "main": false } },
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
@@ -16,6 +17,10 @@
     }
   },
   "rewrites": [
+    {
+      "source": "/api/constantcontact",
+      "destination": "/api/constant-contact"
+    },
     {
       "source": "/api/cron/constant-contact",
       "destination": "/api/cron/sweep?action=constant_contact"

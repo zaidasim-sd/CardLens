@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { submitContact } from "@/lib/api/contacts";
+import { apiFetch } from '@/lib/api/client';
 import { checkDuplicateContact } from "@/lib/duplicateChecker";
 import { getExhibitions, getDefaultExhibition, type ExhibitionOption } from "@/lib/api/exhibitions";
 import ExhibitionSelector from "./ExhibitionSelector";
@@ -31,6 +32,8 @@ import type { OCRData, ContactRecord } from "@/types";
 import pilot from "@/config/pilot";
 import "./reviewSubmit.css";
 import { cardContactFields } from "@/lib/cardSides";
+import {useExhibitionSession} from '@/hooks/useExhibitionSession';
+import {reviewExhibitionDefault,refreshReviewExhibition,exhibitionOptionsWithDefault} from '../../../shared/exhibitionSession.mjs';
 
 /**
  * Approved Version 1 Fields Schema:
@@ -119,9 +122,12 @@ export default function OCRReviewModal({
   const submissionId = useRef(crypto.randomUUID());
   const isSubmittingLock = useRef(false);
   const initializedData = useRef<OCRData | null | undefined>(undefined);
+  const exhibitionEdited = useRef(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedRecord, setSavedRecord] = useState<ContactRecord | null>(null);
+  const [retryingTransfer, setRetryingTransfer] = useState(false);
+  const sharedExhibition = useExhibitionSession(isOpen);
   const [exhibitionOptions, setExhibitionOptions] = useState<ExhibitionOption[]>([
     { label: "Select exhibition", value: "" },
   ]);
@@ -164,22 +170,21 @@ export default function OCRReviewModal({
   // Load exhibition options
   useEffect(() => {
     void getExhibitions().then((options) => {
-      if (options && options.length > 0) setExhibitionOptions(options);
+      if (options && options.length > 0) setExhibitionOptions(exhibitionOptionsWithDefault(options,getValues('metAtLocation')));
     });
-  }, []);
+  }, [getValues]);
 
   useEffect(() => {
-    if (!isOpen) { initializedData.current = undefined; return; }
+    if(sharedExhibition.config?.exhibitions) setExhibitionOptions(sharedExhibition.config.exhibitions);
+  }, [sharedExhibition.config]);
+
+  useEffect(() => {
+    if (!isOpen) { initializedData.current = undefined; exhibitionEdited.current = false; return; }
     if (initializedData.current === ocrData) return;
     initializedData.current = ocrData;
+    exhibitionEdited.current = false;
     if (isOpen) {
-      const sessionExhibition = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("lead71_active_exhibition") : null;
-      const defaultExhibition =
-        ocrData?.meetingContext?.metAtLocation ||
-        sessionExhibition ||
-        getDefaultExhibition() ||
-        exhibitionOptions.find((o) => o.value)?.value ||
-        "";
+      const defaultExhibition = reviewExhibitionDefault({session:sharedExhibition.config?.session,recordValue:ocrData?.meetingContext?.metAtLocation,fallback:sharedExhibition.config?.defaultExhibition || getDefaultExhibition() || exhibitionOptions.find((o)=>o.value)?.value || ''});
 
       reset({
         fullName: ocrData?.fullName || "",
@@ -198,16 +203,16 @@ export default function OCRReviewModal({
       setIsSaving(false);
       isSubmittingLock.current = false;
     }
-  }, [isOpen, ocrData, reset, exhibitionOptions]);
+  }, [isOpen, ocrData, reset, exhibitionOptions, sharedExhibition.config]);
 
   // Loading exhibition options must not reset details the user has already checked.
   useEffect(() => {
-    const sessionExhibition = typeof sessionStorage !== "undefined" ? sessionStorage.getItem("lead71_active_exhibition") : null;
-    const preferred = sessionExhibition || getDefaultExhibition() || exhibitionOptions.find(option => option.value)?.value;
-    if (isOpen && preferred && !dirtyFields.metAtLocation && !getValues("metAtLocation")) {
-      setValue("metAtLocation", preferred);
+    const preferred = sharedExhibition.config?.defaultExhibition;
+    if (isOpen && preferred) {
+      const next = refreshReviewExhibition(getValues('metAtLocation'),preferred,exhibitionEdited.current || Boolean(dirtyFields.metAtLocation));
+      if(next!==getValues('metAtLocation'))setValue('metAtLocation',next,{shouldDirty:false});
     }
-  }, [isOpen, exhibitionOptions, dirtyFields.metAtLocation, getValues, setValue]);
+  }, [isOpen, sharedExhibition.config, dirtyFields.metAtLocation, getValues, setValue]);
 
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
     setIsSaving(true);
@@ -231,7 +236,8 @@ export default function OCRReviewModal({
       if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
         toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to the review register is pending; do not submit another copy."}`);
       } else {
-        toast.success("Your contact has been submitted for review.");
+        if (record.constantContactIntegration && record.transferStatus !== 'transferred') toast.warning('Saved to Google Sheets. Check the separate Constant Contact delivery status.');
+        else toast.success("Your contact has been submitted for review.");
       }
     } catch (error: any) {
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
@@ -246,8 +252,25 @@ export default function OCRReviewModal({
     }
   };
 
+  const retryConstantContact = async () => {
+    if (!savedRecord || retryingTransfer) return;
+    setRetryingTransfer(true);
+    try {
+      const result = await apiFetch<{record: ContactRecord}>('/api/constantcontact?action=retry_submission', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({submissionId: savedRecord.id, verifiedData: savedRecord.verifiedData, source: savedRecord.source, isDemo: savedRecord.isDemo}),
+      });
+      setSavedRecord(result.record);
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Delivery could not be retried. Retain the original reference.'); }
+    finally { setRetryingTransfer(false); }
+  };
+
   const onSubmit = async (data: FormData) => {
     if (isSubmittingLock.current || isSaving) return;
+    if (!sharedExhibition.config && !exhibitionEdited.current) {
+      toast.error('Wait for the shared default to load, or choose the exhibition manually before submitting.');
+      return;
+    }
     isSubmittingLock.current = true;
     setIsSaving(true);
 
@@ -475,6 +498,12 @@ export default function OCRReviewModal({
               </div>
 
               {/* Action Buttons */}
+              {savedRecord.constantContactIntegration && <div role="status" className="w-full rounded-xl border border-slate-200 p-3 text-sm text-left dark:border-slate-700">
+                <p className="font-semibold">Google Sheets: saved</p>
+                <p>Constant Contact: {savedRecord.transferStatus === 'transferred' ? 'delivered to the approved list' : savedRecord.transferStatus === 'reconciliation_required' ? 'needs administrator reconciliation' : savedRecord.transferStatus === 'existing_contact' ? 'existing contact preserved' : savedRecord.transferStatus === 'not_started' ? 'email required' : savedRecord.transferStatus === 'pending' ? 'delivery paused' : 'delivery not confirmed'}</p>
+                {savedRecord.transferError && <p className="mt-1 break-words text-xs">{savedRecord.transferError}</p>}
+                {['failed', 'pending'].includes(savedRecord.transferStatus || '') && <Button className="mt-2" variant="outline" disabled={retryingTransfer} onClick={() => void retryConstantContact()}>{retryingTransfer ? 'Retrying…' : 'Retry Constant Contact only'}</Button>}
+              </div>}
               <div className="flex flex-col gap-2 w-full">
                 <Button
                   size="default"
@@ -577,15 +606,15 @@ export default function OCRReviewModal({
                           id="metAtLocation"
                           value={watch("metAtLocation") || ""}
                           onChange={(val) => {
+                          exhibitionEdited.current = true;
                           setValue("metAtLocation", val, { shouldValidate: true, shouldDirty: true });
-                          if (val && val !== "Other / Source" && typeof sessionStorage !== "undefined") {
-                            sessionStorage.setItem("lead71_active_exhibition", val);
-                          }
                         }}
                           options={exhibitionOptions}
                           error={errors.metAtLocation?.message}
                           required
                         />
+                        {sharedExhibition.config?.session?.active&&<p className="mt-1 text-xs text-slate-500">Session default: {sharedExhibition.config.session.exhibition}. Changes here apply to this contact only.</p>}
+                        {sharedExhibition.error&&<p role="status" className="mt-1 text-xs text-amber-700">{sharedExhibition.error}</p>}
                       </div>
 
                       {/* 2. Contact Name */}

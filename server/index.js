@@ -1,4 +1,5 @@
 import express from "express";
+import productionConstantContactHandler from './http/productionConstantContactHandler.js';
 import dotenv from "dotenv";
 import { validateOcrConfig } from "./services/ocrService.js";
 import { authHandler, usersHandler } from "./http/authHandlers.js";
@@ -94,12 +95,13 @@ app.all("/api/retention", retentionSettingsHandler);
 app.all("/api/cron/sweep", sweepHandler);
 app.all("/api/export", exportHandler);
 app.all("/api/constant-contact", constantContactHandler);
+app.all('/api/constantcontact', productionConstantContactHandler);
 app.get("/auth/callback", constantContactHandler);
 app.all("/api/cron/constant-contact", constantContactCron);
 
 // Routes
 app.all("/api/ocr", ocrHandler);
-app.get("/api/config/exhibitions", exhibitionsHandler);
+app.all("/api/config/exhibitions", exhibitionsHandler);
 
 app.get("/api/health", (req, res) => {
   const env = process.env;

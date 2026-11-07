@@ -63,6 +63,7 @@ export interface ContactRecord {
   reviewedAt?: string | null;
   reviewerComment?: string;
   transferStatus?: "not_started" | "pending" | "failed" | "reconciliation_required" | "transferred" | "existing_contact";
+  constantContactIntegration?: boolean;
   transferError?: string;
   sheetStatus?: string;
   sheetError?: { code: string; message: string } | null;

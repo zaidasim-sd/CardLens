@@ -1,10 +1,11 @@
 import { getDb, ensureDatabaseIndexes } from "../db.js";
 import { authenticate, verifyCsrf } from "../auth/service.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
-import { createCard, deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "../cards/service.js";
+import { deleteCard, findDuplicate, getCard, getCardImage, listCards, storageHealth, updateCard } from "../cards/service.js";
 import { duplicateReviewContext, resolveDuplicate } from "../cards/duplicateReview.js";
 import { requireAction } from "../auth/permissions.js";
 import { diagnoseSheet } from "../integrations/sheetService.js";
+import { submitProductionContact } from '../integrations/productionSubmission.js';
 
 function send(res, status, body) {
   return res.status(status).json(body);
@@ -48,7 +49,9 @@ export async function cardsHandler(req, res) {
     verifyCsrf(auth.session, req.headers["x-csrf-token"]);
     if (req.method === "POST" && action === "resolve_duplicate") return send(res, 200, { record: await resolveDuplicate(db, auth.user, req.query?.id, req.body) });
     if (req.method === "POST" && action === "duplicate") return send(res, 200, { duplicate: await findDuplicate(db, auth.user, req.body?.verifiedData, req.body?.excludingId) });
-    if (req.method === "POST" && action === "records") return send(res, 201, { record: await createCard(db, auth.user, req.body) });
+    if (req.method === "POST" && action === "records") {
+      return send(res, 201, { record: await submitProductionContact(db, auth.user, req.body) });
+    }
     if (req.method === "PATCH" && action === "records") return send(res, 200, { record: await updateCard(db, auth.user, req.query?.id, req.body) });
     if (req.method === "DELETE" && action === "records") {
       await deleteCard(db, auth.user, req.query?.id);

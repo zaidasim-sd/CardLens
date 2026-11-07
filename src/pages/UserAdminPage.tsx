@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
 import { ConstantContactSettings } from "@/components/ConstantContactSettings";
+import { ProductionConstantContactSettings } from '@/components/ProductionConstantContactSettings';
+import { SharedExhibitionSessionSettings } from '@/components/SharedExhibitionSessionSettings';
 import "./admin.css";
 import { cardApi } from "@/lib/cardApi";
 import { cn } from "@/lib/utils";
@@ -724,6 +726,8 @@ export default function UserAdminPage() {
       {/* Temporarily hidden; restore with SHOW_ADVANCED_ADMIN_TOOLS. */}
       {/* PILOT: connection UI retained; re-enable in pilot config to restore. */}
       {pilot.constantContactEnabled && SHOW_ADVANCED_ADMIN_TOOLS && <ConstantContactSettings />}
+      <ProductionConstantContactSettings />
+      <SharedExhibitionSessionSettings />
 
       <div className="rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

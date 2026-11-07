@@ -4,9 +4,12 @@ import { requireAction } from "../auth/permissions.js";
 import { parseCookies, SESSION_COOKIE } from "../auth/cookies.js";
 import { beginConnection, finishConnection, connectionStatus, processTransfers } from "../integrations/constantContact.js";
 import { pilot } from "../pilot.js";
+import productionHandler from './productionConstantContactHandler.js';
+import { productionEnabled } from '../integrations/productionConstantContact.js';
 
 export default async function constantContactHandler(req, res) {
   res.setHeader("Cache-Control", "no-store");
+  if (productionEnabled()) return productionHandler(req, res);
   // PILOT: route and OAuth implementation retained but unavailable for this scope.
   if (!pilot.constantContactEnabled) return res.status(403).json({ code: "FEATURE_DISABLED", error: "Constant Contact is paused for this pilot." });
   try {

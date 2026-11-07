@@ -237,7 +237,7 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
   if (!isAdmin) {
     const approvals = await getApprovalsDoc(db);
     if (approvals.rejectedEmails.includes(emailLower)) {
-      await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "rejected", now });
+      await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "refused", now });
       throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
     }
     if (!approvals.approvedEmails.includes(emailLower)) {
@@ -303,7 +303,7 @@ export async function authenticate(db, sessionToken, now = new Date(), touch = t
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
 
-  if (!session.user || session.user.status !== "active") {
+  if (!session.user || session.user.status !== "active" || typeof session.user.uid !== 'string' || !session.user.uid || session.user.uid !== String(session.user.id)) {
     await db.collection("sessions").deleteOne({ _id: session._id });
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
@@ -421,7 +421,7 @@ export async function seedAdministrator() {
   throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "User accounts are created and authenticated directly through Firebase.");
 }
 
-export async function registerUser(db, { idToken, now = new Date() }, { notify = sendApprovalRequestEmail } = {}) {
+export async function registerUser(db, { idToken, now = new Date() }, { notify = sendApprovalRequestEmail, notifyCandidate = sendPendingApprovalEmail } = {}) {
   const identity = await firebaseIdentity(idToken);
   const emailLower = identity.email;
 
@@ -448,6 +448,9 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
     throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
   }
 
+  // Repeated verified sign-ins must not dispatch approval email again.
+  if (approvals.pendingApprovals[emailLower]) return {ok:true,email:emailLower,status:'pending_approval'};
+
   // Non-admin needs admin approval: generate approval token
   const approvalToken = approvals.pendingApprovals[emailLower]?.token || token();
   approvals.pendingApprovals[emailLower] = {
@@ -456,7 +459,7 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
     requestedAt: now,
   };
   await saveApprovalsDoc(db, approvals);
-  console.log(`[AUTH] User ${emailLower} requires admin approval. Approval token: ${approvalToken}`);
+  console.log(`[AUTH] User ${emailLower} requires admin approval. Approval request recorded.`);
 
   // Send notification email to the designated administrators
   const baseUrl = getAppPublicUrl();
@@ -483,7 +486,7 @@ export async function registerUser(db, { idToken, now = new Date() }, { notify =
 
   // Notify candidate that registration is pending approval
   try {
-    await sendPendingApprovalEmail({
+    await notifyCandidate({
       toEmail: emailLower,
       name: identity.name || emailLower.split("@")[0],
       statusUrl: `${baseUrl}/pending-approval?email=${encodeURIComponent(emailLower)}`,

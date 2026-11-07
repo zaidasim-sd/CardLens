@@ -62,6 +62,9 @@ export default function ExhibitionSelector({
       if (value !== "Other / Source") {
         setCustomText(value);
       }
+    } else {
+      setSelectChoice('');
+      setCustomText('');
     }
   }, [value, isPreset]);
 

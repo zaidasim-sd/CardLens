@@ -1,10 +1,18 @@
-import test from "node:test";
+import test, {beforeEach,afterEach} from "node:test";
 import assert from "node:assert/strict";
 import { authenticate, authenticateGoogleUser, getAdministratorEmails, isAdministrator, signIn } from "./service.js";
 
 const admins = ["hala@aventureaviation.com", "osman@aventureaviation.com"];
+let previousEnv;
+beforeEach(()=>{
+  previousEnv={...process.env};
+  process.env.HALA_APPROVAL_EMAIL=admins[0];
+  process.env.OSMAN_APPROVAL_EMAIL=admins[1];
+  process.env.APP_ENV='production';process.env.ALLOW_VISION71_EMAILS='true';
+});
+afterEach(()=>{for(const key of Object.keys(process.env))if(!(key in previousEnv))delete process.env[key];Object.assign(process.env,previousEnv);});
 
-test("Hala and Osman are admins alongside existing and configured administrators", () => {
+test("configured client approvers are admins alongside existing and configured administrators", () => {
   const previous = process.env.ADMIN_EMAILS;
   process.env.ADMIN_EMAILS = "existing.admin@aventureaviation.com";
   try {
@@ -59,7 +67,7 @@ test("older capturer sessions for new admins are upgraded while existing roles a
     ["ibrahim@vision71tech.com", "exhibition_assistant", "exhibition_assistant"],
   ]) {
     const updates = [];
-    const session = { _id: "fixture", absoluteExpiresAt: new Date(now.getTime() + 60000), lastSeenAt: now, user: { id: "fixture-user", email, status: "active", role: storedRole } };
+    const session = { _id: "fixture", absoluteExpiresAt: new Date(now.getTime() + 60000), lastSeenAt: now, user: { id: "fixture-user", uid: "fixture-user", email, status: "active", role: storedRole } };
     const db = { collection: () => ({ findOne: async () => session, updateOne: async (_filter, update) => updates.push(update) }) };
     const result = await authenticate(db, "fixture-token", now, false);
     assert.equal(result.user.role, expectedRole);
@@ -67,4 +75,9 @@ test("older capturer sessions for new admins are upgraded while existing roles a
     if (storedRole !== expectedRole) assert.equal(updates[0].$set["user.role"], expectedRole);
     else assert.equal(updates.length, 0);
   }
+});
+
+test('client emails do not gain administrator access without explicit configuration',()=>{
+  for(const key of ['HALA_APPROVAL_EMAIL','OSMAN_APPROVAL_EMAIL','ADMIN_EMAILS','APPROVER_EMAILS','SEED_ADMIN_EMAIL'])delete process.env[key];
+  for(const email of admins)assert.equal(isAdministrator(email),false);
 });

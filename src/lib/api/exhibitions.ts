@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
+import type { ExhibitionSession } from '../../../shared/exhibitionSession.mjs';
 import {
   getExhibitionOptions,
   getDefaultExhibition,
@@ -16,6 +17,13 @@ export interface ExhibitionsConfigResponse {
   exhibitions: ExhibitionOption[];
   allExhibitions?: string[];
   defaultExhibition?: string;
+}
+export interface SharedExhibitionConfig {session:ExhibitionSession|null;defaultExhibition:string;exhibitions:ExhibitionOption[]}
+export function getSharedExhibitionConfig():Promise<SharedExhibitionConfig> {
+  return apiFetch('/api/config/exhibitions?action=session');
+}
+export function changeSharedExhibitionSession(input:{operation:'set'|'end';exhibition?:string;expectedVersion:string|null}):Promise<SharedExhibitionConfig> {
+  return apiFetch('/api/config/exhibitions?action=session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input)});
 }
 
 /** Uses the time-windowed exhibition list (past 45 days / next 45 days) */
