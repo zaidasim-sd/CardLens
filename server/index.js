@@ -10,7 +10,6 @@ import ocrHandler from "./http/ocrHandler.js";
 import detectCardsHandler from "./http/detectCardsHandler.js";
 import exportHandler from "./http/exportHandler.js";
 import constantContactHandler from "./http/constantContactHandler.js";
-import productionConstantContactHandler from './http/productionConstantContactHandler.js';
 import constantContactCron from "./http/constantContactCron.js";
 import { getDb } from "./db.js";
 import { processTransfers } from "./integrations/constantContact.js";
@@ -98,7 +97,7 @@ app.all("/api/retention", retentionSettingsHandler);
 app.all("/api/cron/sweep", sweepHandler);
 app.all("/api/export", exportHandler);
 app.all("/api/constant-contact", constantContactHandler);
-app.all('/api/constantcontact', productionConstantContactHandler);
+app.all('/api/constantcontact', constantContactHandler);
 app.get("/auth/callback", constantContactHandler);
 app.all("/api/cron/constant-contact", constantContactCron);
 

@@ -70,7 +70,7 @@ const schema = z.object({
   phone: z.string().optional(),
   metAtLocation: z.string().trim().min(1, "Please select an exhibition / source."),
   whereMet: z.string().optional(),
-  notes: z.string().optional(),
+  notes: z.string().max(2000, "Short Notes must contain at most 2000 characters for Constant Contact.").optional(),
   companyType: z.string().trim().min(1, "Please select a company type."),
   contactType: z.string().trim().min(1, "Please select a contact type."),
   followUpRequired: z.enum(["Yes", "No"], { error: "Please select whether follow-up is required." }),
@@ -800,6 +800,7 @@ export default function OCRReviewModal({
                           placeholder="Optional notes or discussion points"
                           className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-base sm:text-sm text-slate-900 shadow-2xs focus:border-blue-600 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
                         />
+                        {errors.notes && <p role="alert" className="text-xs text-red-600 dark:text-red-400">{errors.notes.message}</p>}
                       </div>
                     </div>
                     <section className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700">

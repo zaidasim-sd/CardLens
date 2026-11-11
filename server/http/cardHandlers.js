@@ -1,3 +1,5 @@
+import { personalStagingEnabled } from '../integrations/personalStagingConstantContact.js';
+import { submitPersonalStagingContact } from '../integrations/personalStagingSubmission.js';
 import {submitProductionContact} from '../integrations/productionSubmission.js';
 import {productionEnabled} from '../integrations/productionConstantContact.js';
 import { getDb, ensureDatabaseIndexes } from "../db.js";
@@ -52,6 +54,7 @@ export async function cardsHandler(req, res) {
     if (req.method === "POST" && action === "resolve_duplicate") return send(res, 200, { record: await resolveDuplicate(db, auth.user, req.query?.id, req.body) });
     if (req.method === "POST" && action === "duplicate") return send(res, 200, { duplicate: await findDuplicate(db, auth.user, req.body?.verifiedData, req.body?.excludingId) });
     if (req.method === "POST" && action === "records") {
+      if(personalStagingEnabled())return send(res,201,{record:await submitPersonalStagingContact(db,auth.user,req.body)});
       if(productionEnabled())return send(res,201,{record:await submitProductionContact(db,auth.user,req.body)});
       if(process.env.STAGING_INTEGRATION_ENABLED==='true')return send(res,201,{record:await submitStagingScan(db,auth.user,req.body)});
       return send(res, 201, { record: await createCard(db, auth.user, req.body) });

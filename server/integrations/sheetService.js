@@ -20,6 +20,13 @@ export function sheetField(header) {
   if (/^total(\s*processing)?\s*time(\s*\(s\))?$/i.test(norm) || norm === "total (s)" || norm === "total time" || norm === "total") return "totalTime";
   return mapping.columns.find(column => normalizeHeader(column.header) === norm)?.field;
 }
+export function submissionSheetField(header) {
+  const text = normalizeHeader(String(header).replace(/\s+/g, ' '));
+  if (['place/exhibition', 'place / exhibition'].includes(text)) return 'event';
+  if (/^time\s*\(gmt\s*-\s*4\)$/.test(text)) return 'capturedTime';
+  return sheetField(text);
+}
+
 export function pilotHeaders() {
   return pilotColumns.map(column => column.field === "recordId" ? "Contact ID" : column.header);
 }
