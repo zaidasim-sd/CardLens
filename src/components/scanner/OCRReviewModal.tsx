@@ -120,6 +120,8 @@ export default function OCRReviewModal({
 }: Props) {
   const navigate = useNavigate();
   const submissionId = useRef(crypto.randomUUID());
+  const reviewInitialized = useRef(false);
+  const [submissionFailure, setSubmissionFailure] = useState<{message:string; reference:string; retrySafe:boolean} | null>(null);
   const isSubmittingLock = useRef(false);
   const initializedData = useRef<OCRData | null | undefined>(undefined);
   const exhibitionEdited = useRef(false);
@@ -183,6 +185,9 @@ export default function OCRReviewModal({
     if (initializedData.current === ocrData) return;
     initializedData.current = ocrData;
     exhibitionEdited.current = false;
+    if (!isOpen) { reviewInitialized.current = false; return; }
+    if (reviewInitialized.current) return;
+    reviewInitialized.current = true;
     if (isOpen) {
       const defaultExhibition = reviewExhibitionDefault({session:sharedExhibition.config?.session,recordValue:ocrData?.meetingContext?.metAtLocation,fallback:sharedExhibition.config?.defaultExhibition || getDefaultExhibition() || exhibitionOptions.find((o)=>o.value)?.value || ''});
 
@@ -199,6 +204,7 @@ export default function OCRReviewModal({
       setPreviewSide("front");
       submissionId.current = crypto.randomUUID();
       setSavedRecord(null);
+      setSubmissionFailure(null);
       setDuplicateMatch(null);
       setIsSaving(false);
       isSubmittingLock.current = false;
@@ -215,6 +221,7 @@ export default function OCRReviewModal({
   }, [isOpen, sharedExhibition.config, dirtyFields.metAtLocation, getValues, setValue]);
 
   const saveRecordToDB = async (verifiedData: OCRData, allowDuplicate = false) => {
+    if (submissionFailure?.retrySafe === false) return;
     setIsSaving(true);
     isSubmittingLock.current = true;
     try {
@@ -231,6 +238,7 @@ export default function OCRReviewModal({
         allowDuplicate,
       });
       setSavedRecord(record);
+      setSubmissionFailure(null);
       submissionId.current = crypto.randomUUID();
       onDiscardImage();
       if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
@@ -245,7 +253,11 @@ export default function OCRReviewModal({
         setIsDuplicateModalOpen(true);
         return;
       }
-      toast.error(error.message || "Failed to submit contact for review. Please try again.");
+      const message = error.status === 0
+        ? 'Connection lost. Save status is unconfirmed; keep this form and use the same reference to check again.'
+        : error.message || 'Submission status is unconfirmed. Keep this form for administrator review.';
+      setSubmissionFailure({message, reference:error.submissionReference || submissionId.current, retrySafe:error.retrySafe !== false});
+      toast.error(message);
     } finally {
       setIsSaving(false);
       isSubmittingLock.current = false;
@@ -586,6 +598,11 @@ export default function OCRReviewModal({
                     className="space-y-4"
                     noValidate
                   >
+                    {submissionFailure && <div role="alert" className="rounded-xl border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+                      <p>{submissionFailure.message}</p>
+                      <p className="mt-1 break-all text-xs">Reference: {submissionFailure.reference}</p>
+                      <p className="mt-1 text-xs">Your entered details remain in this form. {submissionFailure.retrySafe ? 'Retry uses this same reference to prevent a second row.' : 'Retry is disabled until an administrator confirms the outcome.'}</p>
+                    </div>}
                     <div className="rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 text-xs text-slate-600 dark:text-slate-400">
                       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <p className="font-semibold text-slate-900 dark:text-slate-100">Form requirement:</p>
@@ -679,7 +696,7 @@ export default function OCRReviewModal({
                 <Button
                   type="submit"
                   form="ocr-review-form"
-                  disabled={isSaving}
+                  disabled={isSaving || submissionFailure?.retrySafe === false}
                   aria-busy={isSaving}
                   className="review-submit"
                 >

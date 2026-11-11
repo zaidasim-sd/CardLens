@@ -40,19 +40,34 @@ export async function submitDirect(db, user, input, now = new Date(), options = 
   const claimed = await settings.findOneAndUpdate({ key, completedAt: { $exists: false },
     $or: [{ lease: { $exists: false } }, { lease: { $lte: new Date() } }],
   }, { $set: { lease } }, { returnDocument: "after" });
-  if (!claimed) throw failure("SHEET_SYNC_BUSY", 409, "This submission is processing. Keep these details and retry shortly.");
+  if (!claimed) throw Object.assign(failure('SHEET_SYNC_BUSY',409,'Submission is processing. Keep these details and check again with the same reference.'),{submissionReference:receipt.recordId,submissionStatus:'processing',retrySafe:true});
+  let appendStarted = false;
   try {
     const rows = await gateway.readAll();
     const column = rows[0]?.findIndex(header => sheetField(header) === "recordId");
     if (column === undefined || column < 0) throw failure("SHEET_COLUMNS_INVALID", 502, "The Sheet is missing the Contact ID column.");
     // Recover an uncertain successful append without overwriting reviewer edits.
-    if (!rows.slice(1).some(row => String(row[column] || "") === card.recordId)) await gateway.append(sheetRow(card));
-    await settings.updateOne({ key }, { $set: { completedAt: new Date() } });
+    if (!rows.slice(1).some(row => String(row[column] || "") === card.recordId)) {
+      if (receipt.appendUncertain) throw failure('SHEET_RECONCILIATION_REQUIRED',409,'Delivery needs administrator review. Do not create another submission.');
+      await settings.updateOne({key},{$set:{appendUncertain:true}});
+      appendStarted=true;
+      await gateway.append(sheetRow(card));
+    }
+    await settings.updateOne({ key }, { $set: { completedAt: new Date() }, $unset: {appendUncertain:''} });
     return { ...card, sheetStatus: "submitted" };
   } catch (err) {
-    console.error("[submitDirect Google Sheet error]", err);
-    throw failure("SHEET_SUBMISSION_FAILED", 502, "Delivery to Google Sheets could not be confirmed. Keep these details and retry with the same reference. No contact is saved in MongoDB.");
+    const definitiveRejection = ['SHEET_RANGE_INVALID', 'SHEET_COLUMNS_INVALID', 'SHEET_ACCESS_DENIED', 'SHEET_AUTH_FAILED', 'SHEET_NOT_FOUND', 'SHEET_API_DISABLED'].includes(err.code);
+    if (appendStarted && definitiveRejection) await settings.updateOne({key}, {$unset:{appendUncertain:''}});
+    const uncertain = (appendStarted && !definitiveRejection) || receipt.appendUncertain || err.code === 'SHEET_RECONCILIATION_REQUIRED';
+    const code = uncertain ? 'SHEET_RECONCILIATION_REQUIRED' : (err.code || 'SHEET_SUBMISSION_FAILED');
+    const reason = ['SHEET_RANGE_INVALID','SHEET_COLUMNS_INVALID'].includes(code)
+      ? 'Google Sheet changes detected. Not saved; ask an administrator to check the register tab and columns.'
+      : uncertain ? 'Save status needs administrator review. Do not submit another copy.'
+      : 'Not saved to Google Sheets. Your details are preserved; retry with this reference after the connection is restored.';
+    console.error('[submission failure]', {code, causeCode:err.code || 'UNKNOWN', reference:receipt.recordId, stage:appendStarted?'sheet_append':'sheet_read', status:uncertain?'needs_review':'not_saved'});
+    throw Object.assign(failure(code, uncertain ? 409 : 502, reason), {submissionReference:receipt.recordId, submissionStatus:uncertain?'needs_review':'not_saved', retrySafe:!uncertain});
   } finally {
-    await settings.updateOne({ key }, { $unset: { lease: "" } });
+    try { await settings.updateOne({ key }, { $unset: { lease: "" } }); }
+    catch { console.error('[submission lease release failed]', {reference:receipt.recordId}); }
   }
 }

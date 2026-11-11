@@ -43,7 +43,7 @@ test("failed/uncertain Sheet append can be retried without duplicating the row",
     calls++; f.rows.push([f.docs.get(`submission:dummy:${user.id}:${input.submissionId}`).recordId]);
     throw new Error("response lost after append");
   };
-  await assert.rejects(submitDirect(f.db, user, input, new Date(), { sheet: { gateway: f.gateway } }), { code: "SHEET_SUBMISSION_FAILED" });
+  await assert.rejects(submitDirect(f.db, user, input, new Date(), { sheet: { gateway: f.gateway } }), { code: "SHEET_RECONCILIATION_REQUIRED" });
   const result = await submitDirect(f.db, user, input, new Date(), { sheet: { gateway: f.gateway } });
   assert.equal(result.sheetStatus, "submitted"); assert.equal(calls, 1);
   await submitDirect(f.db, user, input, new Date(), { sheet: { gateway: f.gateway } });
@@ -67,5 +67,21 @@ test("administrator uses the same submission flow and retains capturer attributi
 test("Mongo guard blocks contact collections and nested password/contact writes", () => {
   const db = privacyDatabase({ collection: () => ({ insertOne() { assert.fail("write reached database"); } }) });
   for (const collection of ["cards", "cardImages", "transfers"]) assert.throws(() => db.collection(collection), { code: "SHEET_ONLY" });
-  for (const value of [{ passwordHash: "x" }, { nested: { rawOCRText: "x" } }, { verifiedData: {} }, { payload: "encrypted" }]) assert.throws(() => db.collection("users").insertOne(value), { code: "MONGO_PRIVACY_REFUSED" });
+  assert.throws(() => db.collection('users').insertOne({}), {code:'FIREBASE_AUTH_ONLY'});
+  for (const value of [{ passwordHash: "x" }, { nested: { rawOCRText: "x" } }, { verifiedData: {} }, { payload: "encrypted" }]) assert.throws(() => db.collection("settings").insertOne(value), { code: "MONGO_PRIVACY_REFUSED" });
+});
+
+test('renamed tab failure reports not saved and same-reference retry appends once', async()=>{
+ const f=fixture();let calls=0;
+ f.gateway.readAll=async()=>{if(!calls++)throw Object.assign(new Error('renamed'),{code:'SHEET_RANGE_INVALID'});return f.rows};
+ await assert.rejects(submitDirect(f.db,user,input,new Date(),{sheet:{gateway:f.gateway}}),e=>e.code==='SHEET_RANGE_INVALID'&&e.retrySafe&&e.submissionStatus==='not_saved'&&e.submissionReference.startsWith('L71-'));
+ const result=await submitDirect(f.db,user,input,new Date(),{sheet:{gateway:f.gateway}});
+ await submitDirect(f.db,user,input,new Date(),{sheet:{gateway:f.gateway}});
+ assert.equal(result.sheetStatus,'submitted');assert.equal(f.rows.length,2);
+});
+
+test('uncertain append with no visible row never appends a second time',async()=>{
+ const f=fixture();let calls=0;f.gateway.append=async()=>{calls++;throw new Error('timeout')};
+ for(let i=0;i<2;i++)await assert.rejects(submitDirect(f.db,user,input,new Date(),{sheet:{gateway:f.gateway}}),{code:'SHEET_RECONCILIATION_REQUIRED',retrySafe:false});
+ assert.equal(calls,1);
 });
