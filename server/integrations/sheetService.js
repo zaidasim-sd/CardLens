@@ -232,7 +232,7 @@ export function createSubmissionSheetGateway(env = process.env, fetcher = fetch)
   if (!Number.isInteger(headerRow) || headerRow < 1) throw Object.assign(new Error("Invalid header row."), { code: "SHEET_COLUMNS_INVALID", status: 502 });
   new Intl.DateTimeFormat("en", { timeZone });
   const base = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(selected.sheetId)}`;
-  const tab = `'${selected.tab.replaceAll("'", "''")}'`;
+  let tab = `'${selected.tab.replaceAll("'", "''")}'`;
   const request = (path, options) => googleRequest(env, `${base}${path}`, options, fetcher);
   const field = header => {
     const text = normalizeHeader(String(header).replace(/\s+/g, " "));
@@ -243,7 +243,18 @@ export function createSubmissionSheetGateway(env = process.env, fetcher = fetch)
   const required = ["recordId", "event", "fullName", "companyName", "jobTitle", "email", "phone", "notes", "capturedAt", "capturedTime", "capturedByName"];
   let headers;
   const readAll = async () => {
-    const rows = (await request(`/values/${encodeURIComponent(`${tab}!A${headerRow}:ZZ`)}`)).values || [];
+    let result;
+    try { result = await request(`/values/${encodeURIComponent(`${tab}!A${headerRow}:ZZ`)}`); }
+    catch (error) {
+      // Resolve renames by the configured immutable tab ID, never by tab order.
+      if (error.code !== 'SHEET_RANGE_INVALID' || env.GOOGLE_SHEET_TAB_ID == null || env.GOOGLE_SHEET_TAB_ID === '') throw error;
+      const metadata = await request('?fields=sheets(properties(sheetId,title))');
+      const found = metadata.sheets?.find(item => item.properties.sheetId === selected.tabId);
+      if (!found) throw error;
+      tab = `'${found.properties.title.replaceAll("'", "''")}'`;
+      result = await request(`/values/${encodeURIComponent(`${tab}!A${headerRow}:ZZ`)}`);
+    }
+    const rows = result.values || [];
     headers = rows[0] || [];
     const fields = headers.map(field).filter(Boolean);
     if (!required.every(value => fields.includes(value)) || new Set(fields).size !== fields.length) throw Object.assign(new Error("Existing submission headers are missing or duplicated."), { code: "SHEET_COLUMNS_INVALID", status: 502 });

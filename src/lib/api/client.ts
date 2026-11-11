@@ -29,12 +29,16 @@ export interface ApiError extends Error {
   code?: string;
   status?: number;
   duplicate?: unknown;
+  submissionReference?: string;
+  submissionStatus?: string;
+  retrySafe?: boolean;
 }
 
 /**
  * Standard friendly error messages for HTTP status codes
  */
 export function getFriendlyErrorMessage(status?: number, code?: string, serverMessage?: string): string {
+  if (code?.startsWith('SHEET_') && serverMessage) return serverMessage;
   if (code === "NO_CONTACT_DETECTED" || status === 422) {
     return "We couldn't read enough information from this card. Please retake the photo or enter the details manually.";
   }
@@ -118,6 +122,9 @@ export async function apiFetch<T = any>(path: string, options: RequestInit = {})
     error.code = body?.code;
     error.status = response.status;
     error.duplicate = body?.duplicate;
+    error.submissionReference = body?.submissionReference;
+    error.submissionStatus = body?.submissionStatus;
+    error.retrySafe = body?.retrySafe;
     throw error;
   }
 
