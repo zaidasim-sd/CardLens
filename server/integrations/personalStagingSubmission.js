@@ -30,7 +30,7 @@ export async function deliverVerifiedPersonalStagingContact(db, user, card, deps
 }
 
 export async function submitPersonalStagingContact(db, user, input, deps = {}) {
-  if (input.verifiedData?.email) personalStagingPayload(input.verifiedData);
+  if (input.verifiedData?.email) personalStagingPayload(input.verifiedData, deps.env || process.env);
   const record = await (deps.saveSheet || createCard)(db, user, input);
   return deliverVerifiedPersonalStagingContact(db, user, record, deps);
 }

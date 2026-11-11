@@ -105,27 +105,37 @@ export async function finishPersonalStagingConnection(db, query, nonce, env = pr
   await db.collection('settings').updateOne(identity(state.tenantId, env), { $set: { verifiedListId: PERSONAL_STAGING_LIST_ID, verifiedAt: new Date() } });
 }
 
-export function personalStagingPayload(data) {
+export function personalStagingPayload(data, env = process.env) {
   const email = String(data.email || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw issue('CC_EMAIL_REQUIRED', 'Add a valid email address before Constant Contact delivery.', 400);
   const [first = '', ...rest] = String(data.fullName || '').trim().split(/\s+/);
   const notes = String(data.notes || '');
   if (notes.length > 2000) throw issue('CC_NOTES_TOO_LONG', 'Short Notes must contain at most 2000 characters for Constant Contact. Edit the review field before submitting.', 400);
+  const notesFieldId = env.CC_STAGING_NOTES_FIELD_ID;
+  if (notes && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(notesFieldId || ''))
+    throw issue('CC_NOTES_FIELD_REQUIRED', 'Configure the Short Notes custom field before submitting a note.', 503);
   // Consent is never inferred from scanning a business card. No signup/upsert endpoint.
   return { create_source: 'Account', email_address: { address: email, permission_to_send: 'not_set' }, first_name: first.slice(0, 50), last_name: rest.join(' ').slice(0, 50),
     company_name: String(data.companyName || '').slice(0, 50), job_title: String(data.jobTitle || '').slice(0, 50), list_memberships: [PERSONAL_STAGING_LIST_ID],
     ...(notes ? { notes: [{ content: notes }] } : {}),
+    ...(notes ? { custom_fields: [{ custom_field_id: notesFieldId, value: notes }] } : {}),
     ...(data.phone ? { phone_numbers: [{ phone_number: String(data.phone).slice(0, 25), kind: 'work' }] } : {}) };
 }
 
 export async function allowedCall(db, tenantId, path, method, body, env = process.env, fetcher = fetch) {
   personalStagingConfig(env);
   const isList = method === 'GET' && path === `/contact_lists/${PERSONAL_STAGING_LIST_ID}`;
-  const createKeys = new Set(['create_source', 'email_address', 'first_name', 'last_name', 'company_name', 'job_title', 'list_memberships', 'phone_numbers', 'notes']);
+  const createKeys = new Set(['create_source', 'email_address', 'first_name', 'last_name', 'company_name', 'job_title', 'list_memberships', 'phone_numbers', 'notes', 'custom_fields']);
   const validNotes = body?.notes === undefined || (Array.isArray(body.notes) && body.notes.length === 1
     && Object.keys(body.notes[0] || {}).length === 1 && typeof body.notes[0].content === 'string'
     && body.notes[0].content.length > 0 && body.notes[0].content.length <= 2000);
-  const isCreate = method === 'POST' && path === '/contacts' && Array.isArray(body?.list_memberships) && body.list_memberships.length === 1 && body.list_memberships[0] === PERSONAL_STAGING_LIST_ID && body.email_address?.permission_to_send === 'not_set' && body.create_source === 'Account' && validNotes
+  const validCustomNotes = body?.notes === undefined ? body?.custom_fields === undefined
+    : /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(env.CC_STAGING_NOTES_FIELD_ID || '')
+      && Array.isArray(body.custom_fields) && body.custom_fields.length === 1
+      && Object.keys(body.custom_fields[0] || {}).length === 2
+      && body.custom_fields[0].custom_field_id === env.CC_STAGING_NOTES_FIELD_ID
+      && body.custom_fields[0].value === body.notes?.[0]?.content;
+  const isCreate = method === 'POST' && path === '/contacts' && Array.isArray(body?.list_memberships) && body.list_memberships.length === 1 && body.list_memberships[0] === PERSONAL_STAGING_LIST_ID && body.email_address?.permission_to_send === 'not_set' && body.create_source === 'Account' && validNotes && validCustomNotes
     && Object.keys(body).every(key => createKeys.has(key)) && Object.keys(body.email_address).every(key => ['address', 'permission_to_send'].includes(key));
   if (!isList && !isCreate) throw issue('CC_OPERATION_REFUSED', 'This Constant Contact operation is outside the approved destination.', 403);
   if (isCreate && env.CC_STAGING_WRITES_ENABLED !== 'true') throw issue('CC_WRITES_PAUSED', 'Personal staging Constant Contact writes are paused.');
@@ -155,7 +165,7 @@ export async function deliverPersonalStagingContact(db, user, card, env = proces
     if (env.CC_STAGING_WRITES_ENABLED !== 'true') return { ...card, constantContactIntegration: true, transferStatus: 'pending', transferError: 'Saved to Google Sheets. Constant Contact delivery is paused until the write gate is enabled.' };
     if (!card.sheetDeliveryVerified) throw issue('CC_SHEET_NOT_VERIFIED', 'The reviewed details must match the saved Sheet row before delivery.', 409);
     if (!String(card.verifiedData?.email || '').trim()) return { ...card, constantContactIntegration: true, transferStatus: 'not_started', transferError: 'Saved to Google Sheets. An email address is required for Constant Contact.' };
-    const body = personalStagingPayload(card.verifiedData);
+    const body = personalStagingPayload(card.verifiedData, env);
     query = { tenantId: user.tenantId, key: `cc_personal_staging_submission:${user.id}:${card.id}` };
     const digest = blindIndex(JSON.stringify(body));
     receipt = await settings.findOne(query);

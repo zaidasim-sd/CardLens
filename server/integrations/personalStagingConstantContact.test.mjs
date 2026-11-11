@@ -10,7 +10,7 @@ import mapping from '../../config/sheetMapping.json' with { type: 'json' };
 
 process.env.ENCRYPTION_KEY = 'a'.repeat(64); // Test fixture only. No .env is loaded.
 const jwt = 'fixture.' + Buffer.from(JSON.stringify({sub:'fixture-personal-subject'})).toString('base64url') + '.fixture';
-const env = { APP_ENV:'staging', APP_ORIGIN:'https://lead71-cc-staging.vercel.app/', CC_PERSONAL_STAGING_ENABLED:'true', CC_STAGING_WRITES_ENABLED:'true', CC_CLIENT_ID:'fixture-personal-client', CC_CLIENT_SECRET:'fixture-personal-secret', CC_LIST_ID:PERSONAL_STAGING_LIST_ID, CC_LIST_NAME:PERSONAL_STAGING_LIST_NAME, CC_REDIRECT_URI:PERSONAL_STAGING_CALLBACK, CC_STAGING_SUBJECT_HASH:createHash('sha256').update('fixture-personal-subject').digest('hex'), MONGODB_DB:'fixture_staging', GOOGLE_SHEET_ID:'1ztzQ61buLJ4kCgxH2oHn9pXqIl36mQGTx4TVANL10sM', GOOGLE_SHEET_TAB:'Sheet1' };
+const env = { APP_ENV:'staging', APP_ORIGIN:'https://lead71-cc-staging.vercel.app/', CC_PERSONAL_STAGING_ENABLED:'true', CC_STAGING_WRITES_ENABLED:'true', CC_CLIENT_ID:'fixture-personal-client', CC_CLIENT_SECRET:'fixture-personal-secret', CC_LIST_ID:PERSONAL_STAGING_LIST_ID, CC_LIST_NAME:PERSONAL_STAGING_LIST_NAME, CC_REDIRECT_URI:PERSONAL_STAGING_CALLBACK, CC_STAGING_NOTES_FIELD_ID:'00000000-0000-4000-8000-000000000099', CC_STAGING_SUBJECT_HASH:createHash('sha256').update('fixture-personal-subject').digest('hex'), MONGODB_DB:'fixture_staging', GOOGLE_SHEET_ID:'1ztzQ61buLJ4kCgxH2oHn9pXqIl36mQGTx4TVANL10sM', GOOGLE_SHEET_TAB:'Sheet1' };
 const user = {id:'fixture-user',tenantId:'fixture-tenant',role:'vision71_administrator'};
 const card = {id:'00000000-0000-4000-8000-000000000001',recordId:'L71-TEST-001',capturedBy:user.id,tenantId:user.tenantId,sheetStatus:'submitted',sheetDeliveryVerified:true,verifiedData:{fullName:'Dummy Contact',companyName:'Fixture Company',jobTitle:'Researcher',email:'dummy@example.test',phone:'+1 202 555 0100',notes:'Preserve this note',meetingContext:{metAtLocation:'Fixture Event'}}};
 function matches(doc,query) {
@@ -60,6 +60,7 @@ test('edited review notes reach the Sheet and sole personal list exactly once', 
   assert.equal(rows[1][mapping.columns.findIndex(c=>c.field==='notes')],reviewed.notes);
   const body=JSON.parse(f.calls.find(c=>c.options.method==='POST').options.body);
   assert.deepEqual(body.notes,[{content:reviewed.notes}]);
+  assert.deepEqual(body.custom_fields,[{custom_field_id:env.CC_STAGING_NOTES_FIELD_ID,value:reviewed.notes}]);
   assert.deepEqual(body.list_memberships,[PERSONAL_STAGING_LIST_ID]);
   await submitPersonalStagingContact(f.db,user,input,deps);
   assert.equal(rows.length,2);
@@ -67,15 +68,15 @@ test('edited review notes reach the Sheet and sole personal list exactly once', 
 });
 
 test('notes limits preserve the full text and fail before Sheet save when exceeded', async () => {
-  assert.equal(personalStagingPayload({...card.verifiedData,notes:''}).notes,undefined);
-  assert.equal(personalStagingPayload({...card.verifiedData,notes:'x'.repeat(2000)}).notes[0].content.length,2000);
+  assert.equal(personalStagingPayload({...card.verifiedData,notes:''},env).notes,undefined);
+  assert.equal(personalStagingPayload({...card.verifiedData,notes:'x'.repeat(2000)},env).notes[0].content.length,2000);
   let writes=0;
   await assert.rejects(submitPersonalStagingContact(null,user,{verifiedData:{...card.verifiedData,notes:'x'.repeat(2001)}},{env,saveSheet:async()=>{writes++;}}),{code:'CC_NOTES_TOO_LONG'});
   assert.equal(writes,0);
 });
 
 test('unapproved endpoints, other memberships and malformed notes fail before network access', async () => {
-  const f=fixture(),body=personalStagingPayload(card.verifiedData);
+  const f=fixture(),body=personalStagingPayload(card.verifiedData,env);
   for(const [path,method,data] of [
     ['/contact_lists','GET'], ['/contacts?email=test@example.com','GET'],
     ['/contacts/existing','PUT',body], ['/emails','POST',{}],
@@ -123,4 +124,16 @@ test('unstarted personal callback fails safely without database access', async (
   const res={status(code){this.code=code;return this;},json(body){this.body=body;return this;},setHeader(){}};
   await handler({method:'GET',query:{action:'callback'},headers:{}},res);
   assert.equal(res.code,400);assert.equal(res.body.code,'CC_OAUTH_INVALID');assert.equal(accessed,false);
+});
+
+test('notes without their configured custom field fail before Sheet save',async()=>{
+  let saved=false;
+  await assert.rejects(submitPersonalStagingContact(null,user,{verifiedData:card.verifiedData},{env:{...env,CC_STAGING_NOTES_FIELD_ID:''},saveSheet:async()=>{saved=true;}}),{code:'CC_NOTES_FIELD_REQUIRED'});
+  assert.equal(saved,false);
+});
+test('other custom fields and mismatched note values cannot be sent',async()=>{
+  const f=fixture(),body=personalStagingPayload(card.verifiedData,env);
+  for(const custom_fields of [undefined,[{custom_field_id:'other',value:card.verifiedData.notes}],[{custom_field_id:env.CC_STAGING_NOTES_FIELD_ID,value:'different'}],[...body.custom_fields,{custom_field_id:'other',value:'extra'}]])
+    await assert.rejects(allowedCall(f.db,user.tenantId,'/contacts','POST',{...body,custom_fields},env,f.fetcher),{code:'CC_OPERATION_REFUSED'});
+  assert.equal(f.calls.length,0);
 });
