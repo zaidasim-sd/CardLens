@@ -38,6 +38,8 @@ import {
 
 // Temporarily hidden admin tools. Set to true to restore all three sections.
 const SHOW_ADVANCED_ADMIN_TOOLS = false;
+// Manual member creation is hidden. Keep its implementation for future use.
+const SHOW_MEMBER_CREATION = false;
 
 interface RoleOption {
   value: Role;
@@ -344,6 +346,7 @@ export default function UserAdminPage() {
       )}
 
       {/* ── Section 1: Create Account Card ── */}
+      {SHOW_MEMBER_CREATION && (
       <div
         className={cn(
           "rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800 relative transition-all",
@@ -548,6 +551,7 @@ export default function UserAdminPage() {
           </div>
         </form>
       </div>
+      )}
 
       {/* ── Section 2: Active Accounts List ── */}
       <div className="rounded-2xl border border-slate-200/90 bg-white/95 p-4 sm:p-6 shadow-2xs dark:bg-slate-900/95 dark:border-slate-800 relative z-0">
