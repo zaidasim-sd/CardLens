@@ -1,11 +1,11 @@
 import test, {beforeEach, afterEach} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFirebaseDirectory, directoryEmailVisible} from './firebaseDirectory.js';
-import {listUsers, removeUser} from './service.js';
+import {listUsers, removeUser, isAdministrator, authenticate, getNotificationApprovers} from './service.js';
 
 const actor={id:'admin-uid',email:'hmirza.sd@vision71tech.com',role:'vision71_administrator',tenantId:'fixture-tenant'};
 let previousEnv;
-beforeEach(()=>{previousEnv={...process.env};process.env.APP_ENV='production';process.env.ALLOW_VISION71_EMAILS='true';process.env.ADMIN_EMAILS='az@vision71tech.com';});
+beforeEach(()=>{previousEnv={...process.env};process.env.APP_ENV='production';process.env.ALLOW_VISION71_EMAILS='true';process.env.ADMIN_EMAILS='az@vision71tech.com';process.env.REVOKED_ACCOUNT_EMAILS='iamalik2005@gmail.com';});
 afterEach(()=>{for(const key of Object.keys(process.env))if(!(key in previousEnv))delete process.env[key];Object.assign(process.env,previousEnv);});
 function fixture() {
   const approvals={approvedEmails:['active@vision71tech.com','ghost@vision71tech.com'],pendingApprovals:{'pending@vision71tech.com':{name:'Pending Applicant'}},rejectedEmails:['removed@vision71tech.com']};
@@ -40,16 +40,15 @@ test('permission errors and incomplete pagination never return a partial team',a
   await assert.rejects(readFirebaseDirectory({...options,fetcher:async()=>Response.json({users:[],nextPageToken:'repeated'})}),{code:'FIREBASE_DIRECTORY_UNAVAILABLE'});
 });
 
-test('registered admins, approved, pending, unverified, disabled and removed accounts appear once with actual names',async()=>{
+test('only active verified approved members and current administrators appear once with actual names',async()=>{
   const f=fixture();
   const accounts=[account(actor.email),account('az@vision71tech.com'),account('active@vision71tech.com'),account('pending@vision71tech.com'),account('never-signed-in@vision71tech.com',{emailVerified:false}),account('disabled@vision71tech.com',{disabled:true}),account('removed@vision71tech.com')];
   const users=await listUsers(f.db,actor,{directory:async()=>[...accounts,accounts[0]]});
-  assert.equal(users.length,accounts.length);assert.equal(users.some(user=>user.email==='ghost@vision71tech.com'),false);
+  assert.equal(users.length,3);assert.equal(users.some(user=>user.email==='ghost@vision71tech.com'),false);
   const byEmail=email=>users.find(user=>user.email===email);
   assert.equal(byEmail('az@vision71tech.com').role,'vision71_administrator');assert.equal(byEmail('az@vision71tech.com').canRemove,false);
   assert.equal(byEmail(actor.email).canRemove,false);assert.equal(byEmail('active@vision71tech.com').canRemove,true);
-  assert.equal(byEmail('pending@vision71tech.com').status,'pending_approval');assert.equal(byEmail('never-signed-in@vision71tech.com').status,'pending_verification');
-  assert.equal(byEmail('disabled@vision71tech.com').status,'disabled');assert.equal(byEmail('removed@vision71tech.com').status,'access_removed');
+  for(const email of ['pending@vision71tech.com','never-signed-in@vision71tech.com','disabled@vision71tech.com','removed@vision71tech.com'])assert.equal(byEmail(email),undefined);
   assert.equal(byEmail('active@vision71tech.com').name,'Name active@vision71tech.com');assert.equal(byEmail('active@vision71tech.com').uid,'uid-active@vision71tech.com');
 });
 
@@ -62,6 +61,7 @@ test('staging excludes client identities even when client addresses are configur
 
 test('staging shows only the exact Vision71 domain, including when other domains are allowlisted or administrators',async()=>{
   const f=fixture();process.env.APP_ENV='staging';process.env.STAGING_ALLOWED_DOMAINS='vision71tech.com,example.test';
+  f.approvals.approvedEmails.push('staff@vision71tech.com');
   const users=await listUsers(f.db,actor,{directory:async()=>['staff@vision71tech.com','personal@gmail.com','fixture@example.test','staff@sub.vision71tech.com','fake@vision71tech.com.evil.test'].map(email=>account(email))});
   assert.deepEqual(users.map(user=>user.email),['staff@vision71tech.com']);
   assert.equal(directoryEmailVisible('personal@gmail.com',process.env,['personal@gmail.com']),false);
@@ -89,4 +89,14 @@ test('nonadmins cannot list users or remove access',async()=>{
   const directory=async()=>assert.fail('Directory must not be accessed');
   await assert.rejects(listUsers(f.db,assistant,{directory}),{code:'FORBIDDEN'});
   await assert.rejects(removeUser(f.db,assistant,'other@vision71tech.com',new Date(),{directory}),{code:'FORBIDDEN'});
+});
+
+test('revoked former administrator is hidden and cannot reuse an old administrator session',async()=>{
+ const email='iamalik2005@gmail.com';process.env.ADMIN_EMAILS+=','+email;process.env.OSMAN_APPROVAL_EMAIL=email;
+ assert.equal(isAdministrator(email),false);assert.ok(!getNotificationApprovers().includes(email));
+ const f=fixture();f.approvals.approvedEmails.push(email);f.sessions.push({user:{email,role:'vision71_administrator'}});
+ assert.deepEqual(await listUsers(f.db,actor,{directory:async()=>[account(email)]}),[]);
+ let deleted=0;const session={_id:'revoked-session',absoluteExpiresAt:new Date(Date.now()+60000),lastSeenAt:new Date(),user:{id:'revoked-uid',uid:'revoked-uid',email,status:'active',role:'vision71_administrator'}};
+ await assert.rejects(authenticate({collection:()=>({findOne:async()=>session,deleteOne:async()=>{deleted++;}})},'fixture'),{code:'UNAUTHENTICATED'});
+ assert.equal(deleted,1);
 });
