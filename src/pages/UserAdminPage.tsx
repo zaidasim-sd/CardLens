@@ -180,7 +180,7 @@ export default function UserAdminPage() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Could not create account.");
       setForm({ name: "", email: "", password: "", role: "exhibition_assistant" });
-      setMessage({ type: "success", text: `Account for ${body.user?.name || "user"} created successfully.` });
+      setMessage({ type: "success", text: body.user?.message || `Account for ${body.user?.name || "user"} created successfully.` });
       await load();
     } catch (caught) {
       setMessage({ type: "error", text: caught instanceof Error ? caught.message : "Account creation failed." });
@@ -356,7 +356,7 @@ export default function UserAdminPage() {
           </div>
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-white">Add team member</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Choose their access and set a temporary password.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Create and approve a Firebase account. The member must verify their email before signing in. Existing passwords are never overwritten.</p>
           </div>
         </div>
 

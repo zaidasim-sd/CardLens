@@ -23,7 +23,7 @@ test("no Firebase config or token fails closed", async () => {
   await assert.rejects(firebaseIdentity(undefined, { env }), { code: "FIREBASE_TOKEN_REQUIRED" });
 });
 test("legacy provisioning cannot store password hashes", async () => {
-  await assert.rejects(createUser(), { code: "FIREBASE_PROVISIONING_REQUIRED" });
+  await assert.rejects(createUser(), { code: "FORBIDDEN" });
   await assert.rejects(seedAdministrator(), { code: "FIREBASE_PROVISIONING_REQUIRED" });
 });
 

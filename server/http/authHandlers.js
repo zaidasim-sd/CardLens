@@ -157,7 +157,7 @@ export async function usersHandler(req, res) {
       const approved = await approveUserByAdmin(db, auth.user, req.query?.id, new Date(), {directory});
       return send(res, 200, { ok: true, user: approved });
     }
-    if (req.method === "POST") return send(res, 201, { user: await createUser(db, auth.user, req.body) });
+    if (req.method === "POST") return send(res, 201, { user: await createUser(db, auth.user, req.body, new Date(), {directory}) });
     if (req.method === "DELETE") {
       await removeUser(db, auth.user, req.query?.id, new Date(), {directory});
       return send(res, 200, { ok: true });

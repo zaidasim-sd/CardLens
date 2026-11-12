@@ -1,4 +1,5 @@
 import { readFirebaseDirectory, directoryEmailVisible } from './firebaseDirectory.js';
+import { provisionFirebaseUser } from './firebaseProvisioning.js';
 import { createHash, randomBytes } from "node:crypto";
 import { firebaseIdentity } from "./firebaseIdentity.js";
 import { requireAction } from "./permissions.js";
@@ -108,7 +109,7 @@ const DEFAULT_APPROVED_EMAILS = [
   "zaid.sd@vision71tech.com",
 ];
 
-async function getApprovalsDoc(db) {
+async function getApprovalsDoc(db, {strict=false} = {}) {
   try {
     const doc = await db.collection("settings").findOne({ key: "account_approvals" });
     if (doc) {
@@ -116,15 +117,18 @@ async function getApprovalsDoc(db) {
         approvedEmails: Array.isArray(doc.approvedEmails) ? doc.approvedEmails.map((e) => e.toLowerCase()) : [...DEFAULT_APPROVED_EMAILS],
         pendingApprovals: doc.pendingApprovals || {},
         rejectedEmails: Array.isArray(doc.rejectedEmails) ? doc.rejectedEmails.map((e) => e.toLowerCase()) : [],
+        roleAssignments: doc.roleAssignments || {},
       };
     }
   } catch (err) {
+    if(strict)throw authError('APPROVALS_UNAVAILABLE',503,'Account settings could not be read. No Firebase account was created.');
     console.error("Error reading account_approvals setting:", err.message);
   }
   return {
     approvedEmails: [...DEFAULT_APPROVED_EMAILS],
     pendingApprovals: {},
     rejectedEmails: [],
+    roleAssignments: {},
   };
 }
 
@@ -137,6 +141,7 @@ async function saveApprovalsDoc(db, approvals) {
         approvedEmails: [...new Set((approvals.approvedEmails || []).map((e) => e.trim().toLowerCase()))],
         pendingApprovals: approvals.pendingApprovals || {},
         rejectedEmails: [...new Set((approvals.rejectedEmails || []).map((e) => e.trim().toLowerCase()))],
+        roleAssignments: approvals.roleAssignments || {},
         updatedAt: new Date(),
       },
     },
@@ -234,12 +239,14 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
   }
 
   // Determine user role and status without storing user accounts in MongoDB
-  const isAdmin = isDesignatedApprover(emailLower);
-  let role = isAdmin ? "vision71_administrator" : "exhibition_assistant";
+  const approvals = await getApprovalsDoc(db);
+  const assignment = approvals.roleAssignments[emailLower];
+  if(assignment?.expiresAt && new Date(assignment.expiresAt)<=now)throw authError('ACCOUNT_EXPIRED',403,'This temporary account has expired. Contact an administrator.');
+  const isAdmin = isDesignatedApprover(emailLower) || assignment?.role === 'vision71_administrator';
+  let role = isAdmin ? "vision71_administrator" : assignment?.role || "exhibition_assistant";
   let status = "active";
 
   if (!isAdmin) {
-    const approvals = await getApprovalsDoc(db);
     if (approvals.rejectedEmails.includes(emailLower)) {
       await writeAudit(db, { tenantId: effectiveTenantId, action: "failed_sign_in", outcome: "refused", now });
       throw authError("ACCOUNT_REJECTED", 403, "Your account registration was not approved.");
@@ -259,6 +266,7 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
     name: identity.name || emailLower.split("@")[0],
     role,
     status,
+    expiresAt:assignment?.expiresAt || null,
     lastSignedInAt: now,
   };
 
@@ -307,7 +315,7 @@ export async function authenticate(db, sessionToken, now = new Date(), touch = t
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
 
-  if (!session.user || isRevokedAccount(session.user.email) || session.user.status !== "active" || typeof session.user.uid !== 'string' || !session.user.uid || session.user.uid !== String(session.user.id)) {
+  if (!session.user || isRevokedAccount(session.user.email) || (session.user.expiresAt && new Date(session.user.expiresAt)<=now) || session.user.status !== "active" || typeof session.user.uid !== 'string' || !session.user.uid || session.user.uid !== String(session.user.id)) {
     await db.collection("sessions").deleteOne({ _id: session._id });
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
@@ -349,8 +357,30 @@ export async function signOut(db, sessionToken, csrfToken) {
   }
 }
 
-export async function createUser() {
-  throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "User accounts are created and authenticated directly through Firebase.");
+export async function createUser(db,actor,input,now=new Date(),{directory=readFirebaseDirectory,provision=provisionFirebaseUser}={}) {
+  requireAction(actor,'manage_users');
+  const email=String(input?.email||'').trim().toLowerCase(),name=String(input?.name||'').trim(),role=input?.role||'exhibition_assistant';
+  if(!name||name.length>100||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw authError('USER_INVALID',400,'Enter a full name and valid work email address.');
+  if(isRevokedAccount(email)||!directoryEmailVisible(email)||!isAllowedEmail(email))throw authError('DOMAIN_RESTRICTED',403,'This email is not permitted in this environment.');
+  if(!['exhibition_assistant','vision71_administrator','vision71_support','aventure_reviewer'].includes(role))throw authError('ROLE_INVALID',400,'Choose a supported access role.');
+  requirePilotRole(role);
+  if(typeof input.password!=='string'||input.password.length<12||input.password.length>128)throw authError('PASSWORD_INVALID',400,'Use a temporary password of 12 to 128 characters.');
+  const approvals=await getApprovalsDoc(db,{strict:true});
+  const previouslyApproved=approvals.approvedEmails.includes(email);
+  let account=(await directory()).find(user=>user.email===email);
+  if(account?.disabled||approvals.rejectedEmails.includes(email))throw authError('ACCOUNT_RESTRICTED',409,'This account has disabled or removed access. Review it separately before restoring access.');
+  if(account&&(isAdministrator(email)||approvals.roleAssignments[email]?.role==='vision71_administrator'||await db.collection('sessions').findOne({tenantId:actor.tenantId,'user.email':email,'user.role':'vision71_administrator'})))throw authError('ADMIN_PROTECTED',409,'This administrator account already exists. Its password and access were not changed.');
+  if(account&&previouslyApproved&&role!==(approvals.roleAssignments[email]?.role||'exhibition_assistant'))throw authError('ACCOUNT_EXISTS',409,'This account already exists. Its password and role were not changed.');
+  if(!account){try{account=await provision({name,email,password:input.password});}catch(error){if(error.code!=='ACCOUNT_EXISTS')throw error;throw authError('ACCOUNT_EXISTS',409,'This account was just registered. Refresh and try with the same email to check its status. Its password was not changed.');}}
+  approvals.approvedEmails=[...new Set([...approvals.approvedEmails,email])];delete approvals.pendingApprovals[email];
+  if(account.created||!previouslyApproved)approvals.roleAssignments[email]={role,...(role==='vision71_support'?{expiresAt:new Date(now.getTime()+86400000).toISOString()}:{})};
+  try{await saveApprovalsDoc(db,approvals);await writeAudit(db,{tenantId:actor.tenantId,actor,action:account.created?'user_created':'user_approved',recordRef:account.uid,outcome:'success',now});}
+  catch{throw authError('ACCOUNT_APPROVAL_UNCONFIRMED',503,'The Firebase account exists, but administrator approval could not be confirmed. Retry with the same email; its password will not be changed.');}
+  const verificationRequired=!account.emailVerified;
+  const message=account.created
+    ? `Account created and approved. ${account.verificationSent?'A verification email was sent.':'The member must request an email verification link from sign in.'} It appears in Team members after email verification.${account.profileUpdated===false?' The display name could not be confirmed.':''}`
+    : `Existing account approved. Its password was not changed.${verificationRequired?' The member must verify their email before signing in and appearing in Team members.':''}`;
+  return {...publicUser({id:account.uid,uid:account.uid,email,name:account.name||name,role,status:verificationRequired?'pending_verification':'active',tenantId:actor.tenantId}),created:Boolean(account.created),verificationRequired,message};
 }
 
 export async function removeUser(db, actor, idOrEmail, now = new Date(), {directory = readFirebaseDirectory} = {}) {
@@ -372,6 +402,7 @@ export async function removeUser(db, actor, idOrEmail, now = new Date(), {direct
   if (administratorSession) throw authError("ADMIN_PROTECTED", 403, "Administrator accounts cannot be removed.");
 
   const approvals = await getApprovalsDoc(db);
+  if(approvals.roleAssignments[account.email]?.role==='vision71_administrator')throw authError('ADMIN_PROTECTED',403,'Administrator accounts cannot be removed.');
   approvals.approvedEmails = approvals.approvedEmails.filter(email => email !== account.email);
   delete approvals.pendingApprovals[account.email];
   approvals.rejectedEmails = [...new Set([...approvals.rejectedEmails, account.email])];
@@ -393,7 +424,9 @@ export async function listUsers(db, actor, {directory = readFirebaseDirectory} =
   for (const account of accounts) {
     if (isRevokedAccount(account.email)) continue;
     if (!directoryEmailVisible(account.email, process.env, administrators)) continue;
-    const administrator = protectedEmails.has(account.email);
+    const assignment=approvals.roleAssignments[account.email];
+    if(assignment?.expiresAt&&new Date(assignment.expiresAt)<=new Date())continue;
+    const administrator = protectedEmails.has(account.email)||assignment?.role==='vision71_administrator';
     let status = administrator || approvals.approvedEmails.includes(account.email) ? "active" : "pending_approval";
     if (!account.emailVerified) status = "pending_verification";
     if (!administrator && !isAllowedEmail(account.email)) status = "domain_restricted";
@@ -402,7 +435,7 @@ export async function listUsers(db, actor, {directory = readFirebaseDirectory} =
     if (status !== 'active') continue;
     const user = publicUser({id:account.email, uid:account.uid, email:account.email,
       name:account.name || approvals.pendingApprovals[account.email]?.name || account.email.split("@")[0],
-      role:administrator ? "vision71_administrator" : "exhibition_assistant", status, tenantId:actor.tenantId});
+      role:administrator ? "vision71_administrator" : assignment?.role || "exhibition_assistant", status, tenantId:actor.tenantId,expiresAt:assignment?.expiresAt||null});
     unique.set(account.email, {...user, canRemove:!administrator && account.email !== String(actor.email).toLowerCase() && status !== "access_removed"});
   }
   return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
