@@ -95,6 +95,7 @@ export default function UserAdminPage() {
   const [users, setUsers] = useState<SignedInUser[]>([]);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  const [usersLoadError, setUsersLoadError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [savingRetention, setSavingRetention] = useState(false);
@@ -140,13 +141,15 @@ export default function UserAdminPage() {
 
   const load = useCallback(async () => {
     setLoadingUsers(true);
+    setUsersLoadError(null);
     try {
       const response = await fetch("/api/users", { credentials: "include" });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Failed to load accounts.");
       setUsers(body.users || []);
     } catch (error) {
-      setMessage({ type: "error", text: error instanceof Error ? error.message : "Failed to load accounts." });
+      setUsers([]);
+      setUsersLoadError(error instanceof Error ? error.message : "Failed to load accounts.");
     } finally {
       setLoadingUsers(false);
     }
@@ -199,7 +202,7 @@ export default function UserAdminPage() {
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Could not remove account.");
-      setMessage({ type: "success", text: `Account ${userToRemove.name} removed.` });
+      setMessage({ type: "success", text: `Access removed for ${userToRemove.name}.` });
       setUserToRemove(null);
       await load();
     } catch (caught) {
@@ -284,8 +287,7 @@ export default function UserAdminPage() {
     }
   }
 
-  // PILOT: reviewer accounts are kept in MongoDB, hidden from this pilot UI.
-  const teamMembers = users.filter(account => account.role !== "vision71_administrator" && (pilot.internalReviewEnabled || account.role !== "aventure_reviewer"));
+  const teamMembers = users;
 
   const selectedRoleOption = roleOptions.find((r) => r.value === form.role) || roleOptions[0];
   const SelectedIcon = selectedRoleOption.icon;
@@ -557,7 +559,7 @@ export default function UserAdminPage() {
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white">Team members</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {loadingUsers ? "Loading team members…" : `${teamMembers.length} ${teamMembers.length === 1 ? "member" : "members"} in your team`}
+                {loadingUsers ? "Loading team members…" : usersLoadError ? "User list unavailable" : `${teamMembers.length} ${teamMembers.length === 1 ? "member" : "members"} in your team`}
               </p>
             </div>
           </div>
@@ -565,6 +567,8 @@ export default function UserAdminPage() {
 
         {loadingUsers ? (
           <div role="status" className="flex items-center justify-center gap-2 py-8 text-xs text-slate-500"><RefreshCw className="h-4 w-4 animate-spin text-blue-600" aria-hidden="true" /><span>Loading team members…</span></div>
+        ) : usersLoadError ? (
+          <p role="alert" className="py-4 text-sm text-red-600 dark:text-red-400">{usersLoadError}</p>
         ) : teamMembers.length === 0 ? (
           <p className="py-8 text-center text-xs text-slate-400">No team members yet. Add your first member above.</p>
         ) : (
@@ -574,7 +578,7 @@ export default function UserAdminPage() {
               const opt = roleOptions.find((r) => r.value === account.role) || roleOptions[0];
               const isCurrentUser = account.id === user.id || account.email.toLowerCase() === user.email.toLowerCase();
               const isAli = account.email.toLowerCase() === "az@vision71tech.com";
-              const isProtected = isCurrentUser || isAli;
+              const isProtected = isCurrentUser || isAli || account.role === "vision71_administrator" || account.canRemove !== true;
 
               return (
                 <li
@@ -607,9 +611,10 @@ export default function UserAdminPage() {
                         )}
                         {account.status === "pending_verification" && (
                           <span className="inline-flex items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300">
-                            Pending OTP
+                            Email verification pending
                           </span>
                         )}
+                        {["disabled", "access_removed", "domain_restricted"].includes(account.status || "") && <span className="text-xs text-slate-500">{account.status === "disabled" ? "Disabled in Firebase" : account.status === "domain_restricted" ? "Domain restricted" : "Access removed"}</span>}
                       </div>
                       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 truncate">
                         {account.email}
@@ -619,7 +624,7 @@ export default function UserAdminPage() {
 
                   {/* Actions / Protection Badge */}
                   <div className="flex items-center shrink-0 gap-1.5">
-                    {account.status === "pending_approval" && (
+                    {account.status === "pending_approval" && account.role !== "vision71_administrator" && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -632,6 +637,7 @@ export default function UserAdminPage() {
                         <span>{approvingId === account.id ? "Approving…" : "Approve"}</span>
                       </Button>
                     )}
+                    {isProtected && (account.role === "vision71_administrator" || isCurrentUser) && <span className="text-xs text-slate-500">{account.role === "vision71_administrator" ? "Protected administrator" : "Your account"}</span>}
                     {!isProtected && (
                       <Button
                         type="button"

@@ -1,4 +1,5 @@
 import { getDb, ensureDatabaseIndexes } from "../db.js";
+import { readFirebaseDirectory } from '../auth/firebaseDirectory.js';
 import { createHash } from "node:crypto";
 import { requestPasswordReset } from "../auth/passwordReset.js";
 import {
@@ -146,15 +147,19 @@ export async function usersHandler(req, res) {
     await ensureDatabaseIndexes(db);
     stage = "session_authentication";
     const auth = await authenticate(db, requestToken(req));
-    if (req.method === "GET") return send(res, 200, { users: await listUsers(db, auth.user) });
+    const directory = () => readFirebaseDirectory({oidcToken:req.headers['x-vercel-oidc-token']});
+    if (req.method === "GET") {
+      res.setHeader('Cache-Control','private, no-store');
+      return send(res, 200, { users: await listUsers(db, auth.user, {directory}) });
+    }
     verifyCsrf(auth.session, csrf(req));
     if (req.method === "POST" && req.query?.action === "approve") {
-      const approved = await approveUserByAdmin(db, auth.user, req.query?.id);
+      const approved = await approveUserByAdmin(db, auth.user, req.query?.id, new Date(), {directory});
       return send(res, 200, { ok: true, user: approved });
     }
     if (req.method === "POST") return send(res, 201, { user: await createUser(db, auth.user, req.body) });
     if (req.method === "DELETE") {
-      await removeUser(db, auth.user, req.query?.id);
+      await removeUser(db, auth.user, req.query?.id, new Date(), {directory});
       return send(res, 200, { ok: true });
     }
     return send(res, 405, { error: "Method not allowed." });
