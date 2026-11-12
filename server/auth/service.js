@@ -16,6 +16,10 @@ const SESSION_IDLE_MS = 30 * 60 * 1000;
 const LOCK_WINDOW_MS = 15 * 60 * 1000;
 const SIGN_IN_IP_LIMIT = 20;
 
+function isRevokedAccount(email) {
+  return String(process.env.REVOKED_ACCOUNT_EMAILS || '').split(',').map(value=>value.trim().toLowerCase()).filter(Boolean).includes(String(email || '').trim().toLowerCase());
+}
+
 function digest(value) {
   return createHash("sha256").update(value).digest("hex");
 }
@@ -44,8 +48,8 @@ function publicUser(user) {
 export function getNotificationApprovers() {
   return [
     process.env.HALA_APPROVAL_EMAIL || "hmirza.sd@vision71tech.com",
-    process.env.OSMAN_APPROVAL_EMAIL || "iamalik2005@gmail.com",
-  ].map((e) => e.trim().toLowerCase()).filter(Boolean);
+    process.env.OSMAN_APPROVAL_EMAIL || "zaid.sd@vision71tech.com",
+  ].map((e) => e.trim().toLowerCase()).filter(email=>email && !isRevokedAccount(email));
 }
 
 export function getAdministratorEmails() {
@@ -69,11 +73,10 @@ export function getAdministratorEmails() {
   // granting administrator access to client accounts.
   const builtInAdmins = [
     "hmirza.sd@vision71tech.com",
-    "iamalik2005@gmail.com",
     "zaid.sd@vision71tech.com",
   ];
 
-  return [...new Set([...parsedEnv, ...builtInAdmins])];
+  return [...new Set([...parsedEnv, ...builtInAdmins])].filter(email=>!isRevokedAccount(email));
 }
 
 export function isAdministrator(email) {
@@ -102,7 +105,6 @@ export function getAppPublicUrl() {
 // addresses) do not automatically grant access to client accounts.
 const DEFAULT_APPROVED_EMAILS = [
   "hmirza.sd@vision71tech.com",
-  "iamalik2005@gmail.com",
   "zaid.sd@vision71tech.com",
 ];
 
@@ -215,6 +217,7 @@ export async function signIn(db, { tenantId, idToken, ip, sessionToken, csrfToke
   // Identity and credentials are authenticated strictly through Firebase
   const identity = await firebaseIdentity(idToken);
   const emailLower = identity.email;
+  if (isRevokedAccount(emailLower)) throw authError('ACCOUNT_REJECTED',403,'This account no longer has access.');
 
   const effectiveTenantId = tenantId || process.env.AVENTURE_TENANT_ID || "vision71-internal";
 
@@ -304,7 +307,7 @@ export async function authenticate(db, sessionToken, now = new Date(), touch = t
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
 
-  if (!session.user || session.user.status !== "active" || typeof session.user.uid !== 'string' || !session.user.uid || session.user.uid !== String(session.user.id)) {
+  if (!session.user || isRevokedAccount(session.user.email) || session.user.status !== "active" || typeof session.user.uid !== 'string' || !session.user.uid || session.user.uid !== String(session.user.id)) {
     await db.collection("sessions").deleteOne({ _id: session._id });
     throw authError("UNAUTHENTICATED", 401, "Please sign in.");
   }
@@ -388,6 +391,7 @@ export async function listUsers(db, actor, {directory = readFirebaseDirectory} =
   const protectedEmails = new Set([...administrators, ...administratorSessions.map(item => String(item.user?.email || '').toLowerCase())]);
   const unique = new Map();
   for (const account of accounts) {
+    if (isRevokedAccount(account.email)) continue;
     if (!directoryEmailVisible(account.email, process.env, administrators)) continue;
     const administrator = protectedEmails.has(account.email);
     let status = administrator || approvals.approvedEmails.includes(account.email) ? "active" : "pending_approval";
@@ -395,6 +399,7 @@ export async function listUsers(db, actor, {directory = readFirebaseDirectory} =
     if (!administrator && !isAllowedEmail(account.email)) status = "domain_restricted";
     if (approvals.rejectedEmails.includes(account.email) && !administrator) status = "access_removed";
     if (account.disabled) status = "disabled";
+    if (status !== 'active') continue;
     const user = publicUser({id:account.email, uid:account.uid, email:account.email,
       name:account.name || approvals.pendingApprovals[account.email]?.name || account.email.split("@")[0],
       role:administrator ? "vision71_administrator" : "exhibition_assistant", status, tenantId:actor.tenantId});
@@ -410,6 +415,7 @@ export async function seedAdministrator() {
 export async function registerUser(db, { idToken, now = new Date() }, { notify = sendApprovalRequestEmail, notifyCandidate = sendPendingApprovalEmail } = {}) {
   const identity = await firebaseIdentity(idToken);
   const emailLower = identity.email;
+  if (isRevokedAccount(emailLower)) throw authError('ACCOUNT_REJECTED',403,'This account no longer has access.');
 
   if (!isAllowedAventureEmail(emailLower)) {
     const domainMsg = "Please use an authorized corporate work email.";

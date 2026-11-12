@@ -16,13 +16,14 @@ test("configured client approvers are admins alongside existing and configured a
   const previous = process.env.ADMIN_EMAILS;
   process.env.ADMIN_EMAILS = "existing.admin@aventureaviation.com";
   try {
-    for (const email of [...admins, "hmirza.sd@vision71tech.com", "iamalik2005@gmail.com", "zaid.sd@vision71tech.com", "existing.admin@aventureaviation.com"]) {
+    for (const email of [...admins, "hmirza.sd@vision71tech.com", "zaid.sd@vision71tech.com", "existing.admin@aventureaviation.com"]) {
       assert.ok(getAdministratorEmails().includes(email));
       assert.equal(isAdministrator(email.toUpperCase()), true);
     }
     assert.equal(isAdministrator("not-hala@aventureaviation.com"), false);
     assert.equal(isAdministrator("hala@aventureaviation.com.evil.test"), false);
     assert.equal(isAdministrator("ibrahim@vision71tech.com"), false);
+    assert.equal(isAdministrator('iamalik2005@gmail.com'),false);
   } finally {
     if (previous === undefined) delete process.env.ADMIN_EMAILS;
     else process.env.ADMIN_EMAILS = previous;
