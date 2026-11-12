@@ -13,6 +13,7 @@ export interface SignedInUser {
   role: Role;
   status?: string;
   expiresAt: string | null;
+  canRemove?: boolean;
 }
 
 interface AuthValue {

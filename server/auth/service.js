@@ -1,3 +1,4 @@
+import { readFirebaseDirectory, directoryEmailVisible } from './firebaseDirectory.js';
 import { createHash, randomBytes } from "node:crypto";
 import { firebaseIdentity } from "./firebaseIdentity.js";
 import { requireAction } from "./permissions.js";
@@ -411,72 +412,57 @@ export async function createUser() {
   throw authError("FIREBASE_PROVISIONING_REQUIRED", 409, "User accounts are created and authenticated directly through Firebase.");
 }
 
-export async function removeUser(db, actor, idOrEmail, now = new Date()) {
+export async function removeUser(db, actor, idOrEmail, now = new Date(), {directory = readFirebaseDirectory} = {}) {
   requireAction(actor, "manage_users");
-  const target = String(idOrEmail || "").trim().toLowerCase();
+  const target = String(idOrEmail || "").trim();
   if (!target) throw authError("USER_NOT_FOUND", 404, "Account not found.");
-  if (target === String(actor.email).toLowerCase() || target === String(actor.id)) {
-    throw authError("CANNOT_DELETE_SELF", 400, "You cannot delete your own account.");
-  }
+  if (target === String(actor.id) || target.toLowerCase() === String(actor.email).toLowerCase())
+    throw authError("CANNOT_DELETE_SELF", 400, "You cannot remove your own access.");
+  if (isAdministrator(target)) throw authError("ADMIN_PROTECTED", 403, "Administrator accounts cannot be removed.");
+
+  const accounts = await directory();
+  const account = accounts.find(item => item.uid === target || item.email === target.toLowerCase());
+  if (!account || !directoryEmailVisible(account.email, process.env, getAdministratorEmails()))
+    throw authError("USER_NOT_FOUND", 404, "Account not found.");
+  if (isAdministrator(account.email)) throw authError("ADMIN_PROTECTED", 403, "Administrator accounts cannot be removed.");
+  if (account.uid === String(actor.id) || account.email === String(actor.email).toLowerCase())
+    throw authError("CANNOT_DELETE_SELF", 400, "You cannot remove your own access.");
+  const administratorSession = await db.collection("sessions").findOne({tenantId:actor.tenantId, "user.email":account.email, "user.role":"vision71_administrator"});
+  if (administratorSession) throw authError("ADMIN_PROTECTED", 403, "Administrator accounts cannot be removed.");
 
   const approvals = await getApprovalsDoc(db);
-  approvals.approvedEmails = approvals.approvedEmails.filter((e) => e !== target);
-  delete approvals.pendingApprovals[target];
+  approvals.approvedEmails = approvals.approvedEmails.filter(email => email !== account.email);
+  delete approvals.pendingApprovals[account.email];
+  approvals.rejectedEmails = [...new Set([...approvals.rejectedEmails, account.email])];
   await saveApprovalsDoc(db, approvals);
-
-  await db.collection("sessions").deleteMany({ $or: [{ userId: idOrEmail }, { "user.email": target }] });
-  await writeAudit(db, { tenantId: actor.tenantId, actor, action: "user_removed", recordRef: target, outcome: "success", now });
+  await db.collection("sessions").deleteMany({tenantId:actor.tenantId, $or:[{userId:account.uid}, {"user.email":account.email}]});
+  await writeAudit(db, {tenantId:actor.tenantId, actor, action:"user_removed", recordRef:account.email, outcome:"success", now});
 }
 
-export async function listUsers(db, actor) {
+export async function listUsers(db, actor, {directory = readFirebaseDirectory} = {}) {
   requireAction(actor, "manage_users");
-  const approvals = await getApprovalsDoc(db);
-  const users = [];
-
-  // Admins
-  for (const adminEmail of getDesignatedApprovers()) {
-    users.push({
-      id: adminEmail,
-      uid: adminEmail,
-      email: adminEmail,
-      name: adminEmail.split("@")[0],
-      role: "vision71_administrator",
-      status: "active",
-      tenantId: actor.tenantId,
-    });
+  const [approvals, accounts] = await Promise.all([getApprovalsDoc(db), directory()]);
+  const administrators = getAdministratorEmails();
+  const administratorSessions = await db.collection("sessions").find(
+    {tenantId:actor.tenantId, "user.role":"vision71_administrator"},
+    {projection:{"user.email":1, _id:0}},
+  ).toArray();
+  const protectedEmails = new Set([...administrators, ...administratorSessions.map(item => String(item.user?.email || '').toLowerCase())]);
+  const unique = new Map();
+  for (const account of accounts) {
+    if (!directoryEmailVisible(account.email, process.env, administrators)) continue;
+    const administrator = protectedEmails.has(account.email);
+    let status = administrator || approvals.approvedEmails.includes(account.email) ? "active" : "pending_approval";
+    if (!account.emailVerified) status = "pending_verification";
+    if (!administrator && !isAllowedEmail(account.email)) status = "domain_restricted";
+    if (approvals.rejectedEmails.includes(account.email) && !administrator) status = "access_removed";
+    if (account.disabled) status = "disabled";
+    const user = publicUser({id:account.email, uid:account.uid, email:account.email,
+      name:account.name || approvals.pendingApprovals[account.email]?.name || account.email.split("@")[0],
+      role:administrator ? "vision71_administrator" : "exhibition_assistant", status, tenantId:actor.tenantId});
+    unique.set(account.email, {...user, canRemove:!administrator && account.email !== String(actor.email).toLowerCase() && status !== "access_removed"});
   }
-
-  // Approved Assistants
-  for (const email of approvals.approvedEmails) {
-    if (!users.some((u) => u.email === email)) {
-      users.push({
-        id: email,
-        uid: email,
-        email,
-        name: email.split("@")[0],
-        role: "exhibition_assistant",
-        status: "active",
-        tenantId: actor.tenantId,
-      });
-    }
-  }
-
-  // Pending Assistants
-  for (const [email, info] of Object.entries(approvals.pendingApprovals || {})) {
-    if (!users.some((u) => u.email === email)) {
-      users.push({
-        id: email,
-        uid: email,
-        email,
-        name: info?.name || email.split("@")[0],
-        role: "exhibition_assistant",
-        status: "pending_approval",
-        tenantId: actor.tenantId,
-      });
-    }
-  }
-
-  return users.map(publicUser);
+  return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
 }
 
 export async function seedAdministrator() {
@@ -632,7 +618,7 @@ export async function approveUserByToken(db, { email, token: approvalToken, deci
   return { ok: true, status: "approved", message: `Account for ${userName} (${emailLower}) has been approved successfully.` };
 }
 
-export async function approveUserByAdmin(db, actor, userIdOrEmail, now = new Date()) {
+export async function approveUserByAdmin(db, actor, userIdOrEmail, now = new Date(), {directory = readFirebaseDirectory} = {}) {
   requireAction(actor, "manage_users");
   if (!isDesignatedApprover(actor.email)) {
     throw authError("FORBIDDEN", 403, "Only designated approvers can approve accounts.");
@@ -642,8 +628,12 @@ export async function approveUserByAdmin(db, actor, userIdOrEmail, now = new Dat
   const approvals = await getApprovalsDoc(db);
   const pending = approvals.pendingApprovals[emailLower];
 
+  if (!directoryEmailVisible(emailLower, process.env, getAdministratorEmails()))
+    throw authError("USER_NOT_FOUND", 404, "Account not found.");
   if (!pending && !approvals.approvedEmails.includes(emailLower)) {
-    throw authError("USER_NOT_FOUND", 404, "Pending account not found.");
+    const account = (await directory()).find(item => item.email === emailLower);
+    if (!account || !account.emailVerified || account.disabled || approvals.rejectedEmails.includes(emailLower))
+      throw authError("USER_NOT_FOUND", 404, "A verified pending account was not found.");
   }
 
   const userName = pending?.name || emailLower.split("@")[0];
