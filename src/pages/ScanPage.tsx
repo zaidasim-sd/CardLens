@@ -323,6 +323,9 @@ export default function ScanPage() {
   const [aiClassified, setAiClassified] = useState(false);
   const [rawText, setRawText] = useState("");
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewSession, setReviewSession] = useState(0);
+  const scanGeneration = useRef(0);
+  const openReview = () => {setReviewSession(value=>value+1);setIsReviewModalOpen(true);};
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -357,6 +360,7 @@ export default function ScanPage() {
       setBackFile(file); setBackPreviewUrl(URL.createObjectURL(file));
       setBackData(null); setBackError("");
     } else {
+      scanGeneration.current++;
       setScanError(null); setIsDemoMode(false);
       setSelectedFile(file); setPreviewUrl(URL.createObjectURL(file));
       setOcrData(null); setRawText(""); setAiClassified(false);
@@ -377,7 +381,7 @@ export default function ScanPage() {
 
   const reviewFront = () => {
     if (!ocrData) return;
-    removeBack(); setIsReviewModalOpen(true);
+    removeBack(); openReview();
   };
 
   const processFile = async (file: File) => {
@@ -420,9 +424,10 @@ export default function ScanPage() {
 
   const handleScan = async () => {
     if (!selectedFile || isPreparing || isScanning) return;
+    const generation=++scanGeneration.current;
     setScanError(null); setBackError(""); setIsReviewModalOpen(false); setAiClassified(false);
     setIsScanning(true); setScanProgress(15);
-    const interval = setInterval(() => setScanProgress(p => Math.min(90, p + 12)), 350);
+    const interval = setInterval(() => {if(generation===scanGeneration.current)setScanProgress(p => Math.min(90, p + 12));}, 350);
     try {
       // Read each side independently; the back never overrides front classification.
       // Reuse a successful front read if only the back needs retrying.
@@ -433,6 +438,7 @@ export default function ScanPage() {
           : ocrCard(selectedFile),
         backFile ? ocrCard(backFile) : Promise.resolve(null),
       ]);
+      if(generation!==scanGeneration.current)return;
       if (front.status === "rejected") throw front.reason;
       setOcrData(front.value.parsed); setRawText(front.value.rawText);
       setAiClassified(front.value.classificationUsed === "ai");
@@ -446,12 +452,13 @@ export default function ScanPage() {
         setRawText("FRONT OF CARD:\n" + front.value.rawText + "\n\nBACK OF CARD:\n" + back.value.rawText);
         setAiClassified(front.value.classificationUsed === "ai" || back.value.classificationUsed === "ai");
       }
-      setScanProgress(100); setIsReviewModalOpen(true);
+      setScanProgress(100); openReview();
     } catch (error: unknown) {
+      if(generation!==scanGeneration.current)return;
       const message = error instanceof Error ? error.message : OCR_FAILURE_MESSAGE;
       setScanError(message); toast.error(message);
     } finally {
-      clearInterval(interval); setIsScanning(false); setScanProgress(0);
+      clearInterval(interval); if(generation===scanGeneration.current){setIsScanning(false);setScanProgress(0);}
     }
   };
 
@@ -477,10 +484,12 @@ export default function ScanPage() {
     setAiClassified(false);
     setRawText("");
     setIsDemoMode(false);
-    setIsReviewModalOpen(true);
+    openReview();
   };
 
   const clearSelection = () => {
+    scanGeneration.current++;
+    setIsScanning(false);
     preparationVersion.current++;
     setIsPreparing(false);
     setScanError(null);
@@ -699,6 +708,7 @@ export default function ScanPage() {
       </div>
 
       <OCRReviewModal
+        key={reviewSession}
         isOpen={isReviewModalOpen}
         setIsOpen={(open) => { setIsReviewModalOpen(open); if (!open) clearSelection(); }}
         onDiscardImage={() => {

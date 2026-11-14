@@ -31,5 +31,6 @@ export async function deliverVerifiedProductionContact(db, user, card, deps = {}
 
 export async function submitProductionContact(db, user, input, deps = {}) {
   const record = await (deps.saveSheet || createCard)(db, user, input);
+  if(record.alreadySubmitted)return record;
   return deliverVerifiedProductionContact(db, user, record, deps);
 }

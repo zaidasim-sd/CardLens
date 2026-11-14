@@ -89,7 +89,16 @@ export function toPublic(card) {
   };
 }
 
-export async function findDuplicate(db, user) { requireAction(user, "capture_card"); return null; }
+export async function findDuplicate(db, user, data, _excludingId, options={}) {
+  requireAction(user,'capture_card');
+  const {exactEmailDuplicate,normalizedContactEmail}=await import('./sheetDuplicates.js');
+  const email=normalizedContactEmail(data?.email);
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return null;
+  const {createSheetGateway}=await import('../integrations/sheetService.js');
+  const gateway=options.gateway||createSheetGateway(options.env||process.env);
+  if(!gateway)throw Object.assign(new Error('The existing register could not be checked. Review this card before submitting.'),{status:503,code:'SHEET_NOT_CONFIGURED'});
+  return exactEmailDuplicate(await gateway.readAll(),email);
+}
 export async function matchingCards() { return []; }
 export async function createCard(db, user, input, now = new Date(), options = {}) { return submitDirect(db, user, input, now, options); }
 export async function listCards(db, user) {

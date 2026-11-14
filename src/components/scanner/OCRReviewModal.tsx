@@ -120,15 +120,17 @@ export default function OCRReviewModal({
 }: Props) {
   const navigate = useNavigate();
   const submissionId = useRef(crypto.randomUUID());
-  const reviewInitialized = useRef(false);
+  const mounted = useRef(true);
   const [submissionFailure, setSubmissionFailure] = useState<{message:string; reference:string; retrySafe:boolean} | null>(null);
   const isSubmittingLock = useRef(false);
+  const submissionFinished = useRef(false);
   const initializedData = useRef<OCRData | null | undefined>(undefined);
   const exhibitionEdited = useRef(false);
 
   const [isSaving, setIsSaving] = useState(false);
   const [savedRecord, setSavedRecord] = useState<ContactRecord | null>(null);
   const [retryingTransfer, setRetryingTransfer] = useState(false);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const sharedExhibition = useExhibitionSession(isOpen);
   const [exhibitionOptions, setExhibitionOptions] = useState<ExhibitionOption[]>([
     { label: "Select exhibition", value: "" },
@@ -185,9 +187,6 @@ export default function OCRReviewModal({
     if (initializedData.current === ocrData) return;
     initializedData.current = ocrData;
     exhibitionEdited.current = false;
-    if (!isOpen) { reviewInitialized.current = false; return; }
-    if (reviewInitialized.current) return;
-    reviewInitialized.current = true;
     if (isOpen) {
       const defaultExhibition = reviewExhibitionDefault({session:sharedExhibition.config?.session,recordValue:ocrData?.meetingContext?.metAtLocation,fallback:sharedExhibition.config?.defaultExhibition || getDefaultExhibition() || exhibitionOptions.find((o)=>o.value)?.value || ''});
 
@@ -204,12 +203,31 @@ export default function OCRReviewModal({
       setPreviewSide("front");
       submissionId.current = crypto.randomUUID();
       setSavedRecord(null);
+      submissionFinished.current=false;
       setSubmissionFailure(null);
       setDuplicateMatch(null);
+      setIsDuplicateModalOpen(false);
+      setIsExistingContactOpen(false);
+      setRetryingTransfer(false);
       setIsSaving(false);
       isSubmittingLock.current = false;
     }
   }, [isOpen, ocrData, reset, exhibitionOptions, sharedExhibition.config]);
+
+  // Only an exact email match read from the register can bypass a fresh review.
+  useEffect(()=>{
+    const email=String(ocrData?.email||'').trim().toLowerCase();
+    if(!isOpen||!email||!email.includes('@'))return;
+    let cancelled=false;
+    void checkDuplicateContact(ocrData!).then(result=>{
+      const record=result.matchedRecord;
+      if(cancelled||!mounted.current||submissionFinished.current||isSubmittingLock.current||!result.isDuplicate||!record?.alreadySubmitted||record.sheetStatus!=='submitted')return;
+      if(String(record.verifiedData.email||'').trim().toLowerCase()!==email||String(getValues('email')||'').trim().toLowerCase()!==email)return;
+      submissionFinished.current=true;
+      setSavedRecord(record);
+    }).catch(()=>{/* A failed lookup leaves the editable review form open. */});
+    return()=>{cancelled=true;};
+  },[isOpen,ocrData,getValues]);
 
   // Loading exhibition options must not reset details the user has already checked.
   useEffect(() => {
@@ -237,17 +255,21 @@ export default function OCRReviewModal({
         source: isManual ? "manual" : "ocr",
         allowDuplicate,
       });
+      if(!mounted.current)return;
+      submissionFinished.current=true;
       setSavedRecord(record);
       setSubmissionFailure(null);
       submissionId.current = crypto.randomUUID();
       onDiscardImage();
-      if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
+      if(record.alreadySubmitted){toast.info('This email was already submitted. No new row or Constant Contact request was created.');}
+      else if (["failed", "pending", "not_configured"].includes(record.sheetStatus || "")) {
         toast.warning(`Contact recorded. ${record.sheetError?.message || "Delivery to the review register is pending; do not submit another copy."}`);
       } else {
         if (record.constantContactIntegration && record.transferStatus !== 'transferred') toast.warning('Saved to Google Sheets. Check the separate Constant Contact delivery status.');
         else toast.success("Your contact has been submitted for review.");
       }
     } catch (error: any) {
+      if(!mounted.current)return;
       if (error.code === "DUPLICATE_FOUND" && error.duplicate) {
         setDuplicateMatch({ record: error.duplicate, reason: error.duplicate.matchReason || "A possible matching record was found while saving.", pendingVerifiedData: verifiedData });
         setIsDuplicateModalOpen(true);
@@ -451,11 +473,11 @@ export default function OCRReviewModal({
 
               <div className="space-y-1 max-w-sm mx-auto">
                 <h3 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">
-                  Your contact has been submitted for review.
+                  {savedRecord.alreadySubmitted?'This email has already been submitted for review.':'Your contact has been submitted for review.'}
                 </h3>
                 {savedRecord.recordId?.startsWith("L71-") && <p className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">Reference: {savedRecord.recordId}</p>}
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Your contact will appear in the review register. Capture date, time, and user account have been recorded automatically.
+                  {savedRecord.alreadySubmitted?'Showing the existing register entry for this exact email. No new submission was made.':'Your contact will appear in the review register. Capture date, time, and user account have been recorded automatically.'}
                 </p>
               </div>
 
